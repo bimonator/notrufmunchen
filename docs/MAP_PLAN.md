@@ -1,7 +1,20 @@
-# Notruf München – Map-Plan v0.1
+# Notruf München – Map-Plan v0.2
 
 Roblox-Einsatzspiel (Polizei / Feuerwehr / Rettungsdienst) in München, Vorbild-Prinzip: Notruf Hamburg.
 Grundlage: `docs/map_sketch.png` (Paint-Skizze). Alle Koordinaten unten sind aus der Skizze abgeleitet.
+
+## 0. Beschlossen (Stand v0.2)
+
+| Thema | Entscheidung |
+|---|---|
+| Fokus | Nur die **Map** planen/bauen. Polizei/Feuerwehr/Rettung (Abschnitt 6) sind **zurückgestellt**. |
+| Hofgarten | Wird **am Odeonsplatz** platziert (Ostseite), nicht oben rechts. |
+| Marienplatz/Frauenkirche | **Wie in der Skizze** (SW, Kreisel) – Spielbarkeit vor Geografie. |
+| Allianz Arena | **Nur Kulisse** hinter der Nordgrenze, nicht betretbar. |
+| Starbucks / P1 / Filmcasino | Gleiche Orte, gleicher Vibe, aber **erfundene Namen, keine Logos** (Abschnitt 7). |
+| Englischer Garten | Braun-graue Formen = nur **Wege**. Enthält Wiesen, **Monopteros**, Schwabinger Bach mit kleiner **Fußgängerbrücke**. Details später. |
+| Tag/Nacht | **Ja**, Verhältnis **60 % Tag / 40 % Nacht** (Abschnitt 8). |
+| Zielplattform | **PC zuerst**, Mobile zweitrangig. Optimierung später. |
 
 ## 1. Koordinatensystem & Größe
 
@@ -19,23 +32,24 @@ Grundlage: `docs/map_sketch.png` (Paint-Skizze). Alle Koordinaten unten sind aus
 | Ludwigstraße (Fortsetzung Süd) | gleiche Achse | X≈0, Z 0…+460 | Hauptstraße Süd, Uni |
 | Frauenkirche + Marienplatz (Kreisel, oranges Dach) | unten links | (−550, +254) | Landmark + Platz im Kreisel |
 | Odeonsplatz | unterer Kartenrand an der Achse | (0, +400…+460) | Mapende Süd, Filmcasino-Club, Starbucks-Ersatz |
-| Hofgarten (grüner Kasten, Pavillon in der Mitte) | oben rechts | (+420, −312) | Park, 8 Wege strahlenförmig |
+| Hofgarten (grüner Kasten, Pavillon in der Mitte) | **verschoben** an den Odeonsplatz (Ost) | (+260, +290), ca. 375 × 330 | Park, 8 Wege strahlenförmig |
+| Freigewordene Fläche NO (alter Hofgarten-Platz) | oben rechts | (+420, −312) | Wohn-/Gründerzeitblöcke Schwabing, Platz für spätere Wachen |
 | Isar (breites Blau) | rechts, NO→SW | X≈+700…+1100 | Fluss, Hauptwasser |
 | Schwabinger Bach (dünnes Blau) | links neben der Isar | X≈+650…+700 | Bach im Englischen Garten |
-| Englischer Garten (grün gepunktet) | rechts Mitte | (+450…+720, +0…+300) | Park |
+| Englischer Garten (grün gepunktet) | rechts Mitte | (+520…+720, 0…+300) | Park: Wiesen, Wege, Monopteros, Bach mit Fußgängerbrücke |
 | Eisbachwelle + Brücke + P1 | Brücke unten rechts | (+650, +404) | Surfer-Spot, Aussichtsbrücke, Club |
 | Allianz Arena | oben links, außerhalb | (−265, −632) | **nur Kulisse** hinter der Mapgrenze |
 | Außenring-Straße + Häuserwand | Rahmen | Kartenrand | Mapgrenze |
 
-**Offen (bitte bestätigen):** Die braun-graue Form im Englischen Garten (≈ (+590, +120)) – Hügel/Monopteros, Wiese oder etwas anderes?
+Braun-graue Form im Englischen Garten (≈ (+590, +120)): nur Wege. Der **Monopteros** (Hügel mit Rundtempel) kommt trotzdem dorthin, Details später.
 
 ## 3. Geografie-Check (Skizze vs. Realität)
 
 | Punkt | Realität | Skizze | Empfehlung |
 |---|---|---|---|
 | Siegestor → Odeonsplatz | ~1 km, Ludwigstraße mit Uni | ~700 Studs, passt grob | so lassen |
-| Marienplatz relativ zu Odeonsplatz | **südlich** davon (~0,6 km) | **nördlich** (Z +254 vs. +460) | Kompromiss: Marienplatz an die SW-Ecke, Odeonsplatz am Südende der Achse; Spielspaß > Genauigkeit (~90 % der Spieler merken es nicht) |
-| Hofgarten | direkt **neben dem Odeonsplatz** (Ost) | oben rechts, weit weg | Variante A: wie gezeichnet (mehr Fläche im NO). Variante B: realistisch an den Odeonsplatz (Dichte im Süden steigt) → **Empfehlung B**, weil sonst der NO-Bereich leer wirkt und der Süden zu kahl |
+| Marienplatz relativ zu Odeonsplatz | **südlich** davon (~0,6 km) | **nördlich** (Z +254 vs. +460) | **Beschlossen:** wie Skizze (Spielspaß > Genauigkeit, ~90 % der Spieler merken es nicht) |
+| Hofgarten | direkt **neben dem Odeonsplatz** (Ost) | oben rechts, weit weg | **Beschlossen:** an den Odeonsplatz verschoben |
 | Eisbachwelle / P1 | SO, an der Prinzregentenstraße, Südende Englischer Garten | unten rechts | passt |
 | Allianz Arena | ~8 km nördlich | oben links | Kulisse/Skybox, nicht spielbar |
 | Isar | östlich | rechts | passt |
@@ -72,18 +86,19 @@ Ladenzeile beidseitig, Z −400…−40, ~20 Gebäude pro Seite:
 
 ### 5.5 Hofgarten
 - Quadratischer Park, Mittelpavillon (Diana-Tempel), 8 Wege strahlenförmig, Arkaden an 2 Seiten
-- Einsätze: Verletzte, Vermisste Kinder, Fahrraddiebstahl
+- Liegt direkt östlich des Odeonsplatzes, Zugang über die Straße am Platz
 
 ### 5.6 Isar / Englischer Garten / Eisbachwelle
 - Isar: Flussbett 80–120 Studs breit, Kiesbänke, Brücken NO + S
-- Schwabinger Bach: schmal (10–15 Studs), Wiesen, Wege
+- Schwabinger Bach: schmal (10–15 Studs), Wiesen, Wege, **kleine Fußgängerbrücke** (begehbar, ~20 Studs lang)
+- Monopteros: Rundtempel auf kleinem Hügel (~15 Studs hoch), Wiese außenrum
 - **Eisbachwelle:** stehende Welle (animierte Wasserfläche, Surfer-NPCs), **Aussichtsbrücke** darüber mit Zuschauern → Einsatz: Surfer in Not, Wasserrettung
 - **P1 (Club):** neben der Brücke, Schlange vor Eingang, Türsteher-NPC, Treffpunkt für Spieler (Social-Hub)
 
 ### 5.7 Allianz Arena (Kulisse)
 - Als Mesh hinter der Nordgrenze, ~1:3 skaliert, beleuchtete Hülle. Nicht betretbar → spart ~10 % Aufwand.
 
-## 6. Einsatz-Infrastruktur (Vorschlag – nicht in der Skizze)
+## 6. Einsatz-Infrastruktur (**zurückgestellt**, nur Ideensammlung)
 
 | Wache | Platz (Studs) | Begründung |
 |---|---|---|
@@ -98,10 +113,10 @@ Einsatztypen pro Ort: Verkehrsunfall (Leopoldstraße), Brandmeldung (Shisha-Bar)
 
 | Element | Risiko | Plan |
 |---|---|---|
-| Starbucks | **hoch** (Marke + Logo; Roblox-Takedown/Marken-Meldung wahrscheinlich, grob **50–70 %** bei 1:1-Nachbau) | Generische Kaffeekette „Kaffeehaus Odeon", grüne Schürzen ok, Logo/Name erfunden |
-| P1 | mittel (realer Clubname) | Anspielung: „P-Eins" / „Prinz 1" oder eigener Name, ähnliche Lage + Architektur |
-| Filmcasino | niedrig–mittel (realer Name) | z. B. „Kino Casino Odeon" oder ganz erfunden |
-| Allianz (Arena) | mittel (Namensrecht Sponsor) | „München Arena" / „Fröttmaninger Arena", Hülle nur als Form |
+| Starbucks | **hoch** (Marke + Logo; Roblox-Takedown/Marken-Meldung wahrscheinlich, grob **50–70 %** bei 1:1-Nachbau) | Platzhalter: **„Kaffeehaus Odeon"**. Kein Logo, keine Sirene, kein typisches Becher-Design. Stattdessen eigenes Logo (z. B. Kaffeebohne). |
+| P1 | mittel (realer Clubname) | Platzhalter: **„Prinz Eins"**. Gleiche Lage (an der Eisbachbrücke), eigene Fassade/Schrift. |
+| Filmcasino | niedrig–mittel (realer Name) | Platzhalter: **„Casino Odeon"**. Club am Odeonsplatz, eigener Schriftzug. |
+| Allianz (Arena) | mittel (Namensrecht Sponsor) | Platzhalter: **„München Arena"**. Hülle als Form, kein Allianz-Schriftzug. |
 | Frauenkirche, Siegestor, Feldherrnhalle | niedrig (Gebäude, Außenansicht) | originalgetreu bauen ok |
 | Shops/Bars Leopoldstraße | – | nur erfundene Namen (dein Wunsch ✔) |
 
@@ -109,8 +124,10 @@ Zahlen sind Schätzungen, keine Rechtsberatung. Nur dann prüfen lassen, wenn mo
 
 ## 8. Technik (Roblox)
 
-- **StreamingEnabled** an (Pflicht bei 1900 × 1050 Studs mit Detail).
-- Performance-Ziel: **< 80k Parts** im Streaming-Radius (grobe Schätzung für stabile 60 FPS auf Mittelklasse-Handys; Messung nötig).
+- **PC zuerst**, Mobile zweitrangig. Performance ist **vorerst kein Ziel**; Optimierung folgt nach dem Bau.
+- **StreamingEnabled** trotzdem früh an lassen (spart später Umbau bei 1900 × 1050 Studs mit Detail).
+- **Tag/Nacht 60/40:** Zyklus z. B. **20 min** = **12 min Tag** (`ClockTime` 6 → 18, 1 Spielstunde/min) + **8 min Nacht** (18 → 6, 1,5 Spielstunden/min). Dämmerung liegt innerhalb dieser Zeiten. Zyklusdauer ist ein Wert in einem Script, später leicht änderbar.
+- Nachts an: Straßenlaternen, Lichterketten Terrassen-Café, Club-Neon (Prinz Eins, Casino Odeon), Schaufenster, Fahrzeuglichter, beleuchtete München Arena.
 - Landmarks als **MeshParts** (Blender), Rest modulare Häuserteile (Tiling).
 - Fassaden-Bausatz: 6–8 Haustypen (Gründerzeit, Neoklassik, Moderne) × 3 Farbvarianten → Straßen wirken verschieden mit ~25 % der Arbeit.
 - Collision: Fassaden `CanCollide` nur auf EG-Höhe, Rest `CanQuery=false`.
@@ -124,14 +141,14 @@ Zahlen sind Schätzungen, keine Rechtsberatung. Nur dann prüfen lassen, wenn mo
 | 2 | Landmarks: Siegestor, Frauenkirche, Feldherrnhalle | 20 % |
 | 3 | Leopoldstraße-Ladenzeile + Univiertel-Café | 20 % |
 | 4 | Parks: Hofgarten, Englischer Garten, Eisbachwelle, P1 | 15 % |
-| 5 | Wachen, Fahrzeuge, Einsatz-Skripte | 15 % |
+| 5 | (zurückgestellt) Wachen, Fahrzeuge, Einsatz-Skripte | 15 % |
 | 6 | Beleuchtung/Tageszeit, Audio, Polish, Test | 5 % |
 
 ## 10. Offene Fragen
 
-1. Braun-graue Form im Englischen Garten: was ist das?
-2. Hofgarten: Variante A (wie gezeichnet) oder B (am Odeonsplatz)?
-3. Marienplatz-Position: Skizze lassen oder Odeonsplatz/Marienplatz tauschen?
-4. Zeitraum: nur Tag, oder Tag/Nacht-Zyklus (für Cocktail-Café-Vibe nötig)?
-5. Spielmodi: Polizei + Feuerwehr + Rettungsdienst, oder nur eine Fraktion zuerst?
-6. Namen für Starbucks-/P1-/Filmcasino-Ersatz?
+Alle Fragen aus v0.1 sind beantwortet (siehe Abschnitt 0). Noch offen:
+
+1. Sind die Platzhalter-Namen (Kaffeehaus Odeon, Prinz Eins, Casino Odeon, München Arena) ok oder willst du eigene?
+2. Zyklusdauer 20 min (12 Tag / 8 Nacht) ok, oder kürzer/länger?
+3. Maßstab (1 px = 1,5 Studs) mit einem Test-Fahrzeug im Studio prüfen, bevor Phase 1 startet.
+4. Nächster Schritt: Phase 1 (Terrain, Isar, Hauptstraßen) im Detail planen?
