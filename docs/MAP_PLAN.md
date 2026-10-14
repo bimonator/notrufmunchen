@@ -15,6 +15,9 @@ Grundlage: `docs/map_sketch.png` (Paint-Skizze). Alle Koordinaten unten sind aus
 | Englischer Garten | Braun-graue Formen = nur **Wege**. Enthält Wiesen, **Monopteros**, Schwabinger Bach mit kleiner **Fußgängerbrücke**. Details später. |
 | Tag/Nacht | **Ja**, Verhältnis **60 % Tag / 40 % Nacht** (Abschnitt 8). |
 | Zielplattform | **PC zuerst**, Mobile zweitrangig. Optimierung später. |
+| Isar | **Schwimmbar** (80 breit, 6 tief). |
+| Straßenbreiten | **Fahrspur 14 Studs** (Roblox-Auto passt mit Luft), Gesamtbreite Achse 96, alle anderen 48. Details in `docs/phase1_bauplan.html`. |
+| Fußgängerzone Marienplatz | **Für Einsatzfahrzeuge befahrbar** (40 breit, Poller mit 20 Studs Lücke). |
 
 ## 1. Koordinatensystem & Größe
 
@@ -56,7 +59,7 @@ Braun-graue Form im Englischen Garten (≈ (+590, +120)): nur Wege. Der **Monopt
 
 ## 4. Straßennetz
 
-- **Achse:** Leopoldstraße/Ludwigstraße, 4 Fahrspuren + Mittelstreifen (Doppellinie in der Skizze), Bäume am Rand.
+- **Achse:** Leopoldstraße/Ludwigstraße, 4 Fahrspuren à 14 + Mittelstreifen 12 + Gehwege 14, gesamt 96, Bäume am Rand.
 - **NW-Raster (Schwabing):** 2 Längs- + 2 Querstraßen, Blöcke ca. 200 × 150 Studs.
 - **Diagonale NO→Siegestor-Bereich:** Verbindung Richtung Hofgarten/Isarbrücke.
 - **Südliche Querstraße (unten):** verbindet Marienplatz-Kreisel, Odeonsplatz und Eisbachbrücke.
