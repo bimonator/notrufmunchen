@@ -32,7 +32,7 @@ Grundlage: `docs/map_sketch.png` (Paint-Skizze). Alle Koordinaten unten sind aus
 | Ludwigstraße (Fortsetzung Süd) | gleiche Achse | X≈0, Z 0…+460 | Hauptstraße Süd, Uni |
 | Frauenkirche + Marienplatz (Kreisel, oranges Dach) | unten links | (−550, +254) | Landmark + Platz im Kreisel |
 | Odeonsplatz | unterer Kartenrand an der Achse | (0, +400…+460) | Mapende Süd, Filmcasino-Club, Starbucks-Ersatz |
-| Hofgarten (grüner Kasten, Pavillon in der Mitte) | **verschoben** an den Odeonsplatz (Ost) | (+260, +290), ca. 375 × 330 | Park, 8 Wege strahlenförmig |
+| Hofgarten (grüner Kasten, Pavillon in der Mitte) | **verschoben** an den Odeonsplatz (Ost) | (+230, +195), ca. 340 × 190 (an Ring und Odeonsplatz angepasst, Details in docs/phase1_bauplan.html) | Park, 8 Wege strahlenförmig |
 | Freigewordene Fläche NO (alter Hofgarten-Platz) | oben rechts | (+420, −312) | Wohn-/Gründerzeitblöcke Schwabing, Platz für spätere Wachen |
 | Isar (breites Blau) | rechts, NO→SW | X≈+700…+1100 | Fluss, Hauptwasser |
 | Schwabinger Bach (dünnes Blau) | links neben der Isar | X≈+650…+700 | Bach im Englischen Garten |
