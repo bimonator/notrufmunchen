@@ -9,6 +9,17 @@ Baut Reihenhaus-Blockränder im Schwabing-Raster per Code. Geometrie und Roblox-
 | `HouseGenerator/Builder.lua` | Erzeugt daraus Roblox-`Part`s | **nein**, nur im Studio testbar |
 | `HouseGenerator/Run.lua` | Einstieg für die Command Bar | **nein**, nur im Studio testbar |
 | `tests/planner_test.lua` | 6 Prüfgruppen (Maße, Überlappung, Eckhäuser, Determinismus) | – |
+| `tests/bundle_smoke_test.py` | Lässt Builder/Run gegen eine Roblox-Attrappe laufen (fängt Tippfehler und nil-Zugriffe) | ja, aber nur gegen die Attrappe |
+
+## Schnelltest im Studio (2 Minuten)
+
+1. Studio öffnen, Vorlage **Baseplate** wählen (Oberkante Y = 0, passt zu den Häusern).
+2. In `ServerScriptService` ein **Script** anlegen, den gesamten Inhalt von `HouseGenerator_QuickTest.lua` einfügen.
+3. Oben auf **Run** klicken (nicht Play). Im Output erscheint `B_NordMitte: 18 Häuser, 867 Teile`.
+4. Im Explorer `Workspace > Map > Gebaeude > B_NordMitte` anklicken und **F** drücken, dann mit der Kamera umsehen (Block B liegt bei x −430…−264, z −448…−314).
+5. Stoppen: die Häuser verschwinden wieder, das ist beim Schnelltest gewollt. Für dauerhaftes Bauen siehe „Einrichten im Studio".
+
+Im Script oben steht `ONLY = { "B_NordMitte" }`. Mit `nil` statt der Liste werden alle drei Blöcke gebaut (64 Häuser). Die Datei wird mit `python3 make_quicktest.py` aus den Modulen neu erzeugt.
 
 ## Was gebaut wird
 

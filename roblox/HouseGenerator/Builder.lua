@@ -55,12 +55,16 @@ end
 
 -- Eigener Ordner Workspace.Map.Gebaeude.<Blockname>; ein vorhandener Ordner wird ersetzt (neu bauen möglich).
 function Builder.container(blockName)
-	local map = Workspace:FindFirstChild("Map") or Instance.new("Folder")
-	map.Name = "Map"
-	map.Parent = Workspace
-	local all = map:FindFirstChild("Gebaeude") or Instance.new("Folder")
-	all.Name = "Gebaeude"
-	all.Parent = map
+	local function folder(parent, name)
+		local f = parent:FindFirstChild(name)
+		if not f then
+			f = Instance.new("Folder")
+			f.Name = name
+			f.Parent = parent
+		end
+		return f
+	end
+	local all = folder(folder(Workspace, "Map"), "Gebaeude")
 	local old = all:FindFirstChild(blockName)
 	if old then old:Destroy() end
 	local folder = Instance.new("Folder")
