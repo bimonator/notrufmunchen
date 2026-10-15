@@ -14,6 +14,7 @@ Grundlage: `docs/map_sketch.png` (Paint-Skizze). Alle Koordinaten unten sind aus
 | Starbucks / P1 / Filmcasino | Gleiche Orte, gleicher Vibe, aber **erfundene Namen, keine Logos** (Abschnitt 7). |
 | Englischer Garten | Braun-graue Formen = nur **Wege**. Enthält Wiesen, **Monopteros**, Schwabinger Bach mit kleiner **Fußgängerbrücke**. Details später. |
 | Tag/Nacht | **Ja**, Verhältnis **60 % Tag / 40 % Nacht** (Abschnitt 8). |
+| Friedensengel | Am Ostende der **Luitpoldbrücke** (Prinzregentenstraße), nicht an der Maximilianbrücke (liegt außerhalb der Map). |
 | Zielplattform | **PC zuerst**, Mobile zweitrangig. Optimierung später. |
 | Isar | **Schwimmbar** (80 breit, 6 tief). |
 | Straßenbreiten | **Fahrspur 14 Studs** (Roblox-Auto passt mit Luft), Gesamtbreite Achse 96, alle anderen 48. Details in `docs/phase1_bauplan.html`. |
@@ -41,6 +42,7 @@ Grundlage: `docs/map_sketch.png` (Paint-Skizze). Alle Koordinaten unten sind aus
 | Schwabinger Bach (dünnes Blau) | links neben der Isar | X≈+650…+700 | Bach im Englischen Garten |
 | Englischer Garten (grün gepunktet) | rechts Mitte | (+520…+720, 0…+300) | Park: Wiesen, Wege, Monopteros, Bach mit Fußgängerbrücke |
 | Eisbachwelle + Brücke + P1 | Brücke unten rechts | (+650, +404) | Surfer-Spot, Aussichtsbrücke, Club |
+| Friedensengel + Luitpoldbrücke (B3) | Ostende der Südbrücke | Engel (+945, +292), Brücke Z +410 | Landmark, 90 Studs hoch, Terrasse +12 mit Kaskaden |
 | Allianz Arena | oben links, außerhalb | (−265, −632) | **nur Kulisse** hinter der Mapgrenze |
 | Außenring-Straße + Häuserwand | Rahmen | Kartenrand | Mapgrenze |
 
