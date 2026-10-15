@@ -94,3 +94,9 @@ Das Plugin legt beim Bauen ein Script `AmpelSteuerung` in ServerScriptService an
 - **Fußgängerampeln** am Siegestor: 12 s grün, 28 s rot.
 
 Das Test-Script `MapBuilder_Script.lua` startet die Steuerung direkt nach dem Bauen.
+
+## Offen / Backlog
+
+- **Siegestor und Friedensengel:** mehr Detail (Reliefs, Kapitell, Engel mit Gewand, Quadriga, Wasserspiele), bewusst später.
+- **Tore der Feuerwache** (`FireGate`) und **Schranken der Polizei** (`Schranke`, Attribut `Offen`) sind Modelle ohne Skript; das Öffnen und Schließen kommt mit den Einsatz-Skripten. Fahrzeug-Spawnflächen tragen den Tag `VehicleSpawn` (Attribut `Team`).
+- Café (wartet auf Foto), Straßenschilder, Straßennamen, Bäume, Frauenkirche.

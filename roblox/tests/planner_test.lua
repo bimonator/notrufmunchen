@@ -161,7 +161,7 @@ for _, block in ipairs(Blocks) do
 		local lane = block.reserved[1] -- Zufahrt zur Tankstelle bleibt frei
 		for _, h in ipairs(plan.houses) do
 			local x0, _, z0, x1, _, z1 = Planner.aabb(bodyOf(h))
-			check(not (x0 < lane[3] and x1 > lane[1] and z0 < lane[4] and z1 > lane[2]), tag .. h.name .. " versperrt die Tankstellen-Zufahrt")
+			check(not (x0 < lane[3] - 0.05 and x1 > lane[1] + 0.05 and z0 < lane[4] - 0.05 and z1 > lane[2] + 0.05), tag .. h.name .. " steht vor der Tankstelle")
 		end
 	end
 	-- 8. Rückseiten haben Fenster und eine Hintertür
@@ -188,13 +188,16 @@ do
 			sp.name .. " hat nicht die geplante Grundfläche: " .. x0 .. "," .. z0 .. "," .. x1 .. "," .. z1)
 		plans[#plans + 1] = { sp = sp, b = b }
 	end
-	for _, pl in ipairs(plans) do -- Tankstelle: Schirm und Shop liegen auf dem Grundstück, die Zufahrt trifft es auf Höhe der Schirmmitte
+	for _, pl in ipairs(plans) do -- Tankstelle: Schirm 68 breit, Shop schließt an die schmale Seite an, zwei Einfahrten zur Straße
 		local sp = pl.sp
 		if sp.lot then
 			local c = sp.canopy
+			check(c[3] - c[1] >= 66, "Schirm nicht doppelt so breit: " .. (c[3] - c[1]))
 			check(c[1] >= sp.lot[1] and c[3] <= sp.lot[3] and c[2] >= sp.lot[2] and c[4] <= sp.lot[4], "Schirm außerhalb des Grundstücks")
 			check(sp.x0 >= sp.lot[1] and sp.x1 <= sp.lot[3] and sp.z0 >= sp.lot[2] and sp.z1 <= sp.lot[4], "Shop außerhalb des Grundstücks")
-			check(sp.lotGap[1] >= sp.lot[2] and sp.lotGap[2] <= sp.lot[4] and (sp.lotGap[1] + sp.lotGap[2]) / 2 == (c[2] + c[4]) / 2, "Zufahrt nicht mittig zum Schirm")
+			check(math.abs(sp.z0 - c[4]) < 0.01 and sp.x0 == c[1] and sp.x1 == c[3], "Shop schließt nicht an die schmale Seite des Schirms an")
+			check(#sp.curbGaps == 2 and sp.curbGaps[1][2] - sp.curbGaps[1][1] >= 28 and sp.curbGaps[2][2] - sp.curbGaps[2][1] >= 28, "Einfahrten zu schmal")
+			check(sp.lot[1] <= 58, "Grundstück liegt nicht an der Straße")
 		end
 	end
 	for i = 1, #plans do
@@ -217,7 +220,7 @@ do
 	local wache = parts("Feuer-und-Rettungswache")
 	check(count(wache, "Pfeiler") == 10, "Wache: 4 Tore vorn und hinten = 10 Pfeiler, ist " .. count(wache, "Pfeiler"))
 	check(string.find(texts(wache), "FEUERWACHE", 1, true) and string.find(texts(wache), "RETTUNGSWACHE", 1, true), "Wache: Schrift fehlt")
-	check(count(wache, "TopBlock") == 1 and count(wache, "Ground") == 1, "Wache: Kopfbau/Halle fehlt")
+	check(count(wache, "TopBlock") == 1 and count(wache, "Hallenboden") == 1, "Wache: Kopfbau/Halle fehlt")
 	local pol = parts("Polizeiwache")
 	check(string.find(texts(pol), "POLIZEI", 1, true) ~= nil and count(pol, "PolizeiSchild") == 1, "Polizei: Schild fehlt")
 	local l, r
@@ -226,13 +229,32 @@ do
 		if p.name == "GroundR" then r = p end
 	end
 	check(l and r and math.abs((r.lpos[1] - r.size[1] / 2) - (l.lpos[1] + l.size[1] / 2) - 14) < EPS, "Polizei: Durchfahrt nicht 14 breit")
+	local tank = parts("Tankstellen-Shop")
+	local glass, white = 0, 0
+	for _, p in ipairs(tank) do
+		if p.name == "ShopGlas" then glass = glass + 1 end
+		if p.name == "ShopHinterwand" and p.color[1] == 250 then white = white + 1 end
+		check(not (p.color[3] > 150 and p.color[3] > p.color[1] + 40 and p.name:find("Shop", 1, true)), "Shop darf nicht blau sein: " .. p.name)
+	end
+	check(glass >= 4 and white == 1, "Shop: Glasfront/weiße Wände fehlen")
+	local gates = 0
+	for _, p in ipairs(wache) do
+		if p.tag == "FireGate" then gates = gates + 1 check(not p.collide, "Tor kollidiert") end
+	end
+	check(gates >= 8 * 5, "Wache: Tore " .. gates)
+	local arms, spawns = 0, 0
+	for _, p in ipairs(pol) do
+		if p.tag == "Schranke" then arms = arms + 1 end
+		if p.tag == "VehicleSpawn" then spawns = spawns + 1 end
+	end
+	check(arms == 8 and spawns == 4, "Polizeihof: Schranken-Arme " .. arms .. ", Spawns " .. spawns)
 	local klinik = parts("Krankenhaus")
 	check(count(klinik, "Glasturm") == 1 and string.find(texts(klinik), "KLINIKUM", 1, true) ~= nil, "Klinikum: Glasturm/Schrift fehlt")
 	check(count(klinik, "Geschossplatte") == 8, "Klinikum: 4 Geschossplatten je Seite, ist " .. count(klinik, "Geschossplatte"))
 	for _, ps in ipairs({ wache, pol, klinik }) do
 		for _, p in ipairs(ps) do
 			local _, y0, _, _, y1 = Planner.aabb(p)
-			check(y1 <= 90 and y0 >= 0.5, p.name .. " Höhe " .. y0 .. ".." .. y1)
+			check(y1 <= 90 and y0 >= -0.5, p.name .. " Höhe " .. y0 .. ".." .. y1)
 		end
 	end
 end

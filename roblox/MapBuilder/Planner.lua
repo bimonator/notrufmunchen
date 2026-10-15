@@ -287,7 +287,7 @@ local function planSides(name, sides, o, rng, plan, depth)
 		local idx = 0
 		for ri, range in ipairs(ranges) do
 			local len = range[2] - range[1]
-			if len >= 12 then
+			if len >= 24 then -- kürzere Lücken bleiben frei (Mindesthausbreite 24)
 				local n = math.max(1, math.floor(len / o.targetWidth))
 				local widths = splitWidths(len, n, rng)
 				local t = range[1]
@@ -372,6 +372,33 @@ function Planner.planBlock(block, opts)
 		{ name = "W", yaw = 90, sx = xmin + s, sz = zmax - s - D, ux = 0, uz = -1, len = (zmax - zmin) - 2 * s - 2 * D, corners = false },
 		{ name = "E", yaw = 270, sx = xmax - s, sz = zmin + s + D, ux = 0, uz = 1, len = (zmax - zmin) - 2 * s - 2 * D, corners = false },
 	}
+	-- Reservierte Flächen (Sonderbauten) sparen Abschnitte der Randbebauung aus; die Nachbarhäuser werden auf die Restlänge verteilt und
+	-- schließen so bündig an die Sonderbauten an (eine durchgehende Häuserlinie).
+	for _, side in ipairs(sides) do
+		local r = math.rad(side.yaw)
+		local cs, sn = math.cos(r), math.sin(r)
+		local cuts = {}
+		for _, rc in ipairs(block.reserved or {}) do
+			local lo, hi, zlo, zhi = 1e9, -1e9, 1e9, -1e9
+			for _, px in ipairs({ rc[1], rc[3] }) do
+				for _, pz in ipairs({ rc[2], rc[4] }) do
+					local lx, lz = (px - side.sx) * cs - (pz - side.sz) * sn, (px - side.sx) * sn + (pz - side.sz) * cs
+					lo, hi, zlo, zhi = math.min(lo, lx), math.max(hi, lx), math.min(zlo, lz), math.max(zhi, lz)
+				end
+			end
+			if zhi > 0.5 and zlo < D - 0.5 and hi > 0 and lo < side.len then cuts[#cuts + 1] = { math.max(0, lo), math.min(side.len, hi) } end
+		end
+		if #cuts > 0 then
+			table.sort(cuts, function(a, b) return a[1] < b[1] end)
+			local ranges, pos = {}, 0
+			for _, cu in ipairs(cuts) do
+				if cu[1] > pos then ranges[#ranges + 1] = { pos, cu[1] } end
+				pos = math.max(pos, cu[2])
+			end
+			if pos < side.len then ranges[#ranges + 1] = { pos, side.len } end
+			side.ranges = ranges
+		end
+	end
 	local plan = { block = block, houses = {}, dropped = 0, courtyard = { xmin + s + D, zmin + s + D, xmax - s - D, zmax - s - D } }
 	planSides(block.name, sides, o, rng, plan, D)
 	if block.reserved then
@@ -398,7 +425,7 @@ local WHITE = { 236, 236, 232 }
 
 -- Fensterband: Glasfelder mit Pfosten und Riegeln zwischen u0 und u1; d = Abstand vor der Wand (negativ = zurückgesetzt).
 -- litChance nil = nachts nicht beleuchtet (Tore), sonst Anteil leuchtender Felder.
-local function ribbon(h, o, rng, face, yc, hgt, u0, u1, step, glass, frame, d, litChance)
+local function ribbon(h, o, rng, face, yc, hgt, u0, u1, step, glass, frame, d, litChance, gateTag)
 	local n = math.max(1, math.floor((u1 - u0) / step))
 	local w = (u1 - u0) / n
 	for i = 1, n do
@@ -406,6 +433,7 @@ local function ribbon(h, o, rng, face, yc, hgt, u0, u1, step, glass, frame, d, l
 		local lx, lz, ey = onFace(h, face, u, d)
 		local extra = { yaw = ey }
 		if litChance then extra.tag, extra.lit = "HouseWindow", rng.next() < litChance end
+		if gateTag then extra.tag = gateTag end
 		add(h, "Glass", "glass", lx, yc, lz, w - 0.5, hgt, 0.2, glass, "Glass", extra)
 		if i < n then
 			lx, lz = onFace(h, face, u0 + i * w, d + 0.1)
@@ -432,25 +460,33 @@ local function label(h, face, u, y, d, w, hgt, text, color)
 	add(h, "Schrift", "text", lx, y, lz, w, hgt, 0.2, color, "SmoothPlastic", { yaw = ey, text = { s = text, color = color } })
 end
 
--- Feuerwache: Fahrzeughalle mit Falttoren (vorn 4, hinten 4), roter Obergeschoss-Block mit Fensterbändern, höherer Kopfbau, Schrift, Mast
+-- Feuerwache: durchgehende Fahrzeughalle (hohl) mit 4 Toren vorn (Feuerwehr) und 4 hinten (Rettung), roter Obergeschoss-Block
+-- mit Fensterbändern, höherer Kopfbau, Schrift, Mast. Die Tore sind Geisterteile (nicht kollidierend, Tag "FireGate"), damit man
+-- schon durchfahren kann; ein späteres Skript kann sie öffnen und schließen.
 local function styleFeuerwache(h, o, rng)
 	local W, D, y0 = h.width, h.depth, o.floorY
 	local RED, HALL, UP = { 192, 36, 34 }, { 44, 46, 52 }, 36
 	h.floors, h.height, h.facade, h.roof = 4, 14 + UP, RED, "flat"
-	add(h, "Ground", "body", 0, y0 + 7, D / 2, W, 14, D - 6, HALL, "Concrete", { collide = true })
+	add(h, "Hallenboden", "body", 0, y0 - 0.5, D / 2, W, 1, D, { 104, 106, 110 }, "Concrete", { collide = true })
+	for _, side in ipairs({ -1, 1 }) do -- Seitenwände der Halle, bündig mit den Nachbarhäusern
+		add(h, "HalleWand", "body", side * (W / 2 - 1.2), y0 + 7, D / 2, 2.4, 14, D - 6, HALL, "Concrete", { collide = true })
+	end
 	add(h, "Body", "body", 0, y0 + 14 + UP / 2, D / 2, W, UP, D, RED, "SmoothPlastic", { collide = true })
 	local roofTop = y0 + 14 + UP + 0.6
 	add(h, "Roof", "roof", 0, roofTop - 0.3, D / 2, W, 0.6, D, { 90, 90, 96 }, "Concrete", { collide = true })
-	local bays = 4
-	local bw = (W - 6) / bays
+	local bays, pw = 4, 2.4
+	local bw = (W - 5 * pw) / bays
 	for _, face in ipairs({ "front", "back" }) do
-		for b = 1, bays do
-			local u0 = -W / 2 + 3 + (b - 1) * bw
-			ribbon(h, o, rng, face, y0 + 7, 12, u0 + 1, u0 + bw - 1, 3.2, GLASS_DARK, DARKG, -2.8, nil)
-		end
 		for b = 0, bays do
-			local lx, lz, ey = onFace(h, face, -W / 2 + 3 + b * bw, -2.6)
-			add(h, "Pfeiler", "trim", lx, y0 + 7, lz, 1.6, 14, 1.2, DARKG, "Metal", { yaw = ey })
+			local u = -W / 2 + pw / 2 + b * (bw + pw)
+			local lx, lz, ey = onFace(h, face, u, -4.2)
+			add(h, "Pfeiler", "trim", lx, y0 + 7, lz, pw, 14, 2.4, DARKG, "Concrete", { yaw = ey, collide = true })
+			if b < bays then
+				lx, lz = onFace(h, face, u + pw / 2 + bw / 2, -4.2)
+				add(h, "Sturz", "trim", lx, y0 + 13, lz, bw, 2, 2.4, DARKG, "Concrete", { yaw = ey, collide = true })
+				local u0 = u + pw / 2
+				ribbon(h, o, rng, face, y0 + 6, 11.6, u0 + 0.5, u0 + bw - 0.5, 3.6, GLASS_DARK, DARKG, -3.6, nil, "FireGate")
+			end
 		end
 		for k = 1, 3 do
 			ribbon(h, o, rng, face, y0 + 14 + 12 * (k - 1) + 6, 5.6, -W / 2 + 4, W / 2 - 4, 7, GLASS, DARKG, 0.2, o.litChance)
@@ -472,13 +508,14 @@ local function stylePolizei(h, o, rng)
 	h.floors, h.height, h.facade, h.roof = floors, 14 + UP, GREY, "flat"
 	add(h, "Body", "body", 0, y0 + 14 + UP / 2, D / 2, W, UP, D, GREY, "SmoothPlastic", { collide = true })
 	add(h, "Roof", "roof", 0, y0 + 14 + UP + 0.3, D / 2, W, 0.6, D, { 80, 80, 86 }, "Concrete", { collide = true })
-	local a0, a1 = -W / 2 + 22, -W / 2 + 36 -- Durchfahrt (14 breit, 14 hoch) bleibt offen
+	local a0, a1 = W / 2 - 36, W / 2 - 22 -- Durchfahrt (14 breit, 14 hoch) bleibt offen; lokal +x ist bei Blick nach Süden Westen
+	local nwin = math.floor((a0 + W / 2 - 16) / 12)
 	add(h, "GroundL", "body", (-W / 2 + a0) / 2, y0 + 7, D / 2, a0 + W / 2, 14, D, RED, "SmoothPlastic", { collide = true })
 	add(h, "GroundR", "body", (a1 + W / 2) / 2, y0 + 7, D / 2, W / 2 - a1, 14, D, RED, "SmoothPlastic", { collide = true })
 	for _, face in ipairs({ "front", "back" }) do
 		local lx, lz, ey = onFace(h, face, a1 + 1.5, 1.5)
 		add(h, "Pfeiler", "trim", lx, y0 + 7, lz, 3, 14, 3, WHITE, "Concrete", { yaw = ey, collide = true })
-		for i = 1, 3 do win(h, o, rng, face, a1 + 8 + 12 * (i - 1), y0 + 7.5, 4.6, 8, DARKG, { 70, 110, 100 }) end
+		for i = 1, nwin do win(h, o, rng, face, a0 - 8 - 12 * (i - 1), y0 + 7.5, 4.6, 8, DARKG, { 70, 110, 100 }) end
 		local nw = math.floor((W - 8) / 9)
 		for k = 1, floors - 1 do
 			for i = 1, nw do
@@ -486,7 +523,7 @@ local function stylePolizei(h, o, rng)
 			end
 		end
 	end
-	local ux = -W / 2 + 11 -- Eingang mit Vordach und blauem Schild
+	local ux = W / 2 - 11 -- Eingang mit Vordach und blauem Schild
 	add(h, "DoorFrame", "frame", ux, y0 + 5, -0.25, 6.4, 10, 0.5, DARKG, "Metal")
 	add(h, "Door", "door", ux, y0 + 4.5, -0.55, 5, 9, 0.3, GLASS_DARK, "Glass")
 	add(h, "Vordach", "trim", ux, y0 + 10.8, -2, 9, 0.5, 4, { 110, 112, 118 }, "Concrete")
@@ -539,6 +576,86 @@ end
 
 local STYLES = { feuerwache = styleFeuerwache, polizei = stylePolizei, klinik = styleKlinik }
 
+
+-- Teil in Weltkoordinaten (für Anlagen, die nicht zum Haus-Koordinatensystem passen: Tankstelle, Polizeihof)
+local function W3(h, name, kind, x, y, z, sx, sy, sz, color, mat, extra)
+	extra = extra or {}
+	h.parts[#h.parts + 1] = {
+		name = name, kind = kind, size = { round3(sx), round3(sy), round3(sz) }, pos = { round3(x), round3(y), round3(z) }, yaw = extra.yaw or 0, pitch = 0,
+		color = color, material = mat, collide = extra.collide == true, lpos = { 0, y, 0 }, tag = extra.tag, attrs = extra.attrs, lit = extra.lit,
+	}
+end
+
+-- Tankstellen-Shop (nach Beschreibung): weiß mit rotem Band, schließt an die schmale Seite des Schirms an, hohl mit Glasfront zur Straße (West)
+local function styleTankstelle(h, spec)
+	local x0, z0, x1, z1 = spec.x0, spec.z0, spec.x1, spec.z1
+	local cx, cz, w, d = (x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0
+	local WHITE, RED, GL = { 250, 250, 250 }, { 200, 40, 40 }, { 160, 176, 172 }
+	h.floors, h.height, h.facade, h.roof = 1, 14, WHITE, "flat"
+	W3(h, "Body", "body", cx, 14.5, cz, w, 1, d, WHITE, "SmoothPlastic", { collide = true }) -- Dach, bündig mit dem Schirm
+	W3(h, "ShopHinterwand", "body", x1 - 0.6, 7.5, cz, 1.2, 13, d, WHITE, "SmoothPlastic", { collide = true })
+	for _, zz in ipairs({ z0 + 0.6, z1 - 0.6 }) do W3(h, "ShopSeitenwand", "body", cx, 7.5, zz, w, 13, 1.2, WHITE, "SmoothPlastic", { collide = true }) end
+	W3(h, "ShopSockel", "body", x0 + 0.6, 2.1, cz, 1.2, 2.2, d - 2.4, WHITE, "SmoothPlastic", { collide = true })
+	W3(h, "ShopSturz", "body", x0 + 0.6, 12.9, cz, 1.2, 2.2, d - 2.4, WHITE, "SmoothPlastic", { collide = true })
+	W3(h, "ShopBand", "trim", x0 - 0.1, 13.2, cz, 0.4, 2.4, d, RED, "SmoothPlastic")
+	for _, zz in ipairs({ z0 - 0.1, z1 + 0.1 }) do W3(h, "ShopBand", "trim", cx, 13.2, zz, w, 2.4, 0.4, RED, "SmoothPlastic") end
+	W3(h, "ShopBandHinten", "trim", x1 + 0.1, 13.2, cz, 0.4, 2.4, d, RED, "SmoothPlastic")
+	-- Glasfassade zur Straße: Scheiben links und rechts der Schiebetür (8 breit), Pfosten, rote Türrahmen
+	local door = 8
+	local function panes(za, zb)
+		local n = math.max(1, math.floor((zb - za) / 4))
+		local pw = (zb - za) / n
+		for i = 1, n do
+			W3(h, "ShopGlas", "glass", x0 + 0.6, 7.1, za + (i - 0.5) * pw, 0.3, 8.8, pw - 0.4, GL, "Glass", { collide = true, tag = "HouseWindow", lit = false })
+			W3(h, "ShopPfosten", "trim", x0 + 0.6, 7.1, za + i * pw, 0.6, 9, 0.5, { 70, 74, 80 }, "Metal")
+		end
+	end
+	panes(z0 + 1.2, cz - door / 2)
+	panes(cz + door / 2, z1 - 1.2)
+	W3(h, "ShopTuer", "glass", x0 + 0.6, 6.2, cz, 0.3, 10.4, door, GL, "Glass", { tag = "ShopDoor" }) -- ohne Kollision, man läuft hinein
+	for _, zz in ipairs({ cz - door / 2, cz + door / 2 }) do W3(h, "ShopTuerrahmen", "trim", x0 + 0.6, 6.2, zz, 0.7, 10.6, 0.5, RED, "SmoothPlastic") end
+	W3(h, "ShopTuerrahmen", "trim", x0 + 0.6, 11.6, cz, 0.7, 0.5, door, RED, "SmoothPlastic")
+	-- Einrichtung: Kasse am Eingang, Regale an der Rückwand
+	W3(h, "Kasse", "trim", x0 + 5, 3, cz - 11, 3, 4, 9, { 190, 190, 194 }, "SmoothPlastic", { collide = true })
+	for _, zz in ipairs({ z0 + 7, cz + 4, z1 - 7 }) do W3(h, "Regal", "trim", x1 - 3, 4.5, zz, 2.2, 7, 8, { 220, 220, 224 }, "SmoothPlastic", { collide = true }) end
+	W3(h, "Kuehlregal", "trim", cx, 4, z1 - 3.5, 12, 6, 2.4, { 150, 190, 215 }, "SmoothPlastic", { collide = true })
+end
+
+-- Polizeihof hinter der Durchfahrt: Hof mit Parkbuchten, vier Fahrzeug-Spawnflächen, Zaun zum Hofgarten, Ausfahrt an der Ostseite mit Schranke,
+-- Einfahrt durch die Durchfahrt mit Schranke. Alles in Weltkoordinaten; Schranken tragen den Tag "Schranke" (Attribut Offen).
+local function compoundPolizei(h, spec, o)
+	local ASPH, WHITE, RED = { 70, 72, 78 }, { 240, 240, 236 }, { 200, 40, 40 }
+	local function slab(name, x0, z0, x1, z1) W3(h, name, "trim", (x0 + x1) / 2, 0.4, (z0 + z1) / 2, x1 - x0, 1.2, z1 - z0, ASPH, "Asphalt", { collide = true }) end
+	local ax0 = spec.x0 + 22 -- Durchfahrt (14 breit), siehe stylePolizei
+	slab("Hof", spec.x0 + 16, 296, spec.x1 + 2, spec.z0)
+	slab("Durchfahrt", ax0, spec.z0, ax0 + 14, spec.z1 + 2)
+	slab("Ausfahrt", spec.x1 + 2, 296, spec.x1 + 20, spec.z1 + 2)
+	for i = 0, 14 do -- Parkbuchten an der Nordkante
+		W3(h, "Parklinie", "dash", spec.x0 + 24 + 8 * i, 1.05, 306, 0.3, 0.1, 16, WHITE, "SmoothPlastic")
+	end
+	for i = 1, 4 do -- Spawnflächen für Streifenwagen
+		W3(h, "FahrzeugSpawn", "spawn", spec.x0 + 20 + 24 * i, 1.12, 330, 12, 0.2, 20, { 36, 60, 120 }, "SmoothPlastic", { tag = "VehicleSpawn", attrs = { Team = "Polizei" } })
+	end
+	-- Zaun an der Nordkante (lockere Einfriedung, Gitterstäbe alle 4 Studs)
+	local fx0, fx1 = spec.x0 + 16, spec.x1 + 2
+	W3(h, "ZaunRiegel", "trim", (fx0 + fx1) / 2, 4.6, 296.2, fx1 - fx0, 0.4, 0.4, { 50, 54, 58 }, "Metal")
+	W3(h, "ZaunRiegel", "trim", (fx0 + fx1) / 2, 1.6, 296.2, fx1 - fx0, 0.4, 0.4, { 50, 54, 58 }, "Metal")
+	for x = fx0, fx1, 4 do W3(h, "ZaunStab", "trim", x, 3, 296.2, 0.3, 3.4, 0.3, { 50, 54, 58 }, "Metal") end
+	-- Schranken: Pfosten (rot-weiß) und Arm quer über die Fahrspur, geschlossen
+	local function barrier(name, px, pz, len)
+		W3(h, name .. "Pfosten", "trim", px, 3, pz, 1.4, 4, 1.4, RED, "SmoothPlastic", { collide = true })
+		local n = 4
+		for i = 1, n do
+			W3(h, name .. "Arm", "trim", px + 0.7 + (i - 0.5) * len / n, 4.2, pz, len / n, 0.5, 0.5, (i % 2 == 1) and RED or WHITE, "SmoothPlastic",
+				{ collide = true, tag = "Schranke", attrs = { Offen = false, Gruppe = name } })
+		end
+	end
+	barrier("SchrankeEinfahrt", ax0 + 0.2, spec.z1 - 2, 13)
+	barrier("SchrankeAusfahrt", spec.x1 + 3, 346, 16)
+end
+
+local COMPOUNDS = { polizei = compoundPolizei }
+
 -- Sonderbau (Bank, Wache, Krankenhaus ...) als Platzhalter-Gebäude auf einer Rechteckfläche.
 -- spec = { name, x0, z0, x1, z1, facing = "N"|"S"|"E"|"W" (Seite zur Straße), floors, color, canopy = { x0, z0, x1, z1 } }
 function Planner.planSpecial(spec, opts)
@@ -552,45 +669,48 @@ function Planner.planSpecial(spec, opts)
 	elseif f == "S" then h.ox, h.oz, h.yaw, h.width, h.depth = (spec.x0 + spec.x1) / 2, spec.z1, 180, spec.x1 - spec.x0, spec.z1 - spec.z0
 	elseif f == "W" then h.ox, h.oz, h.yaw, h.width, h.depth = spec.x0, (spec.z0 + spec.z1) / 2, 90, spec.z1 - spec.z0, spec.x1 - spec.x0
 	else h.ox, h.oz, h.yaw, h.width, h.depth = spec.x1, (spec.z0 + spec.z1) / 2, 270, spec.z1 - spec.z0, spec.x1 - spec.x0 end
-	if STYLES[spec.style] then STYLES[spec.style](h, o, rng) else planHouse(h, o, rng, false, false) end
-	if spec.canopy then -- Tankstellen-Schirm: weißes Dach mit rotem Band und rotem "A" als Logo, vier Pfeiler, 8 Zapfsäulen
+	if spec.style == "tankstelle" then styleTankstelle(h, spec)
+	elseif STYLES[spec.style] then STYLES[spec.style](h, o, rng)
+	else planHouse(h, o, rng, false, false) end
+	if spec.canopy then -- Tankstellen-Schirm (doppelt so breit wie früher): weißes Dach mit rotem Band und rotem "A", Pfeiler, zwei Zapfsäulen-Inseln
 		local c = spec.canopy
 		local cx, cz, w, d = (c[1] + c[3]) / 2, (c[2] + c[4]) / 2, c[3] - c[1], c[4] - c[2]
 		local WHITE, RED = { 250, 250, 250 }, { 200, 40, 40 }
-		local function w3(name, x, y, z, sx, sy, sz, color, mat, yaw)
-			h.parts[#h.parts + 1] = { name = name, kind = "trim", size = { sx, sy, sz }, pos = { round3(x), round3(y), round3(z) }, yaw = yaw or 0, pitch = 0, color = color, material = mat, collide = false, lpos = { 0, y, 0 } }
-		end
-		w3("CanopyRoof", cx, 14.5, cz, w, 1, d, WHITE, "SmoothPlastic")
-		w3("CanopyBand", c[1] + 0.5, 14, cz, 1, 2.4, d, RED, "SmoothPlastic")
-		w3("CanopyBand", c[3] - 0.5, 14, cz, 1, 2.4, d, RED, "SmoothPlastic")
-		w3("CanopyBand", cx, 14, c[2] + 0.5, w, 2.4, 1, RED, "SmoothPlastic")
-		w3("CanopyBand", cx, 14, c[4] - 0.5, w, 2.4, 1, RED, "SmoothPlastic")
-		-- Logo "A" flach auf dem Dach: zwei schräge Balken und ein Querbalken, Spitze nach Norden (-z)
+		W3(h, "CanopyRoof", "trim", cx, 14.5, cz, w, 1, d, WHITE, "SmoothPlastic")
+		W3(h, "CanopyBand", "trim", c[1] + 0.5, 14, cz, 1, 2.4, d, RED, "SmoothPlastic")
+		W3(h, "CanopyBand", "trim", c[3] - 0.5, 14, cz, 1, 2.4, d, RED, "SmoothPlastic")
+		W3(h, "CanopyBand", "trim", cx, 14, c[2] + 0.5, w, 2.4, 1, RED, "SmoothPlastic")
+		-- Logo "A" flach auf dem Dach: zwei schräge Balken und ein Querbalken, Spitze nach Norden (-z), 1,6-fach vergrößert
+		local k = 1.6
 		local ang = math.deg(math.atan2(6, 16))
-		local barLen = math.sqrt(6 * 6 + 16 * 16)
-		w3("LogoA", cx - 3, 15.15, cz, 2.2, 0.3, barLen, RED, "SmoothPlastic", 180 - ang)
-		w3("LogoA", cx + 3, 15.15, cz, 2.2, 0.3, barLen, RED, "SmoothPlastic", 180 + ang)
-		w3("LogoA", cx, 15.15, cz + 2.5, 7.5, 0.3, 1.8, RED, "SmoothPlastic")
-		for _, px in ipairs({ c[1] + 3, c[3] - 3 }) do
-			for _, pz in ipairs({ c[2] + 3, c[4] - 3 }) do w3("CanopyPillar", px, 7, pz, 1.5, 14, 1.5, WHITE, "Metal") end
+		local barLen = math.sqrt(6 * 6 + 16 * 16) * k
+		W3(h, "LogoA", "trim", cx - 3 * k, 15.15, cz, 2.2 * k, 0.3, barLen, RED, "SmoothPlastic", { yaw = 180 - ang })
+		W3(h, "LogoA", "trim", cx + 3 * k, 15.15, cz, 2.2 * k, 0.3, barLen, RED, "SmoothPlastic", { yaw = 180 + ang })
+		W3(h, "LogoA", "trim", cx, 15.15, cz + 2.5 * k, 7.5 * k, 0.3, 1.8 * k, RED, "SmoothPlastic")
+		for _, px in ipairs({ c[1] + 3, cx, c[3] - 3 }) do -- Pfeiler an den Ecken und in der Mitte (hinten grenzt der Shop an)
+			for _, pz in ipairs({ c[2] + 3, cz }) do W3(h, "CanopyPillar", "trim", px, 7, pz, 1.5, 14, 1.5, WHITE, "Metal") end
 		end
-		for _, px in ipairs({ cx - 6, cx + 6 }) do
-			for k = 0, 3 do w3("Pump", px, 3.5, c[2] + 10 + k * (d - 20) / 3, 1.5, 5, 1.5, RED, "SmoothPlastic") end
+		for _, px in ipairs({ cx - 14, cx + 14 }) do -- Zapfsäulen-Inseln
+			W3(h, "Insel", "trim", px, 1.3, cz, 5, 0.6, d - 14, { 190, 188, 182 }, "Concrete", { collide = true })
+			for kk = 0, 3 do W3(h, "Pump", "trim", px, 4, c[2] + 10 + kk * (d - 20) / 3, 1.5, 5, 1.5, RED, "SmoothPlastic") end
 		end
 	end
-	if spec.lot then -- Tankstellen-Grundstück: Plateau (Asphalt, Oberkante 1) mit Betonkante, Zufahrt (Schneise) auf der Westseite offen
-		local l, gap = spec.lot, spec.lotGap
-		local function slab(name, x0, z0, x1, z1, y, hgt, color, mat)
-			h.parts[#h.parts + 1] = { name = name, kind = "trim", size = { round3(x1 - x0), hgt, round3(z1 - z0) }, pos = { round3((x0 + x1) / 2), round3(y), round3((z0 + z1) / 2) }, yaw = 0, pitch = 0, color = color, material = mat, collide = true, lpos = { 0, y, 0 } }
-		end
-		slab("Plateau", l[1], l[2], l[3], l[4], 0.4, 1.2, { 78, 80, 86 }, "Asphalt")
+	if spec.lot then -- Tankstellen-Grundstück: Plateau (Asphalt, Oberkante 1) mit Betonkante; zur Straße offen, nur zwischen den Ein-/Ausfahrten (curbGaps) steht eine niedrige Kante
+		local l = spec.lot
 		local KERB, K = { 190, 188, 182 }, 1.4
-		slab("Kante", l[1], l[2], l[3], l[2] + K, 1.25, 0.5, KERB, "Concrete")
-		slab("Kante", l[1], l[4] - K, l[3], l[4], 1.25, 0.5, KERB, "Concrete")
-		slab("Kante", l[3] - K, l[2] + K, l[3], l[4] - K, 1.25, 0.5, KERB, "Concrete")
-		slab("Kante", l[1], l[2] + K, l[1] + K, gap[1], 1.25, 0.5, KERB, "Concrete")
-		slab("Kante", l[1], gap[2], l[1] + K, l[4] - K, 1.25, 0.5, KERB, "Concrete")
+		W3(h, "Plateau", "trim", (l[1] + l[3]) / 2, 0.4, (l[2] + l[4]) / 2, l[3] - l[1], 1.2, l[4] - l[2], { 78, 80, 86 }, "Asphalt", { collide = true })
+		local function kerb(x0, z0, x1, z1) W3(h, "Kante", "trim", (x0 + x1) / 2, 1.25, (z0 + z1) / 2, x1 - x0, 0.5, z1 - z0, KERB, "Concrete", { collide = true }) end
+		kerb(l[1], l[2], l[3], l[2] + K)
+		kerb(l[1], l[4] - K, l[3], l[4])
+		kerb(l[3] - K, l[2] + K, l[3], l[4] - K)
+		local z = l[2] + K
+		for _, g in ipairs(spec.curbGaps) do -- Straßenseite: Kante zwischen den Einfahrten
+			if g[1] > z then kerb(l[1], z, l[1] + K, g[1]) end
+			z = g[2]
+		end
+		if z < l[4] - K then kerb(l[1], z, l[1] + K, l[4] - K) end
 	end
+	if spec.compound then COMPOUNDS[spec.compound](h, spec, o) end
 	return { houses = { h } }
 end
 
