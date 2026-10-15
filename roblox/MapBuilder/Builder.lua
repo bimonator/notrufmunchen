@@ -19,7 +19,9 @@ local function buildPart(spec, origin)
 	p.Anchored = true
 	p.Size = Vector3.new(spec.size[1], spec.size[2], spec.size[3])
 	p.CFrame = CFrame.new(origin + Vector3.new(spec.pos[1], spec.pos[2], spec.pos[3]))
-		* CFrame.Angles(0, math.rad(spec.yaw), 0) * CFrame.Angles(math.rad(spec.pitch or 0), 0, 0)
+		* CFrame.Angles(0, math.rad(spec.yaw), 0) * CFrame.Angles(math.rad(spec.pitch or 0), 0, math.rad(spec.roll or 0))
+	if spec.shape == "Cylinder" then p.Shape = Enum.PartType.Cylinder end -- Achse läuft entlang x, mit roll = 90 steht sie senkrecht
+	if spec.transparency then p.Transparency = spec.transparency end
 	p.Color = Color3.fromRGB(spec.color[1], spec.color[2], spec.color[3])
 	p.Material = MATERIALS[spec.material] or Enum.Material.SmoothPlastic
 	p.CanCollide = spec.collide

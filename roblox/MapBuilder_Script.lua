@@ -1,7 +1,7 @@
 -- MapBuilder_Script.lua  (automatisch erzeugt mit make_bundles.py, nicht von Hand ändern)
 -- Test: in ServerScriptService ein Script anlegen, alles einfügen, oben im Studio auf RUN (nicht Play) klicken.
 -- Die Karte entsteht nur zur Laufzeit und ist nach dem Stoppen weg. Für dauerhaftes Bauen: MapBuilder_Plugin.lua.
-local STEPS = { "terrain", "roads", "lights", "houses", "wall" } -- Teilmenge möglich, z. B. { "roads" }
+local STEPS = { "terrain", "roads", "lights", "landmarks", "houses", "wall" } -- Teilmenge möglich, z. B. { "roads" }
 local ONLY = nil -- nur bestimmte Häuserblöcke, z. B. { "B_NordMitte" }; nil = alle
 local ORIGIN = Vector3.new(0, 0, 0) -- Position des Siegestors
 
@@ -219,19 +219,29 @@ C.parks = { -- Gras-Oberfläche (Terrain)
 C.hills = { { name = "Monopteros", x = 575, z = 75, layers = { { 44, 0, 4 }, { 30, 4, 8 } } } } -- { Radius, y0, y1 }, nur 8 hoch
 C.terrace = { name = "Friedensengel", x0 = 870, z0 = 250, x1 = 1020, z1 = 346, height = 4 }
 
--- Ampeln (Standort Mast + Blickrichtung des Signalkopfes, also zum ankommenden Verkehr) und Fußgängerampeln.
--- Rechtsverkehr: Achse Süd-Richtung fährt auf der Westseite. Maste stehen auf Gehwegen, nie auf der Fahrbahn.
+-- Straßenlaternen nach Foto: hoher, schlanker grauer Mast mit geschwungenem Ausleger und Kopf über der Fahrbahn.
+C.lamps = { spacing = 64, inset = 2.5, height = 36 }
+
+-- Ampeln nach Foto: grauer Mast mit Ausleger über die Fahrbahn (arm = Richtung zur Straße), je ein Signalkopf am Ausleger und am Mast.
+-- Standort Mast, Blickrichtung des Kopfes (f) zum ankommenden Verkehr. Rechtsverkehr: Achse Süd-Richtung fährt auf der Westseite.
+-- Maste stehen auf Gehwegen, nie auf der Fahrbahn.
 C.signals = {
-	{ name = "Achse_RingNord", x = 45, z = -445, fx = 0, fz = 1 }, { name = "Achse_RingNord", x = -58, z = -456, fx = -1, fz = 0 },
-	{ name = "Achse_RingNord", x = 58, z = -488, fx = 1, fz = 0 },
-	{ name = "Achse_H1", x = -45, z = -317, fx = 0, fz = -1 }, { name = "Achse_H1", x = 45, z = -254, fx = 0, fz = 1 },
-	{ name = "Achse_H1", x = -58, z = -264, fx = -1, fz = 0 },
-	{ name = "Achse_Odeonsplatz", x = -45, z = 288, fx = 0, fz = -1 }, { name = "Achse_Odeonsplatz", x = -58, z = 427, fx = -1, fz = 0 },
-	{ name = "Achse_Odeonsplatz", x = 58, z = 393, fx = 1, fz = 0 },
-	{ name = "Wache_V1", x = -436.5, z = -90, fx = 0, fz = 1 }, { name = "Wache_V1", x = -483.5, z = -210, fx = 0, fz = -1 },
-	{ name = "Wache_V2", x = -211.5, z = -90, fx = 0, fz = 1 }, { name = "Wache_V2", x = -258.5, z = -210, fx = 0, fz = -1 },
+	{ name = "Achse_RingNord", x = 45, z = -445, fx = 0, fz = 1, ax = -1, az = 0 }, { name = "Achse_RingNord", x = -58, z = -456, fx = -1, fz = 0, ax = 0, az = -1 },
+	{ name = "Achse_RingNord", x = 58, z = -488, fx = 1, fz = 0, ax = 0, az = 1 },
+	{ name = "Achse_H1", x = -45, z = -317, fx = 0, fz = -1, ax = 1, az = 0 }, { name = "Achse_H1", x = 45, z = -254, fx = 0, fz = 1, ax = -1, az = 0 },
+	{ name = "Achse_H1", x = -58, z = -264, fx = -1, fz = 0, ax = 0, az = -1 },
+	{ name = "Achse_Odeonsplatz", x = -45, z = 288, fx = 0, fz = -1, ax = 1, az = 0 }, { name = "Achse_Odeonsplatz", x = -58, z = 427, fx = -1, fz = 0, ax = 0, az = -1 },
+	{ name = "Achse_Odeonsplatz", x = 58, z = 393, fx = 1, fz = 0, ax = 0, az = 1 },
+	{ name = "Wache_V1", x = -436.5, z = -90, fx = 0, fz = 1, ax = -1, az = 0 }, { name = "Wache_V1", x = -483.5, z = -210, fx = 0, fz = -1, ax = 1, az = 0 },
+	{ name = "Wache_V2", x = -211.5, z = -90, fx = 0, fz = 1, ax = -1, az = 0 }, { name = "Wache_V2", x = -258.5, z = -210, fx = 0, fz = -1, ax = 1, az = 0 },
 }
 C.pedSignals = { { name = "Siegestor_West", x = -62, z = 8, fx = 1, fz = 0 }, { name = "Siegestor_Ost", x = 62, z = 14, fx = -1, fz = 0 } }
+
+-- Wahrzeichen: Siegestor steht auf dem Tunneldeckel (Mitte = Ursprung), Friedensengel in der Mitte der Terrasse
+C.landmarks = {
+	siegestor = { x = 0, z = 0, baseY = 0.4 },
+	friedensengel = { x = 945, z = 298, baseY = 3.7 },
+}
 
 C.wall = {
 	gates = { N = { { -60, 60 }, { 915, 1055 } }, S = { { -40, 40 }, { 590, 745 } } },
@@ -1217,58 +1227,240 @@ end)()
 
 local LightsPlanner = (function()
 -- LightsPlanner.lua
--- Ampeln und Fußgängerampeln als Teileliste (reine Geometrie, keine Roblox-Funktionen). Gesteuert werden sie von Ampel.lua über Tags und Attribute.
+-- Straßenlaternen entlang der Gehwege, Ampeln (Mast mit Ausleger, zwei Signalköpfe) und Fußgängerampeln als Teileliste.
+-- Reine Geometrie. Die Ampeln werden von Ampel.lua über Tags und Attribute gesteuert.
+-- Laternen brauchen die Straßenpläne (Gehwegteile), damit kein Mast auf der Fahrbahn, in einer Kreuzung oder über dem Tunnel steht.
 
 local Geo = Geo
 
 local LightsPlanner = {}
 
-local DARK = { 58, 60, 64 }
+local STEEL, HOUSING, PLATE, WARM = { 128, 132, 136 }, { 28, 28, 30 }, { 235, 230, 200 }, { 255, 226, 150 }
 local RED, YELLOW, GREEN = { 235, 40, 40 }, { 255, 190, 30 }, { 60, 220, 90 }
-local DIM = { RED = { 90, 20, 20 }, YELLOW = { 100, 74, 12 }, GREEN = { 20, 80, 36 } }
+local DIM = { Red = { 90, 20, 20 }, Yellow = { 100, 74, 12 }, Green = { 20, 80, 36 } }
 local WALK_TOP = 1.0
 
 local function part(parts, name, kind, x, y, z, sx, sy, sz, yaw, color, material, extra)
 	extra = extra or {}
 	parts[#parts + 1] = {
-		name = name, kind = kind, size = { sx, sy, sz }, pos = { Geo.round3(x), Geo.round3(y), Geo.round3(z) }, yaw = Geo.round3(yaw), pitch = 0,
+		name = name, kind = kind, size = { sx, sy, sz }, pos = { Geo.round3(x), Geo.round3(y), Geo.round3(z) }, yaw = Geo.round3(yaw), pitch = extra.pitch or 0,
 		color = color, material = material, collide = extra.collide == true, tag = extra.tag, attrs = extra.attrs,
 	}
 end
 
--- Signalkopf mit n Lampen (3: rot/gelb/grün, 2: rot/grün) vor dem Mast, Front zeigt in Richtung (fx, fz)
-local function head(parts, s, y0, lamps, tag)
+local function onWalk(walks, x, z)
+	for _, w in ipairs(walks) do
+		if Geo.inPart(x, z, w, 1.2) then return true end
+	end
+	return false
+end
+
+-- Laterne: schlanker Stahlmast, ansteigender Ausleger und flacher Kopf mit Leuchtplatte (Neon, Tag "StreetLamp") über der Fahrbahn
+local function lamp(parts, x, z, tx, tz, h)
+	local yawZ = Geo.yawOf(tx, tz) + 90 -- lokale z-Achse der Teile läuft zur Straße
+	local top = WALK_TOP + h
+	part(parts, "LaternenFuss", "lamp", x, WALK_TOP + 1.2, z, 1.3, 2.4, 1.3, 0, STEEL, "Metal", { collide = true })
+	part(parts, "LaternenMast", "lamp", x, WALK_TOP + h / 2, z, 0.6, h, 0.6, 0, STEEL, "Metal", { collide = true })
+	part(parts, "LaternenArm", "lamp", x + tx * 1.6, top + 0.5, z + tz * 1.6, 0.5, 0.5, 3.6, yawZ, STEEL, "Metal", { pitch = -20 })
+	part(parts, "LaternenKopf", "lamp", x + tx * 5.2, top + 1.4, z + tz * 5.2, 1.7, 0.8, 4.6, yawZ, STEEL, "Metal")
+	part(parts, "LaternenLicht", "lamp", x + tx * 5.2, top + 0.92, z + tz * 5.2, 1.3, 0.2, 3.8, yawZ, WARM, "Neon", { tag = "StreetLamp", attrs = { Lit = true } })
+end
+
+-- Signalkopf mit n Lampen (3: rot/gelb/grün, 2: rot/grün), Mitte (x, y, z), Front zeigt in Richtung (fx, fz); heller Rahmen dahinter
+local function head(parts, s, x, y, z, lamps, tag)
 	local yaw = Geo.yawOf(s.fx, s.fz)
 	local n = #lamps
-	local hgt = 1.2 * n + 0.6
-	part(parts, "AmpelKopf", "signal", s.x + s.fx * 0.9, y0, s.z + s.fz * 0.9, 0.8, hgt, 1.3, yaw, DARK, "Metal")
+	local hgt = 1.3 * n + 0.7
+	part(parts, "AmpelRahmen", "signal", x - s.fx * 0.5, y, z - s.fz * 0.5, 0.15, hgt + 0.9, 2.1, yaw, PLATE, "SmoothPlastic")
+	part(parts, "AmpelKopf", "signal", x, y, z, 0.9, hgt, 1.5, yaw, HOUSING, "Metal")
 	for i, l in ipairs(lamps) do
-		local lit = i == 1 -- Standard: rot an, bis das Ampel-Skript schaltet
-		part(parts, "AmpelLampe", "signal", s.x + s.fx * 1.35, y0 + hgt / 2 - 0.3 - 1.2 * (i - 0.5) + 0.0, s.z + s.fz * 1.35, 0.3, 0.9, 0.9, yaw,
+		local lit = i == 1 -- Standard: rot an, bis Ampel.lua schaltet
+		part(parts, "AmpelLampe", "signal", x + s.fx * 0.55, y + hgt / 2 - 0.35 - 1.3 * (i - 0.5) + 0.3, z + s.fz * 0.55, 0.3, 0.95, 0.95, yaw,
 			lit and l.on or l.dim, lit and "Neon" or "SmoothPlastic", { tag = tag, attrs = { Lamp = l.name, Group = s.name, Axis = (s.fz ~= 0) and "NS" or "EW", Lit = lit } })
 	end
 end
 
-function LightsPlanner.plan(cfg)
+function LightsPlanner.plan(cfg, roadPlan)
 	local parts = {}
-	local stats = { signals = 0, ped = 0 }
+	local walks = {}
+	for _, p in ipairs(roadPlan.parts) do
+		if p.kind == "walk" and p.seg then walks[#walks + 1] = p end
+	end
+	local stats = { lamps = 0, signals = 0, ped = 0 }
+	local L = cfg.lamps
+	for _, seg in ipairs(roadPlan.segments) do
+		local roadHalf
+		for _, st in ipairs(seg.prof.strips) do
+			if st[3] == "road" then roadHalf = math.max(roadHalf or 0, math.abs(st[1]), math.abs(st[2])) end
+		end
+		if roadHalf then -- nur Straßen mit Gehweg (Kreisel und Plätze haben keinen)
+			local nx, nz = -seg.uz, seg.ux
+			for _, side in ipairs({ -1, 1 }) do
+				local off = side * (roadHalf + L.inset)
+				local t = L.spacing / 2
+				while t < seg.len do
+					local x, z = seg.ax + seg.ux * t + nx * off, seg.az + seg.uz * t + nz * off
+					if onWalk(walks, x, z) then
+						lamp(parts, x, z, -nx * side, -nz * side, L.height)
+						stats.lamps = stats.lamps + 1
+					end
+					t = t + L.spacing
+				end
+			end
+		end
+	end
 
-	local lamps3 = { { name = "Red", on = RED, dim = DIM.RED }, { name = "Yellow", on = YELLOW, dim = DIM.YELLOW }, { name = "Green", on = GREEN, dim = DIM.GREEN } }
-	local lamps2 = { { name = "Red", on = RED, dim = DIM.RED }, { name = "Green", on = GREEN, dim = DIM.GREEN } }
+	local lamps3 = { { name = "Red", on = RED, dim = DIM.Red }, { name = "Yellow", on = YELLOW, dim = DIM.Yellow }, { name = "Green", on = GREEN, dim = DIM.Green } }
+	local lamps2 = { { name = "Red", on = RED, dim = DIM.Red }, { name = "Green", on = GREEN, dim = DIM.Green } }
+	local ARM = 14
 	for _, s in ipairs(cfg.signals) do
-		part(parts, "AmpelMast", "signal", s.x, WALK_TOP + 7, s.z, 0.8, 14, 0.8, 0, DARK, "Metal", { collide = true })
-		head(parts, s, WALK_TOP + 11.6, lamps3, "TrafficLight")
+		part(parts, "AmpelMast", "signal", s.x, WALK_TOP + 12, s.z, 0.9, 24, 0.9, 0, STEEL, "Metal", { collide = true })
+		part(parts, "AmpelArm", "signal", s.x + s.ax * ARM / 2, WALK_TOP + 21, s.z + s.az * ARM / 2, ARM, 0.5, 0.5, Geo.yawOf(s.ax, s.az), STEEL, "Metal")
+		part(parts, "AmpelHalter", "signal", s.x + s.ax * (ARM - 1.5), WALK_TOP + 20, s.z + s.az * (ARM - 1.5), 0.3, 2, 0.3, 0, STEEL, "Metal")
+		head(parts, s, s.x + s.ax * (ARM - 1.5) + s.fx * 0.4, WALK_TOP + 17.4, s.z + s.az * (ARM - 1.5) + s.fz * 0.4, lamps3, "TrafficLight")
+		head(parts, s, s.x + s.fx * 1.0, WALK_TOP + 9, s.z + s.fz * 1.0, lamps3, "TrafficLight")
 		stats.signals = stats.signals + 1
 	end
 	for _, s in ipairs(cfg.pedSignals) do
-		part(parts, "FussgaengerMast", "signal", s.x, WALK_TOP + 4.5, s.z, 0.6, 9, 0.6, 0, DARK, "Metal", { collide = true })
-		head(parts, s, WALK_TOP + 7.4, lamps2, "PedLight")
+		part(parts, "FussgaengerMast", "signal", s.x, WALK_TOP + 5, s.z, 0.7, 10, 0.7, 0, STEEL, "Metal", { collide = true })
+		head(parts, s, s.x + s.fx * 0.9, WALK_TOP + 7.8, s.z + s.fz * 0.9, lamps2, "PedLight")
 		stats.ped = stats.ped + 1
 	end
 	return { parts = parts, stats = stats }
 end
 
 return LightsPlanner
+
+end)()
+
+local Landmarks = (function()
+-- Landmarks.lua
+-- Wahrzeichen als Teileliste (reine Geometrie): Siegestor (nach Foto: drei Bögen, Säulen, Attika mit Inschrift, Statue) und
+-- Friedensengel (Säule mit goldenem Engel in einem Springbrunnenbecken). Teilefelder wie in RoadsPlanner (name, kind, size, pos, yaw, pitch, color, material, collide).
+
+local Geo = Geo
+
+local Landmarks = {}
+
+local function new(parts, cx, cz)
+	-- add(name, x, y, z, sx, sy, sz, color, material, extra): x, z relativ zur Mitte (cx, cz), y absolut; extra = { pitch, collide, text, transparency, shape, roll, yaw }
+	return function(name, x, y, z, sx, sy, sz, color, material, extra)
+		extra = extra or {}
+		parts[#parts + 1] = {
+			name = name, kind = extra.kind or "landmark", size = { sx, sy, sz }, pos = { Geo.round3(cx + x), Geo.round3(y), Geo.round3(cz + z) },
+			yaw = extra.yaw or 0, pitch = extra.pitch or 0, roll = extra.roll, color = color, material = material, collide = extra.collide ~= false,
+			text = extra.text, transparency = extra.transparency, shape = extra.shape,
+		}
+	end
+end
+
+-- Siegestor: Breite 64 (quer zur Achse), Tiefe 12, Höhe bis Attika 58, Statue darüber. Mitte = Ursprung, steht auf dem Tunneldeckel.
+-- Öffnungen: Mittelbogen 16 breit (Kämpfer 20, Scheitel 28), Seitenbögen 10 breit (Kämpfer 14, Scheitel 19).
+function Landmarks.siegestor(cfg)
+	local parts = {}
+	local L = cfg.landmarks.siegestor
+	local add = new(parts, L.x, L.z)
+	local y0 = L.baseY
+	local STONE, LIGHT, DARK, RELIEF = { 214, 200, 170 }, { 226, 214, 186 }, { 176, 162, 134 }, { 192, 178, 150 }
+	local BRONZE = { 92, 140, 118 }
+	local D, TOP = 12, 42 -- Tiefe, Höhe der Unterkante des Gebälks
+	local function pier(x0, x1, name)
+		add(name, (x0 + x1) / 2, y0 + TOP / 2, 0, x1 - x0, TOP, D, STONE, "Concrete")
+	end
+	pier(-32, -23, "PfeilerAussen")
+	pier(-13, -8, "PfeilerMitte")
+	pier(8, 13, "PfeilerMitte")
+	pier(23, 32, "PfeilerAussen")
+	-- Bögen: senkrechte Scheiben, deren Unterkante der Halbkreis bildet
+	local function arch(cx, r, spring, n, name)
+		local w = 2 * r / n
+		for i = 1, n do
+			local xc = -r + (i - 0.5) * w
+			local bottom = spring + math.sqrt(math.max(0, r * r - xc * xc))
+			add(name, cx + xc, y0 + (bottom + TOP) / 2, 0, w + 0.05, TOP - bottom, D, STONE, "Concrete")
+		end
+	end
+	arch(0, 8, 20, 8, "BogenMitte")
+	arch(-18, 5, 14, 6, "BogenSeite")
+	arch(18, 5, 14, 6, "BogenSeite")
+	-- Säulen vor den Pfeilern (an Vorder- und Rückseite), mit Sockel und Kapitell
+	for _, z in ipairs({ -D / 2 - 0.8, D / 2 + 0.8 }) do
+		for _, x in ipairs({ -27.5, -10.5, 10.5, 27.5 }) do
+			add("Saeule", x, y0 + 20, z, 2.4, 36, 2.4, LIGHT, "Concrete")
+			add("SaeuleSockel", x, y0 + 1, z, 3.6, 2, 3.6, DARK, "Concrete")
+			add("SaeuleKapitell", x, y0 + 39, z, 3.8, 4, 3.8, DARK, "Concrete")
+		end
+		add("Relief", -18, y0 + 31, z * (D / 2 + 0.15) / (D / 2 + 0.8), 9, 7, 0.4, RELIEF, "Concrete", { collide = false })
+		add("Relief", 18, y0 + 31, z * (D / 2 + 0.15) / (D / 2 + 0.8), 9, 7, 0.4, RELIEF, "Concrete", { collide = false })
+	end
+	add("Gebaelk", 0, y0 + TOP + 1.5, 0, 66, 3, D + 2, STONE, "Concrete")
+	add("Attika", 0, y0 + TOP + 8.5, 0, 60, 11, D, LIGHT, "Concrete")
+	add("Kranz", 0, y0 + TOP + 15, 0, 66, 2, D + 2, STONE, "Concrete")
+	add("Schrift", 0, y0 + TOP + 8.5, -D / 2 - 0.15, 52, 2.4, 0.2, { 60, 56, 50 }, "SmoothPlastic",
+		{ collide = false, kind = "text", text = { s = "DEM SIEGE GEWEIHT · VOM KRIEG ZERSTÖRT · ZUM FRIEDEN MAHNEND", color = { 60, 56, 50 } } })
+	add("Schrift", 0, y0 + TOP + 8.5, D / 2 + 0.15, 30, 3, 0.2, { 60, 56, 50 }, "SmoothPlastic",
+		{ collide = false, kind = "text", yaw = 180, text = { s = "SIEGESTOR", color = { 60, 56, 50 } } })
+	-- Statue (Bavaria mit Lanze) auf Sockel
+	local yt = y0 + TOP + 16
+	add("StatueSockel", 0, yt + 2, 0, 14, 4, 8, STONE, "Concrete")
+	add("StatueRock", 0, yt + 8, 0, 5, 8, 4, BRONZE, "Metal")
+	add("StatueTorso", 0, yt + 14, 0, 3.8, 6, 2.8, BRONZE, "Metal")
+	add("StatueKopf", 0, yt + 18.2, 0, 2, 2.4, 2, BRONZE, "Metal")
+	add("StatueLanze", -3.2, yt + 14, 0, 0.5, 20, 0.5, { 70, 66, 60 }, "Metal", { collide = false })
+	add("StatueArm", -1.9, yt + 14.5, 0, 1, 4, 1, BRONZE, "Metal", { collide = false })
+	return parts
+end
+
+-- Friedensengel: Becken mit Wasser, gestufter Sockel, Säule, Kapitell, goldener Engel mit Flügeln und Palmzweig.
+function Landmarks.friedensengel(cfg)
+	local parts = {}
+	local L = cfg.landmarks.friedensengel
+	local add = new(parts, L.x, L.z)
+	local y0 = L.baseY
+	local STONE, VERD, BRONZE, GOLD, WATER = { 206, 200, 186 }, { 150, 176, 166 }, { 52, 62, 58 }, { 236, 184, 44 }, { 120, 170, 210 }
+	add("Rondell", 0, y0 + 0.45, 0, 60, 0.9, 60, STONE, "Concrete") -- Platte, Oberkante y0 + 0,9 (4,6)
+	local yb = y0 + 0.9
+	for _, e in ipairs({ { 0, -19, 38, 2 }, { 0, 19, 38, 2 } }) do -- Beckenrand (Nord/Süd)
+		add("Beckenrand", e[1], yb + 1, e[2], e[3], e[4], 2, STONE, "Concrete")
+	end
+	for _, e in ipairs({ { -19, 0 }, { 19, 0 } }) do -- Beckenrand (West/Ost)
+		add("Beckenrand", e[1], yb + 1, e[2], 2, 2, 36, STONE, "Concrete")
+	end
+	add("Wasser", 0, yb + 0.9, 0, 36, 0.4, 36, WATER, "SmoothPlastic", { collide = false, transparency = 0.45 })
+	add("SockelStufe", 0, yb + 1.5, 0, 22, 3, 22, STONE, "Concrete")
+	add("SockelStufe", 0, yb + 4.5, 0, 16, 3, 16, STONE, "Concrete")
+	add("SockelStufe", 0, yb + 9, 0, 11, 6, 11, STONE, "Concrete")
+	local ys = yb + 12 -- Säulenfuß
+	add("SaeuleFuss", 0, ys + 1.5, 0, 3, 9, 9, STONE, "Concrete", { shape = "Cylinder", roll = 90 })
+	add("Saeule", 0, ys + 3 + 32, 0, 64, 7, 7, VERD, "Concrete", { shape = "Cylinder", roll = 90 })
+	local yk = ys + 3 + 64
+	add("Kapitell", 0, yk + 3, 0, 6, 11, 11, BRONZE, "Metal", { shape = "Cylinder", roll = 90 })
+	add("Abakus", 0, yk + 7, 0, 11, 2, 11, BRONZE, "Metal")
+	add("Trommel", 0, yk + 11, 0, 6, 6.5, 6.5, BRONZE, "Metal", { shape = "Cylinder", roll = 90 })
+	local ya = yk + 14
+	local k = 1.9 -- Engel größer als maßstäblich, damit er aus der Ferne als goldener Punkt auf der Säule zu erkennen ist
+	add("EngelRock", 0, ya + 3 * k, 0, 4.2 * k, 6 * k, 4.2 * k, GOLD, "Metal")
+	add("EngelRumpf", 0, ya + 8 * k, 0, 3 * k, 5 * k, 3 * k, GOLD, "Metal")
+	add("EngelKopf", 0, ya + 11.4 * k, 0, 2 * k, 2 * k, 2 * k, GOLD, "Metal")
+	for _, side in ipairs({ -1, 1 }) do -- Flügel in V-Form quer zur Blickrichtung (nach Westen)
+		add("EngelFluegel", 0, ya + 11 * k, side * 3.4 * k, 0.6, 8 * k, 3.6 * k, GOLD, "Metal", { pitch = side * 35, collide = false })
+	end
+	add("EngelZweig", -2.6 * k, ya + 11 * k, 1.2 * k, 0.5, 7 * k, 0.5, GOLD, "Metal", { collide = false })
+	for _, a in ipairs({ { 4.5, 0 }, { -4.5, 0 }, { 0, 4.5 }, { 0, -4.5 } }) do -- Wasserstrahlen am Sockel
+		add("Wasserstrahl", a[1], yb + 4, a[2], 0.9, 8, 0.9, { 240, 248, 255 }, "SmoothPlastic", { collide = false, transparency = 0.5 })
+	end
+	return parts
+end
+
+function Landmarks.plan(cfg)
+	local parts = {}
+	for _, list in ipairs({ Landmarks.siegestor(cfg), Landmarks.friedensengel(cfg) }) do
+		for _, p in ipairs(list) do parts[#parts + 1] = p end
+	end
+	return { parts = parts }
+end
+
+return Landmarks
 
 end)()
 
@@ -1540,7 +1732,9 @@ local function buildPart(spec, origin)
 	p.Anchored = true
 	p.Size = Vector3.new(spec.size[1], spec.size[2], spec.size[3])
 	p.CFrame = CFrame.new(origin + Vector3.new(spec.pos[1], spec.pos[2], spec.pos[3]))
-		* CFrame.Angles(0, math.rad(spec.yaw), 0) * CFrame.Angles(math.rad(spec.pitch or 0), 0, 0)
+		* CFrame.Angles(0, math.rad(spec.yaw), 0) * CFrame.Angles(math.rad(spec.pitch or 0), 0, math.rad(spec.roll or 0))
+	if spec.shape == "Cylinder" then p.Shape = Enum.PartType.Cylinder end -- Achse läuft entlang x, mit roll = 90 steht sie senkrecht
+	if spec.transparency then p.Transparency = spec.transparency end
 	p.Color = Color3.fromRGB(spec.color[1], spec.color[2], spec.color[3])
 	p.Material = MATERIALS[spec.material] or Enum.Material.SmoothPlastic
 	p.CanCollide = spec.collide
@@ -1730,6 +1924,7 @@ local Planner = Planner
 local Specials = Specials
 local RoadsPlanner = RoadsPlanner
 local LightsPlanner = LightsPlanner
+local Landmarks = Landmarks
 local TerrainPlanner = TerrainPlanner
 local WallPlanner = WallPlanner
 local Builder = Builder
@@ -1749,9 +1944,14 @@ local STEPS = {
 		return string.format("%d Teile, %d Parkbuchten", #plan.parts, plan.stats.bays)
 	end,
 	lights = function(opts, origin)
-		local plan = LightsPlanner.plan(Config)
+		local plan = LightsPlanner.plan(Config, RoadsPlanner.plan(Config))
 		Builder.buildParts(plan.parts, Builder.container("Strassenmobiliar"), origin)
-		return string.format("%d Ampelmasten, %d Fußgängerampeln, %d Teile", plan.stats.signals, plan.stats.ped, #plan.parts)
+		return string.format("%d Laternen, %d Ampelmasten, %d Fußgängerampeln, %d Teile", plan.stats.lamps, plan.stats.signals, plan.stats.ped, #plan.parts)
+	end,
+	landmarks = function(opts, origin)
+		local plan = Landmarks.plan(Config)
+		Builder.buildParts(plan.parts, Builder.container("Wahrzeichen"), origin)
+		return string.format("%d Teile (Siegestor, Friedensengel)", #plan.parts)
 	end,
 	houses = function(opts, origin)
 		local only, houses, parts = {}, 0, 0
@@ -1785,7 +1985,7 @@ local STEPS = {
 	end,
 }
 
-BuildAll.order = { "terrain", "roads", "lights", "houses", "wall" }
+BuildAll.order = { "terrain", "roads", "lights", "landmarks", "houses", "wall" }
 
 -- Nach dem Terrain: echte Bodenhöhe messen (alles weitere wird daran ausgerichtet) und prüfen, ob Wasser da ist.
 local function afterTerrain(base)

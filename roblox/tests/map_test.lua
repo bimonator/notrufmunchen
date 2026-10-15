@@ -269,8 +269,9 @@ check(special == 2, "Querriegel und Feldherrnhalle erwartet")
 check(#wall.parts == 4, "Brückenhäuser und Gitter erwartet")
 
 -- ===== Ampeln =====
-local lights = LightsPlanner.plan(Config)
-print(string.format("Ampeln: %d Masten, %d Fußgängerampeln, %d Teile", lights.stats.signals, lights.stats.ped, #lights.parts))
+local lights = LightsPlanner.plan(Config, road)
+print(string.format("Beleuchtung: %d Laternen, %d Ampeln, %d Fußgängerampeln, %d Teile", lights.stats.lamps, lights.stats.signals, lights.stats.ped, #lights.parts))
+check(lights.stats.lamps > 200, "zu wenige Laternen: " .. lights.stats.lamps)
 check(lights.stats.signals == #Config.signals and lights.stats.ped == 2, "Ampeln unvollständig")
 local groups, ng = {}, 0
 for _, s in ipairs(Config.signals) do
@@ -280,7 +281,7 @@ check(ng == 5, "Ampelanlagen " .. ng .. " statt 5")
 -- Jeder Mast steht auf einem Gehweg und in keiner Fahrbahn
 local masts = 0
 for _, p in ipairs(lights.parts) do
-	if p.name == "AmpelMast" or p.name == "FussgaengerMast" then
+	if p.name == "AmpelMast" or p.name == "FussgaengerMast" or p.name == "LaternenMast" then
 		masts = masts + 1
 		local onWalkPart, onAsphalt = false, false
 		for _, w in ipairs(parts) do
@@ -291,7 +292,29 @@ for _, p in ipairs(lights.parts) do
 		check(not onAsphalt, "Mast auf Fahrbahn: " .. p.name .. " bei " .. p.pos[1] .. "," .. p.pos[3])
 	end
 end
-check(masts == #Config.signals + #Config.pedSignals, "Mastanzahl " .. masts)
+check(masts == lights.stats.lamps + #Config.signals + #Config.pedSignals, "Mastanzahl " .. masts)
+-- Laternen nicht dichter als 10 Studs, Leopoldstraße beidseitig
+local lampPos, west, east, close = {}, 0, 0, 0
+for _, p in ipairs(lights.parts) do
+	if p.name == "LaternenMast" then lampPos[#lampPos + 1] = p end
+end
+for i, a in ipairs(lampPos) do
+	if math.abs(a.pos[1]) > 40 and math.abs(a.pos[1]) < 60 and a.pos[3] < -150 then
+		if a.pos[1] < 0 then west = west + 1 else east = east + 1 end
+	end
+	for j = i + 1, #lampPos do
+		local dx, dz = a.pos[1] - lampPos[j].pos[1], a.pos[3] - lampPos[j].pos[3]
+		if dx * dx + dz * dz < 100 then close = close + 1 end
+	end
+end
+check(close == 0, close .. " Laternenpaare enger als 10 Studs")
+check(west > 3 and east > 3, "Achse: Laternen West " .. west .. ", Ost " .. east)
+-- Ampeln: Ausleger reicht über die Fahrbahn (Länge >= 12), zwei Köpfe je Mast
+local arms = 0
+for _, p in ipairs(lights.parts) do
+	if p.name == "AmpelArm" then arms = arms + 1 check(p.size[1] >= 12, "Ausleger zu kurz") end
+end
+check(arms == #Config.signals, "Ausleger " .. arms)
 -- Signalkopf: pro Mast 3 Lampen, genau eine (rot) an; jede Lampe kennt Gruppe, Achse und Farbe für Ampel.lua
 local on, total = 0, 0
 for _, p in ipairs(lights.parts) do
@@ -301,7 +324,7 @@ for _, p in ipairs(lights.parts) do
 		check(p.attrs.Group and (p.attrs.Axis == "NS" or p.attrs.Axis == "EW") and p.attrs.Lamp, "Ampellampe ohne Attribute")
 	end
 end
-check(total == 3 * #Config.signals and on == #Config.signals, "Ampellampen " .. total .. "/" .. on)
+check(total == 6 * #Config.signals and on == 2 * #Config.signals, "Ampellampen " .. total .. "/" .. on)
 
 -- Schaltlogik (Ampel.lua)
 local Ampel = require("Ampel")
@@ -360,6 +383,44 @@ do
 	now = 40
 	steps() now = 42 steps()
 	check(lamps[3].attrs.Lit and not lamps[1].attrs.Lit, "Wache nach Alarm: wieder grün erwartet")
+end
+
+-- ===== Wahrzeichen =====
+local Landmarks = require("Landmarks")
+local lm = Landmarks.plan(Config)
+print(string.format("Wahrzeichen: %d Teile", #lm.parts))
+do
+	local sg, fe = Landmarks.siegestor(Config), Landmarks.friedensengel(Config)
+	local y0 = Config.landmarks.siegestor.baseY
+	local function aabb(p)
+		return p.pos[1] - p.size[1] / 2, p.pos[2] - p.size[2] / 2, p.pos[3] - p.size[3] / 2, p.pos[1] + p.size[1] / 2, p.pos[2] + p.size[2] / 2, p.pos[3] + p.size[3] / 2
+	end
+	local maxY, texts, blocked = 0, 0, 0
+	for _, p in ipairs(sg) do
+		local x0, ya, z0, x1, yb, z1 = aabb(p)
+		check(x0 >= -34 and x1 <= 34 and z0 >= -8.8 and z1 <= 8.8, "Siegestor: " .. p.name .. " liegt nicht auf dem Tunneldeckel")
+		maxY = math.max(maxY, yb)
+		if p.text then texts = texts + 1 end
+		-- Durchgänge frei: Mittelbogen |x| < 7, y bis Kämpfer 20; Seitenbögen |x -+ 18| < 4, y bis 14 (nur Teile mit Kollision)
+		if p.collide and z0 < 6 and z1 > -6 then
+			if x0 < 7 and x1 > -7 and ya < y0 + 19.9 then blocked = blocked + 1 end
+			for _, cx in ipairs({ -18, 18 }) do
+				if x0 < cx + 4 and x1 > cx - 4 and ya < y0 + 13.9 then blocked = blocked + 1 end
+			end
+		end
+	end
+	check(blocked == 0, "Siegestor: " .. blocked .. " Teile versperren die Durchgänge")
+	check(maxY > y0 + 70 and maxY < 100, "Siegestor Höhe " .. maxY)
+	check(texts == 2, "Siegestor: Inschriften " .. texts)
+	local gold, column = 0, 0
+	for _, p in ipairs(fe) do
+		local x0, ya, z0, x1, yb, z1 = aabb(p)
+		check(x0 >= 870 and x1 <= 1020 and z0 >= 250 and z1 <= 346, "Friedensengel: " .. p.name .. " liegt nicht auf der Terrasse")
+		if p.color[1] == 236 and p.color[2] == 184 then gold = gold + 1 end
+		if p.name == "Saeule" then column = p.size[1] end
+		check(yb < 130, "Friedensengel zu hoch")
+	end
+	check(column >= 60 and gold >= 6, "Friedensengel: Säule " .. column .. ", Goldteile " .. gold)
 end
 
 print(string.format("Wand: Höhe %d bis %d", minH, maxH))
