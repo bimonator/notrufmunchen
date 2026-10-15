@@ -9,18 +9,30 @@ Die Karte steht in `docs/MAP_PLAN.md` und `docs/phase1_bauplan.html`.
 | Thema | Stand |
 |---|---|
 | Teams | Zivilist, Polizei, Rettungsdienst, Kriminelle. Feuerwehr später. |
-| Server-Typen | Chill (kein Crime) und Action (alle Teams). **Noch offen: getrennt oder alles auf einem Server?** Empfehlung getrennt. |
-| Drogen | **Nicht als Drogen darstellen** (Roblox-Richtlinien, bitte aktuell prüfen). Stattdessen neutrale „Schmuggelware" (Kisten, Pakete). Spielmechanik bleibt gleich: kaufen, transportieren, am Schwarzmarkt verkaufen. |
-| Fahrzeugmaße | Unbekannt. Siehe Abschnitt 8: erst messen, dann Zielmaße festlegen. |
+| Server | **Ein Server für alles.** Chill-Spots (Schutzzonen) und Loot-Spots (Überfallorte) liegen auf derselben Karte (Abschnitt 1a). |
+| Schmuggelware | **Beschlossen:** neutrale Schmuggelware (Kisten, Pakete) statt Drogen, damit es keine Sperrung gibt. Mechanik bleibt: kaufen, transportieren, am Schwarzmarkt verkaufen. |
+| Fahrzeuge | **Aus der Toolbox**, auf ein einheitliches Maß, einen einheitlichen Stil und ein eigenes Logo gebracht (Abschnitt 8). |
 
 ## 1. Teams
 
+Annahme: ca. 40 Spieler pro Server, das ergibt ca. 10 Polizei, 6 Rettung, 12 Kriminelle, mindestens 12 Zivilisten. Wer nur chillen will, wird nie zu einem Team gezwungen.
+
 | Team | Aufgabe | Einnahmen | Cap pro Server (Start) |
 |---|---|---|---|
-| Zivilist | Jobs (Taxi, Lieferung), Chillen | kleine Löhne | Rest |
-| Polizei | Streife, Notrufe, Festnahme, Verfolgung | Gehalt je Einsatz | ≤ 30 % |
-| Rettungsdienst | Notrufe, Erstversorgung, Transport ins Krankenhaus | Gehalt je Einsatz | ≤ 20 % |
-| Kriminelle | Überfälle, Schmuggelware | Beute, Verkauf | ≤ 35 % |
+| Zivilist | Jobs (Taxi, Lieferung), Chillen | kleine Löhne | ≥ 30 % |
+| Polizei | Streife, Notrufe, Festnahme, Verfolgung | Gehalt je Einsatz | ≤ 25 % |
+| Rettungsdienst | Notrufe, Erstversorgung, Transport ins Krankenhaus | Gehalt je Einsatz | ≤ 15 % |
+| Kriminelle | Überfälle, Schmuggelware | Beute, Verkauf | ≤ 30 % |
+
+## 1a. Chill-Spots und Loot-Spots
+
+| Zonentyp | Orte | Regel |
+|---|---|---|
+| **Chill-Spot** (Schutzzone) | Biergarten und Monopteros im Englischen Garten, Marienplatz, Café-Terrasse, Prinz Eins, Casino Odeon, Eisbachwelle mit Brücke, Friedensengel (8 Spots) | Kein Überfall, keine Waffen oder Sprengladungen, kein Spielerschaden. Schutz endet für **Gesuchte** (Fahndungs-Timer 90 s nach einem Verbrechen), damit man sich nicht dort verstecken kann. Radius ca. 70 Studs. |
+| **Loot-Spot** | Isarbank, Kiosk. Vorschlag: Juwelier an der Leopoldstraße, Club-Kasse im Nachtleben, Geldtransporter auf Ring und Achse | Überfall möglich, Alarm, Cooldown pro Spot. |
+| Straßen und übrige Fläche | alles andere | Normale Regeln. |
+
+Die 8 Chill-Spots decken ca. 6 % der Kartenfläche ab (8 × π × 70², gerechnet). Chiller haben ihre Orte, die Loot-Spots liegen in Schwabing im Westen, die Chill-Spots verteilt in Osten und Süden. So laufen sich beide Gruppen selten in die Quere.
 
 ## 2. Kernschleifen
 
@@ -87,25 +99,52 @@ Ziel: Erfolgsquote der Bankräuber **60 %**, Verhaftungsquote **40 %**. Dann lie
 - Notruf-Einsätze als Liste auf dem Server, `RemoteEvent` nur für Annehmen und Abschluss.
 - Spielstand (Geld, Rang) per `DataStore`.
 
-## 8. Fahrzeugmaße messen und festlegen
+## 8. Fahrzeuge aus der Toolbox: einheitlich machen
 
-Fahrzeug im Explorer anklicken, dann in der Command Bar (View → Command Bar):
+**Warnung zuerst:** Toolbox-Modelle können versteckte Scripts enthalten (Backdoors, die z. B. fremden Code nachladen). Nie ungeprüft ins Spiel übernehmen. Immer alle Scripts löschen und nur ein eigenes Fahr-Script verwenden. Auch Module mit `require(<Asset-ID>)` sind ein Warnzeichen.
+
+**Pipeline pro Fahrzeug**
+
+| Schritt | Was | Wirkung |
+|---|---|---|
+| 1 | Nur Karosserie auswählen (2–3 Modelle pro Klasse) | einheitliche Auswahl |
+| 2 | Alle Scripts löschen | Sicherheit |
+| 3 | Auf Zielmaß skalieren | passt auf Spur, Parkbucht, Tunnel |
+| 4 | Einheitlicher Stil: feste Lackpalette (z. B. 6 Farben), gleiche Scheinwerfer-/Felgen-Optik, eigene Behörden-Lackierung | wirkt wie eine Fahrzeugfamilie |
+| 5 | Marken-Logos ersetzen (dein X-Logo), Typenschilder und Namen entfernen, Fahrzeuge fiktiv benennen | verhindert Sperrungen |
+| 6 | **Ein gemeinsames Fahrwerk** (ein Script, Werte als Attribute: Höchsttempo, Beschleunigung, Bremsen, Lenkung) | Leistung pro Fahrzeug zentral einstellbar |
+
+**Skalieren und Scripts löschen** (Command Bar, Fahrzeuge im Explorer anklicken, mit Strg+Z rückgängig zu machen):
 
 ```lua
-local m = game:GetService("Selection"):Get()[1]
-print(m.Name, m:GetExtentsSize()) -- X/Y/Z = Breite, Höhe, Länge (je nach Ausrichtung des Fahrzeugs)
+local TARGET_LENGTH = 14.5 -- Studs, siehe Tabelle unten (Pkw)
+for _, m in ipairs(game:GetService("Selection"):Get()) do
+    for _, d in ipairs(m:GetDescendants()) do
+        if d:IsA("LuaSourceContainer") then d:Destroy() end -- Scripts weg
+    end
+    local size = m:GetExtentsSize()
+    local length = math.max(size.X, size.Z) -- längste waagerechte Achse = Länge
+    m:ScaleTo(m:GetScale() * TARGET_LENGTH / length)
+    print(m.Name, m:GetExtentsSize()) -- Kontrolle: Breite/Höhe/Länge
+end
 ```
 
-**Zielmaße, wenn du eigene oder angepasste Fahrzeuge baust (Annahmen):**
+**Zielmaße (Annahmen)**
 
-| Klasse | Breite × Länge × Höhe | Passt durch |
+| Klasse | Breite × Länge × Höhe | Tempo-Startwert |
 |---|---|---|
-| Pkw / Streifenwagen | 7 × 14,5 × 5,5 | Spur 14, Parkbucht 9 × 16, Poller-Lücke 20 |
-| Transporter / Geldtransporter | 8 × 18 × 8 | Spur 14, Tunnel |
-| Rettungswagen | 8 × 20 × 9 | Spur 14, Tunnel |
-| Feuerwehr, später | 9 × 26 × 11 (Drehleiter bis 12,5) | Spur 14 (2,5 Luft je Seite), Tunnel 14 |
+| Pkw | 7 × 14,5 × 5,5 | 70 Studs/s |
+| Streifenwagen | 7 × 14,5 × 5,5 | 77 Studs/s (ca. +10 % gegenüber Pkw) |
+| Transporter | 8 × 18 × 8 | 60 Studs/s |
+| Geldtransporter | 8 × 18 × 8, schwerer | 55 Studs/s |
+| Rettungswagen | 8 × 20 × 9 | 75 Studs/s (Sonderrechte) |
+| Feuerwehr, später | 9 × 26 × 11 | 55 Studs/s |
 
-Wenn deine Fahrzeuge größer sind, sag mir die Zahlen und ich passe Spur, Tunnel und Parkbuchten an.
+Balance-Gedanke: Die Polizei hat ca. 10 % mehr Spitze, Fluchtautos der Kriminellen dafür bessere Beschleunigung und Lenkung (wendiger). So hat keine Seite einen klaren Vorteil, aber die Verfolgung bleibt spannend.
+
+**Logo-Ersatz:** Dein Plan, bei allen Marken ein eigenes Logo (z. B. ein X) einzusetzen, ist richtig und einfach. Wenn das Logo in die Textur des Meshes eingebacken ist, kannst du es nur mit einem Decal überdecken oder die Textur neu zeichnen. Die Fahrzeugform realer Modelle bleibt ein Restrisiko (ca. nicht null). Wähle lieber allgemeine Formen oder ändere Kühlergrill und Scheinwerfer ab.
+
+**Behörden-Optik:** eigenes Emblem statt echtem Polizei- oder Rettungsdienst-Wappen. Das Wort „POLIZEI" ist ok.
 
 ## 9. Reihenfolge (MVP zuerst)
 
@@ -118,7 +157,7 @@ Wenn deine Fahrzeuge größer sind, sag mir die Zahlen und ich passe Spur, Tunne
 
 ## 10. Offene Punkte
 
-1. Chill und Action getrennt oder zusammen?
-2. Schmuggelware statt Drogen ok?
-3. Welche Fahrzeuge (eigene bauen, Toolbox oder gekauft)? Danach Maße prüfen.
-4. Standort Polizeiwache, Rettungswache, Krankenhaus.
+1. Standort Polizeiwache, Rettungswache, Krankenhaus.
+2. Welche Toolbox-Fahrzeuge (2–3 pro Klasse)? Schick mir die Namen, dann prüfe ich die Ziele.
+3. Dein X-Logo: soll es für alle Fahrzeuge gleich sein oder gibt es Varianten pro Klasse?
+4. Loot-Spots erweitern: Juwelier, Club-Kasse, Geldtransporter ja oder nein?
