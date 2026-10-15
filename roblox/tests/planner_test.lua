@@ -1,6 +1,6 @@
 -- Tests für Planner.lua. Laufen in jedem Lua 5.1+ (kein Roblox nötig):
 --   cd roblox/tests && lua planner_test.lua      (oder: python3 run_with_lupa.py)
-package.path = "../HouseGenerator/?.lua;HouseGenerator/?.lua;roblox/HouseGenerator/?.lua;" .. package.path
+package.path = "../MapBuilder/?.lua;MapBuilder/?.lua;roblox/MapBuilder/?.lua;" .. package.path
 local Planner = require("Planner")
 local Blocks = require("Blocks")
 

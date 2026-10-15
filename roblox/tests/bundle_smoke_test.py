@@ -1,5 +1,5 @@
-"""Lässt das QuickTest-Bundle gegen eine kleine Roblox-Attrappe (Instance, Vector3, CFrame ...) laufen.
-Fängt Tippfehler und nil-Zugriffe in Builder/Run ab. Prüft NICHT, ob die echte Roblox-API sich genauso verhält."""
+"""Lässt MapBuilder_Script.lua gegen eine kleine Roblox-Attrappe (Instance, Vector3, CFrame, Terrain ...) laufen.
+Fängt Tippfehler und nil-Zugriffe in Builder/BuildAll ab. Prüft NICHT, ob die echte Roblox-API sich genauso verhält."""
 import os
 from lupa import lua51
 
@@ -7,7 +7,7 @@ here = os.path.dirname(os.path.abspath(__file__))
 STUB = r'''
 local function newInstance(class)
 	local children = {}
-	local inst = { ClassName = class, _children = children, _attrs = {}, _tags = {} }
+	local inst = { ClassName = class, _children = children, _attrs = {} }
 	function inst:FindFirstChild(n)
 		for _, c in ipairs(children) do if c.Name == n then return c end end
 	end
@@ -28,25 +28,24 @@ V.__add = function(a, b) return setmetatable({ X = a.X + b.X, Y = a.Y + b.Y, Z =
 Vector3 = { new = function(x, y, z) return setmetatable({ X = x or 0, Y = y or 0, Z = z or 0 }, V) end }
 local C = {}
 C.__index = C
-C.__mul = function(a, b) return setmetatable({ v = a.v, ang = b.ang }, C) end
-CFrame = { new = function(v) return setmetatable({ v = v }, C) end, Angles = function(x, y, z) return setmetatable({ ang = { x, y, z } }, C) end }
+C.__mul = function(a, b) return setmetatable({ v = a.v or b.v, ang = b.ang or a.ang }, C) end
+CFrame = { new = function(v) return setmetatable({ v = v }, C) end, Angles = function(x, y, z) assert(x and y and z); return setmetatable({ ang = { x, y, z } }, C) end }
 Color3 = { fromRGB = function(r, g, b) assert(r and g and b); return { r, g, b } end }
 local mats = {}
 Enum = { Material = setmetatable({}, { __index = function(t, k) mats[k] = true; return k end }) }
-local root = newInstance("DataModel")
+task = { wait = function() end }
+terrainCalls, tagged = 0, 0
+local terrain = { Clear = function() end }
+terrain.FillBlock = function(self, cf, size, mat) assert(cf and size and mat, "FillBlock: Argument fehlt"); terrainCalls = terrainCalls + 1 end
+terrain.FillCylinder = function(self, cf, h, r, mat) assert(cf and h and r and mat, "FillCylinder: Argument fehlt"); terrainCalls = terrainCalls + 1 end
 local services = { Workspace = newInstance("Workspace") }
-tagged = 0
+services.Workspace.Terrain = terrain
 services.CollectionService = { AddTag = function(self, p, t) assert(p and t); tagged = tagged + 1 end }
 services.ChangeHistoryService = { SetWaypoint = function() end }
 game = { GetService = function(self, n) return services[n] end }
-function countParts(i)
-	local n = (i.ClassName == "Part") and 1 or 0
-	for _, c in ipairs(i._children) do n = n + countParts(c) end
-	return n
-end
-function countModels(i)
-	local n = (i.ClassName == "Model") and 1 or 0
-	for _, c in ipairs(i._children) do n = n + countModels(c) end
+function count(i, class)
+	local n = (i.ClassName == class) and 1 or 0
+	for _, c in ipairs(i._children) do n = n + count(c, class) end
 	return n
 end
 workspace_ = services.Workspace
@@ -54,15 +53,14 @@ workspace_ = services.Workspace
 
 lua = lua51.LuaRuntime()
 lua.execute(STUB)
-with open(os.path.join(here, "..", "HouseGenerator_QuickTest.lua"), encoding="utf-8") as f:
+with open(os.path.join(here, "..", "MapBuilder_Script.lua"), encoding="utf-8") as f:
     code = f.read()
 lua.execute(code)
-ws = lua.eval("workspace_")
-parts, models, tagged = lua.eval("countParts(workspace_)"), lua.eval("countModels(workspace_)"), lua.eval("tagged")
-print("Attrappe: %d Models, %d Parts, %d Fenster-Tags" % (models, parts, tagged))
-assert models == 18 and parts > 800 and tagged > 100, "unerwartete Mengen"
-# Neu bauen ersetzt den Ordner statt zu verdoppeln
-lua.execute("Run_again = true")
-lua.execute(code)
-assert lua.eval("countModels(workspace_)") == 18, "zweiter Lauf hat Häuser verdoppelt"
-print("Smoke-Test bestanden (zweiter Lauf ersetzt den Block)")
+parts, models, terrain = lua.eval("count(workspace_, 'Part')"), lua.eval("count(workspace_, 'Model')"), lua.eval("terrainCalls")
+print("Attrappe: %d Models, %d Parts, %d Terrain-Aufrufe, %d Fenster-Tags" % (models, parts, terrain, lua.eval("tagged")))
+assert models == 64 + 131, "Models: %d" % models
+assert terrain == 105, "Terrain-Aufrufe: %d" % terrain
+assert parts > 13000, "Parts: %d" % parts
+lua.execute(code)  # zweiter Lauf ersetzt die Ordner statt sie zu verdoppeln
+assert lua.eval("count(workspace_, 'Model')") == models and lua.eval("count(workspace_, 'Part')") == parts, "zweiter Lauf hat verdoppelt"
+print("Smoke-Test bestanden (auch der zweite Lauf)")

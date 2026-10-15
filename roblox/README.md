@@ -1,68 +1,67 @@
-# Häuser-Generator (Roblox, Luau)
+# MapBuilder (Roblox, Luau)
 
-Baut Reihenhaus-Blockränder im Schwabing-Raster per Code. Geometrie und Roblox-Aufrufe sind getrennt, damit die Geometrie ohne Roblox getestet werden kann.
+Baut die Karte aus `docs/MAP_PLAN.md` und `docs/phase1_bauplan.html` per Code: Terrain mit Isar und Bach, Straßen mit Gehwegen, Parkbuchten, Brücken und der Siegestor-Unterführung, die Reihenhäuser im Schwabing-Raster und die Mapgrenze. Geometrie und Roblox-Aufrufe sind getrennt, damit die Geometrie ohne Roblox getestet werden kann.
+
+## So fügst du alles zusammen (empfohlen: Plugin, dauerhaft)
+
+1. Studio öffnen, neues Projekt mit der Vorlage **Baseplate**. Die Baseplate **löschen** (der Builder legt das Terrain selbst an).
+2. In `Workspace` ein **Script** anlegen und den ganzen Inhalt von **`MapBuilder_Plugin.lua`** einfügen.
+3. Rechtsklick auf das Script > **Als lokales Plugin speichern**. Danach das Script löschen.
+4. Im Reiter **Plugins** erscheint der Knopf **Karte bauen**. Draufklicken, der Build dauert ca. 1–3 Minuten (Output-Fenster zeigt den Fortschritt).
+5. Im Output steht je Schritt eine Zeile. Erwartet:
+
+```
+[terrain] 105 Terrain-Operationen
+[roads] 1124 Teile, 157 Parkbuchten
+[houses] 64 Häuser, 2903 Teile
+[wall] 131 Gebäude, 9483 Teile
+Fertig
+```
+
+Strg+Z nimmt den ganzen Lauf zurück. Erneutes Bauen ersetzt die Ordner `Strassen`, `Gebaeude.<Block>` und `Mapgrenze` (das Terrain wird zuerst geleert).
+
+### Schnelltest ohne Plugin
+
+`MapBuilder_Script.lua` in ein Script in `ServerScriptService` einfügen, oben auf **Run** klicken (nicht Play). Oben in der Datei kann man `STEPS` auf einzelne Schritte beschränken, z. B. `{ "roads" }`. Die Karte ist nach dem Stoppen wieder weg. Geeignet, um einen Schritt auszuprobieren.
+
+### Schritt für Schritt (wenn etwas nicht klappt)
+
+Die Schritte laufen in dieser Reihenfolge und sind unabhängig voneinander ausführbar: `terrain` → `roads` → `houses` → `wall`. Im Script oben `STEPS = { "terrain" }`, dann `{ "roads" }` usw. Fehler eines Schritts stoppen die anderen nicht, sie stehen im Output als `FEHLER: ...`.
+
+## Dateien
 
 | Datei | Inhalt | Geprüft |
 |---|---|---|
-| `HouseGenerator/Planner.lua` | Berechnet alle Häuser und Teile (reine Geometrie) | ja, Tests in Lua 5.1 |
-| `HouseGenerator/Blocks.lua` | Block-Koordinaten (A, B, D) aus dem Kartenplan | ja (wird getestet) |
-| `HouseGenerator/Builder.lua` | Erzeugt daraus Roblox-`Part`s | **nein**, nur im Studio testbar |
-| `HouseGenerator/Run.lua` | Einstieg für die Command Bar | **nein**, nur im Studio testbar |
-| `tests/planner_test.lua` | 6 Prüfgruppen (Maße, Überlappung, Eckhäuser, Determinismus) | – |
-| `tests/bundle_smoke_test.py` | Lässt Builder/Run gegen eine Roblox-Attrappe laufen (fängt Tippfehler und nil-Zugriffe) | ja, aber nur gegen die Attrappe |
+| `MapBuilder/Geo.lua` | 2D-Mathematik (Strecken, Schnitte) | ja |
+| `MapBuilder/Config.lua` | Alle Maße aus dem Plan als Daten (Straßen, Wasser, Tunnel, Brücken, Parks, Wand) | ja (wird getestet) |
+| `MapBuilder/Planner.lua`, `Blocks.lua` | Reihenhäuser und Mapgrenzen-Gebäude | ja |
+| `MapBuilder/RoadsPlanner.lua` | Straßen, Gehwege, Markierungen, Parkbuchten, Brücken, Unterführung | ja |
+| `MapBuilder/TerrainPlanner.lua` | Terrain-Operationen (Boden, Parks, Hügel, Terrasse, Isar, Bach, Tunnelgraben) | ja (nur die Liste) |
+| `MapBuilder/WallPlanner.lua` | Mapgrenze mit Toren, Querriegel, Feldherrnhalle | ja |
+| `MapBuilder/Builder.lua`, `BuildAll.lua` | Erzeugt daraus Roblox-Objekte | **nur gegen eine Attrappe** |
+| `MapBuilder_Script.lua`, `MapBuilder_Plugin.lua` | Alles in einer Datei, erzeugt mit `python3 make_bundles.py` | wie Builder |
+| `tests/` | `planner_test.lua`, `map_test.lua`, `bundle_smoke_test.py`, `run_with_lupa.py` | – |
 
-## Schnelltest im Studio (2 Minuten)
+Nach jeder Änderung an `MapBuilder/*.lua` die Einzeldateien neu erzeugen: `python3 make_bundles.py`.
 
-1. Studio öffnen, Vorlage **Baseplate** wählen (Oberkante Y = 0, passt zu den Häusern).
-2. In `ServerScriptService` ein **Script** anlegen, den gesamten Inhalt von `HouseGenerator_QuickTest.lua` einfügen.
-3. Oben auf **Run** klicken (nicht Play). Im Output erscheint `B_NordMitte: 18 Häuser, 867 Teile`.
-4. Im Explorer `Workspace > Map > Gebaeude > B_NordMitte` anklicken und **F** drücken, dann mit der Kamera umsehen (Block B liegt bei x −430…−264, z −448…−314).
-5. Stoppen: die Häuser verschwinden wieder, das ist beim Schnelltest gewollt. Für dauerhaftes Bauen siehe „Einrichten im Studio".
+## Was getestet wurde (Cloud-Session, kein Roblox)
 
-Im Script oben steht `ONLY = { "B_NordMitte" }`. Mit `nil` statt der Liste werden alle drei Blöcke gebaut (64 Häuser). Die Datei wird mit `python3 make_quicktest.py` aus den Modulen neu erzeugt.
+- `python3 tests/run_with_lupa.py` (Lua 5.1): Häuser (Maße, Überlappung, Eckhäuser), Straßen (157 Parkbuchten wie im Plan, kein Gehweg in einer Kreuzung, jede Straße asphaltiert, Tunnel frei, Rampenneigung 7,1° und lichte Höhe ≥ 13,5), Terrain (Kacheln decken die Karte genau ab, Wasser nur zwischen Bett und Wasserlinie), Wand (innen bleibt der Ring frei, Tore frei, Höhen 74–110).
+- `python3 tests/bundle_smoke_test.py`: `Builder` und `BuildAll` laufen gegen eine selbst gebaute Roblox-Attrappe: 195 Models, 13 510 Teile, 105 Terrain-Aufrufe, zweiter Lauf ersetzt statt zu verdoppeln.
+- Eine Draufsicht der berechneten Teile (aus den Plänen gezeichnet) stimmt mit der Karte im Bauplan überein.
+- Die Tests wurden gezielt mit eingebauten Fehlern geprüft (Gehweg-Schnitt aus, Tunnel nicht ausgenommen, falscher Drehwinkel): sie schlagen dann an.
 
-## Was gebaut wird
+## Was NICHT geprüft werden konnte (bitte im Studio ansehen)
 
-- Je Block ein **Blockrand** aus Reihenhäusern (Tiefe 28, Breite ca. 26, 4–5 Geschosse, Höhe 50–62) rund um einen **Innenhof**.
-- Block A: 18 Häuser, Block B: 18 Häuser, Block D: 28 Häuser. Zusammen **64 Häuser, ca. 2900 Teile** (ca. 45 je Haus).
-- Je Haus: Hauptkörper, Sockel, Gesimse, Fenster mit Rahmen, Scheibe und Bank, Tür mit Vordach, Schaufenster, Flachdach mit Attika, Schornsteine, teils Balkone, teils Staffelgeschoss.
-- Eckhäuser haben auch Seitenfenster zur Querstraße.
-- Fenster tragen den Tag `HouseWindow` und das Attribut `Lit`. Das spätere Tag/Nacht-Skript kann nachts alle `Lit`-Fenster auf `Neon` schalten.
-- Jedes Haus ist ein `Model` (`PrimaryPart` = Hauptkörper), abgelegt in `Workspace.Map.Gebaeude.<Block>`.
+- Ob die echte Roblox-API sich wie die Attrappe verhält (`Terrain:FillBlock` mit gedrehtem CFrame, `FillCylinder`, `Terrain:Clear`, `CollectionService`).
+- Ob die Isar im Terrain sauber aussieht. Sie ist aus gestapelten Blöcken gebaut (Stufen von 4 Studs). Falls sie treppig wirkt, im Terrain-Editor mit **Smooth** glätten.
+- Das Aussehen: Höhenlage von Gehweg, Straße und Brücken (Z-Fighting möglich), Wirkung der Mapgrenze, Rampe und Tunnel.
+- Die Leistung: ca. 13 500 Teile. Die Mapgrenze allein ca. 9 500 (Fenster der Wandgebäude).
 
-## Einrichten im Studio
+## Bewusst (noch) nicht enthalten
 
-1. In `ServerStorage` einen Ordner `HouseGenerator` anlegen.
-2. Darin vier **ModuleScripts** `Planner`, `Blocks`, `Builder`, `Run` anlegen und den Inhalt der gleichnamigen Dateien einfügen.
-3. Das Siegestor muss auf `(0, 0, 0)` liegen (Kartenursprung), sonst `origin` mitgeben. Die Terrain-Oberkante muss auf Y = 0 liegen, der Boden der Häuser liegt auf Y = 1 (Gehweg).
-4. In der **Command Bar** (Edit-Modus, nicht im Play-Modus):
-
-```lua
-require(game.ServerStorage.HouseGenerator.Run).run()
--- nur ein Block, anderer Seed, anderer Ursprung:
-require(game.ServerStorage.HouseGenerator.Run).run({ only = { "B_NordMitte" }, seed = 7, origin = Vector3.new(0, 0, 0) })
-```
-
-Erneutes Ausführen ersetzt den jeweiligen Block-Ordner. Mit Strg+Z lässt sich ein Lauf zurücknehmen.
-
-## Tests (ohne Roblox)
-
-```
-cd roblox/tests
-lua planner_test.lua            # wenn Lua installiert ist
-python3 run_with_lupa.py        # sonst: pip install lupa
-```
-
-Ergebnis in der Cloud-Session: **Alle Tests bestanden** (Lua 5.1). Zusätzlich gezielt geprüft, dass ein falscher Drehwinkel der Westseite vom Test erkannt wird.
-
-## Bekannte Grenzen
-
-- **Nicht in Roblox ausprobiert.** `Builder.lua` und `Run.lua` können Tippfehler oder API-Abweichungen enthalten. Erster Lauf mit Block B (`only`), dann im Studio ansehen.
-- Dächer sind **flach** (mit Attika). Schrägdächer fehlen absichtlich, weil die Ausrichtung von `WedgePart` ohne Studio nicht prüfbar ist.
-- Fenster sind aufgesetzt, keine Aussparungen in der Wand. Es gibt **keine Innenräume** und keine Türen, die sich öffnen.
-- Keine Läden, Schilder oder Hausnummern. Details kommen später.
-- Nicht enthalten: Blöcke E (Feuerwache), C und F (Bank, Parkhaus, Ladenzeile).
+Ampeln, Schilder und Straßennamen, Straßenlampen und Bäume, Tankstelle, Polizeiwache, Feuerwache, Krankenhaus, Bank, Parkhaus, Supermarkt, Kirche und Plätze mit Brunnen, Siegestor, Friedensengel, Monopteros-Tempel, Schrägdächer. Das Wasser der Eisbachwelle ist ein normaler Bach. Die Fußgängerbrücke B5 ist flach (keine Rampen). Brücke B2 liegt über einem Knick der Isarspange und ist nur grob ausgerichtet.
 
 ## Übergabe an eine neue Claude-Session
 
-Ordner `roblox/` zeigen und sagen: „Baue die Module ins Studio ein (Anleitung in `roblox/README.md`), lass `Run.run({ only = { 'B_NordMitte' } })` laufen, prüfe das Ergebnis im Studio und korrigiere `Builder.lua`. Die Geometrie in `Planner.lua` nur ändern, wenn `tests/planner_test.lua` danach weiter besteht."
+Ordner `roblox/` zeigen und sagen: „Baue die Karte im Studio mit `MapBuilder_Plugin.lua` (Anleitung in `roblox/README.md`), prüfe das Ergebnis und korrigiere `Builder.lua`. Die Geometrie nur ändern, wenn `tests/run_with_lupa.py` danach weiter besteht, und danach `python3 make_bundles.py` ausführen."

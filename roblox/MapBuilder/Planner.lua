@@ -17,6 +17,7 @@ Planner.DEFAULTS = {
 	maxFloors = 5,
 	seed = 1,
 	litChance = 0.35, -- Anteil Fenster, die nachts leuchten
+	simple = false, -- true: keine Fensterbänke, Balkone, Schornsteine, Seitenfenster (für die Mapgrenze, spart Teile)
 	palette = { -- Putzfarben (RGB 0-255)
 		{ 236, 226, 200 }, { 232, 208, 150 }, { 214, 200, 178 }, { 228, 186, 150 },
 		{ 196, 204, 200 }, { 214, 168, 150 }, { 188, 200, 216 },
@@ -104,6 +105,7 @@ local function addWindow(h, label, face, u, yc, w, hgt, lit)
 	lx, lz = onFace(h, face, u, 0.4)
 	add(h, "Glass" .. label, "glass", lx, yc, lz, w, hgt, 0.2, lit and GLASS_LIT or GLASS, "Glass",
 		{ yaw = ey, lit = lit, tag = "HouseWindow" })
+	if h.simple then return end
 	lx, lz = onFace(h, face, u, 0.5)
 	add(h, "Sill" .. label, "trim", lx, yc - hgt / 2 - 1.1, lz, w + 3, 0.6, 1.0, { 200, 196, 188 }, "Concrete", { yaw = ey })
 end
@@ -111,6 +113,7 @@ end
 local function planHouse(h, o, rng, cornerA, cornerB)
 	local W, D = h.width, h.depth
 	local floors = rng.int(o.minFloors, o.maxFloors)
+	if h.forceFloors then floors = h.forceFloors end
 	local H = o.groundH + o.upperH * (floors - 1)
 	local y0 = o.floorY
 	local facade = rng.pick(o.palette)
@@ -138,7 +141,7 @@ local function planHouse(h, o, rng, cornerA, cornerB)
 		add(h, "StaffelRoof", "roof", 0, roofTop + 10.3, D / 2, W - 3, 0.6, D - 11, { 96, 96, 100 }, "Concrete")
 		roofTop = roofTop + 10.6
 	end
-	for i = 1, chimneys do
+	for i = 1, h.simple and 0 or chimneys do
 		local lim = math.floor(W / 2 - 3)
 		add(h, "Chimney" .. i, "chimney", rng.int(-lim, lim), roofTop + 3, D - 6, 2.5, 6, 2.5, { 170, 100, 80 }, "Brick")
 	end
@@ -150,7 +153,7 @@ local function planHouse(h, o, rng, cornerA, cornerB)
 		for i = 1, nw do
 			addWindow(h, "F" .. k .. "_" .. i, "front", -W / 2 + (i - 0.5) * W / nw, yb + 6, 4.4, 6.4, rng.next() < o.litChance)
 		end
-		if balcony and k >= 2 then
+		if balcony and k >= 2 and not h.simple then
 			local bw = math.min(14, W - 10)
 			add(h, "Balcony" .. k, "balcony", 0, yb + 0.3, -1.25, bw, 0.6, 2.5, { 150, 150, 150 }, "Concrete")
 			add(h, "Rail" .. k, "balcony", 0, yb + 2.1, -2.35, bw, 3, 0.3, { 60, 60, 66 }, "Metal")
@@ -181,6 +184,34 @@ local function planHouse(h, o, rng, cornerA, cornerB)
 	end
 end
 
+-- Häuser entlang mehrerer Fassadenlinien. side = { name, yaw, sx, sz, ux, uz, len, corners, ranges }
+-- ranges = { { t0, t1 }, ... } begrenzt die bebaubaren Abschnitte (Lücken z. B. für Tore); Standard: ganze Länge.
+local function planSides(name, sides, o, rng, plan, depth)
+	for _, side in ipairs(sides) do
+		local ranges = side.ranges or { { 0, side.len } }
+		local idx = 0
+		for ri, range in ipairs(ranges) do
+			local len = range[2] - range[1]
+			if len >= 12 then
+				local n = math.max(1, math.floor(len / o.targetWidth + 0.5))
+				local width = len / n
+				for i = 0, n - 1 do
+					idx = idx + 1
+					local t = range[1] + (i + 0.5) * width
+					local h = {
+						side = side.name, index = idx, simple = o.simple,
+						ox = side.sx + side.ux * t, oz = side.sz + side.uz * t,
+						yaw = side.yaw, width = width, depth = depth, parts = {},
+						name = string.format("Haus_%s_%s%d", name, side.name, idx),
+					}
+					planHouse(h, o, rng, side.corners and ri == 1 and i == 0, side.corners and ri == #ranges and i == n - 1)
+					plan.houses[#plan.houses + 1] = h
+				end
+			end
+		end
+	end
+end
+
 -- block = { name, xmin, zmin, xmax, zmax } (Außenkante = Straßenrand). Gibt den Bauplan zurück.
 function Planner.planBlock(block, opts)
 	local o = mergeOpts(opts)
@@ -197,23 +228,57 @@ function Planner.planBlock(block, opts)
 		block = block, houses = {},
 		courtyard = { xmin + s + D, zmin + s + D, xmax - s - D, zmax - s - D },
 	}
-	for _, side in ipairs(sides) do
-		local n = math.floor(side.len / o.targetWidth + 0.5)
-		if side.len >= 12 and n < 1 then n = 1 end
-		if side.len >= 12 then
-			local width = side.len / n
-			for i = 0, n - 1 do
-				local t = (i + 0.5) * width
-				local h = {
-					side = side.name, index = i + 1,
-					ox = side.sx + side.ux * t, oz = side.sz + side.uz * t,
-					yaw = side.yaw, width = width, depth = D, parts = {},
-					name = string.format("Haus_%s_%s%d", block.name, side.name, i + 1),
-				}
-				planHouse(h, o, rng, side.corners and i == 0, side.corners and i == n - 1)
-				plan.houses[#plan.houses + 1] = h
-			end
+	planSides(block.name, sides, o, rng, plan, D)
+	return plan
+end
+
+-- Mapgrenze: Häuserband rund um die Karte, Fassade zeigt nach innen zur Ringstraße.
+-- wall = { inner = {xmin,zmin,xmax,zmax} (Ringaußenkante), outer = {...} (Kartenrand), gates = { N = {{x0,x1},...}, S = ... },
+--          specials = { { side, name, x0, x1, floors } } }
+function Planner.planWall(wall, opts)
+	local o = mergeOpts(opts)
+	o.simple, o.setback = true, 0
+	local D = wall.outer.xmin - wall.inner.xmin
+	D = math.abs(D)
+	local rng = newRng(o.seed + hash("Mapgrenze"))
+	local ix0, iz0, ix1, iz1 = wall.inner.xmin, wall.inner.zmin, wall.inner.xmax, wall.inner.zmax
+	local ox0, oz0, oz1 = wall.outer.xmin, wall.outer.zmin, wall.outer.zmax
+	local function ranges(len, startCoord, dirSign, gaps) -- Lücken (Weltkoordinate) in Abschnitte entlang der Laufrichtung umrechnen
+		local cuts = {}
+		for _, g in ipairs(gaps or {}) do
+			local a, b = (g[1] - startCoord) * dirSign, (g[2] - startCoord) * dirSign
+			if a > b then a, b = b, a end
+			cuts[#cuts + 1] = { a, b }
 		end
+		table.sort(cuts, function(p, q) return p[1] < q[1] end)
+		local out, pos = {}, 0
+		for _, c in ipairs(cuts) do
+			if c[1] > pos then out[#out + 1] = { pos, c[1] } end
+			pos = math.max(pos, c[2])
+		end
+		if pos < len then out[#out + 1] = { pos, len } end
+		return out
+	end
+	local innerW = ix1 - ix0
+	local sides = {
+		{ name = "N", yaw = 180, sx = ix1, sz = iz0, ux = -1, uz = 0, len = innerW, ranges = ranges(innerW, ix1, -1, wall.gates.N) },
+		{ name = "S", yaw = 0, sx = ix0, sz = iz1, ux = 1, uz = 0, len = innerW, ranges = ranges(innerW, ix0, 1, wall.gates.S) },
+		{ name = "W", yaw = 270, sx = ix0, sz = oz0, ux = 0, uz = 1, len = oz1 - oz0 },
+		{ name = "E", yaw = 90, sx = ix1, sz = oz1, ux = 0, uz = -1, len = oz1 - oz0 },
+	}
+	local plan = { houses = {}, wall = wall }
+	planSides("Wand", sides, o, rng, plan, D)
+	-- Sonderbauten in den Lücken (Querriegel, Feldherrnhalle)
+	for _, sp in ipairs(wall.specials) do
+		local w = sp.x1 - sp.x0
+		local north = sp.side == "N"
+		local h = {
+			side = sp.side, index = 0, simple = true, forceFloors = sp.floors,
+			ox = (sp.x0 + sp.x1) / 2, oz = north and iz0 or iz1,
+			yaw = north and 180 or 0, width = w, depth = D, parts = {}, name = "Sonder_" .. sp.name,
+		}
+		planHouse(h, o, rng, false, false)
+		plan.houses[#plan.houses + 1] = h
 	end
 	return plan
 end
