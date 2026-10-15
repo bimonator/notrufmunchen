@@ -77,7 +77,8 @@ ul.rec .k { font: 700 22px/1 var(--disp); color: var(--water); }
 .median { stroke: var(--park2); fill: none; } .lane { stroke: var(--roadline); stroke-width: 2; stroke-dasharray: 14 12; fill: none; }
 .ped { stroke: var(--plaza); fill: none; stroke-dasharray: 3 5; } .plaza { fill: var(--plaza); }
 .bridge { fill: var(--bridge); stroke: var(--fg); stroke-width: 2; }
-.shop { fill: var(--accent); opacity: .28; } .casc { fill: var(--water); } .poi { fill: var(--accent); stroke: var(--fg); stroke-width: 2; }
+.shop { fill: var(--accent); opacity: .28; } .casc { fill: var(--water); } .heist { fill: var(--hot); stroke: var(--fg); stroke-width: 2; } .garage { fill: var(--walk); stroke: var(--fg); stroke-width: 2; }
+.bay { stroke: var(--roadline); stroke-opacity: .6; fill: none; stroke-dasharray: 14 2; } .poi { fill: var(--accent); stroke: var(--fg); stroke-width: 2; }
 .church { fill: var(--church); stroke: var(--fg); stroke-width: 2; }
 .wall { fill: url(#wallhatch); stroke: var(--wallline); stroke-width: 2; } .wallbase { fill: var(--wall); } .wallln { stroke: var(--wallline); stroke-width: 3; }
 .gate { fill: var(--bank); stroke: var(--hot); stroke-width: 3; stroke-dasharray: 10 6; }
@@ -91,7 +92,7 @@ ul.rec .k { font: 700 22px/1 var(--disp); color: var(--water); }
 .s-ground { fill: var(--ground); stroke: var(--muted); stroke-width: 1.2; } .s-water { fill: var(--water); opacity: .85; }
 .s-road { fill: var(--road); } .s-walk { fill: var(--walk); } .s-med { fill: var(--park2); } .s-tree { fill: var(--park2); stroke: var(--fg); stroke-width: 1; }
 .s-line { stroke: var(--muted); stroke-width: 1.2; fill: none; } .s-dash { stroke: var(--hot); stroke-width: 1.6; stroke-dasharray: 5 4; fill: none; }
-.s-fg { fill: var(--fg); }
+.s-fg { fill: var(--fg); } .s-bay { fill: var(--roadline); opacity: .5; } .s-car { fill: var(--accent); stroke: var(--fg); stroke-width: 1; }
 </style>
 
 <main>
@@ -104,6 +105,7 @@ ul.rec .k { font: 700 22px/1 var(--disp); color: var(--water); }
       <div class="fact"><b class="mono">5238</b><span>Ringstraße, ≈ 87 s bei 60 Studs/s</span></div>
       <div class="fact"><b class="mono">882</b><span>Achse Nord–Süd, ≈ 15 s</span></div>
       <div class="fact"><b class="mono">≈ 11 200</b><span>Straße insgesamt (Schätzung aus dem Plan)</span></div>
+      <div class="fact"><b class="mono">≈ 165</b><span>Parkbuchten am Straßenrand (Achse ≈ 69, Raster ≈ 96)</span></div>
       <div class="fact"><b class="mono">90</b><span>Wandhöhe der Mapgrenze, 70–120 Variation</span></div>
     </div>
   </header>
@@ -152,17 +154,19 @@ ul.rec .k { font: 700 22px/1 var(--disp); color: var(--water); }
 
   <g id="l-roads">
     <path class="road" stroke-width="48" d="M-661,-472 H1076 V410 H-661 Z"/>
-    <path class="road" stroke-width="48" d="M-460,-472 V30 M-235,-472 V30 M-661,-285 H0 M-661,30 H0"/>
+    <path class="road" stroke-width="57" d="M-460,-472 V30 M-235,-472 V30 M-661,-285 H0 M-661,30 H0"/>
     <path class="road" stroke-width="48" d="M0,30 L290,36 L455,-77 L605,-212 L770,-347 L790,-472"/>
     <path class="road" stroke-width="48" d="M455,-77 L700,-60 L890,-15 L960,60 L1076,210"/>
     <path class="road" stroke-width="48" d="M-550,30 V196 M-661,254 H-612"/>
     <circle cx="-550" cy="254" r="58" class="road" stroke-width="24"/>
-        <path class="road" stroke-width="96" d="M0,-472 V410"/>
-    <path class="walk" stroke-width="14" d="M-41,-472 V410 M41,-472 V410"/>
+        <path class="road" stroke-width="110" d="M0,-472 V410"/>
+    <path class="walk" stroke-width="12" d="M-49,-472 V410 M49,-472 V410"/>
     <path class="median" stroke-width="12" d="M0,-472 V410"/>
     <path class="lane" d="M-20,-472 V410 M20,-472 V410"/>
-    <path class="lane" d="M-661,-285 H-24 M-661,30 H-24 M-460,-472 V6 M-235,-472 V6"/>
-    <path class="ped" stroke-width="40" d="M-480,254 H-48"/><circle cx="-58" cy="236" r="3.5" class="s-fg"/><circle cx="-58" cy="242" r="3.5" class="s-fg"/><circle cx="-58" cy="266" r="3.5" class="s-fg"/><circle cx="-58" cy="272" r="3.5" class="s-fg"/><circle cx="-470" cy="236" r="3.5" class="s-fg"/><circle cx="-470" cy="242" r="3.5" class="s-fg"/><circle cx="-470" cy="266" r="3.5" class="s-fg"/><circle cx="-470" cy="272" r="3.5" class="s-fg"/>
+    <path class="lane" d="M-661,-289.5 H-55 M-661,25.5 H-55 M-464.5,-472 V1 M-239.5,-472 V1"/>
+    <path class="bay" stroke-width="9" d="M38.5,-448 V-40 M-38.5,-448 V-314 M-38.5,-257 V-40 M-38.5,64 V226 M38.5,64 V286"/>
+    <path class="bay" stroke-width="9" d="M-633,-271 H-497 M-432,-271 H-272 M-207,-271 H-59 M-633,44 H-578 M-522,44 H-497 M-432,44 H-272 M-207,44 H-59 M-446,-448 V-317 M-446,-253 V-3 M-221,-448 V-317 M-221,-253 V-3"/>
+    <path class="ped" stroke-width="40" d="M-480,254 H-55"/><circle cx="-65" cy="236" r="3.5" class="s-fg"/><circle cx="-65" cy="242" r="3.5" class="s-fg"/><circle cx="-65" cy="266" r="3.5" class="s-fg"/><circle cx="-65" cy="272" r="3.5" class="s-fg"/><circle cx="-470" cy="236" r="3.5" class="s-fg"/><circle cx="-470" cy="242" r="3.5" class="s-fg"/><circle cx="-470" cy="266" r="3.5" class="s-fg"/><circle cx="-470" cy="272" r="3.5" class="s-fg"/>
   </g>
 
   <g id="l-bridges">
@@ -175,8 +179,8 @@ ul.rec .k { font: 700 22px/1 var(--disp); color: var(--water); }
   </g>
 
   <g id="l-places">
-    <rect x="-100" y="-400" width="52" height="360" class="shop"/>
-    <rect x="48" y="-400" width="52" height="360" class="shop"/>
+    <rect x="-107" y="-400" width="52" height="86" class="shop"/><rect x="-107" y="-256" width="52" height="216" class="shop"/>
+    <rect x="55" y="-400" width="52" height="360" class="shop"/>
     <rect x="-160" y="130" width="100" height="90" class="shop"/>
     <rect x="-130" y="64" width="64" height="52" class="poi"/>
     <rect x="-140" y="296" width="280" height="90" class="plaza"/>
@@ -186,6 +190,7 @@ ul.rec .k { font: 700 22px/1 var(--disp); color: var(--water); }
     <rect x="-570" y="242" width="40" height="24" class="church"/>
     <circle cx="-576" cy="247" r="4" class="church"/><circle cx="-576" cy="261" r="4" class="church"/>
     <rect x="560" y="330" width="56" height="40" class="poi"/>
+    <rect x="-127" y="-385" width="72" height="70" class="heist"/><rect x="-350" y="66" width="50" height="40" class="heist"/><rect x="-205" y="-250" width="96" height="110" class="garage"/>
     <circle cx="630" cy="372" r="10" class="church"/>
     <rect x="870" y="250" width="150" height="96" class="park2"/><rect x="929" y="346" width="32" height="40" class="casc"/><circle cx="945" cy="292" r="11" class="poi"/>
   </g>
@@ -211,10 +216,10 @@ ul.rec .k { font: 700 22px/1 var(--disp); color: var(--water); }
   </g>
 
   <g id="l-labels">
-    <text class="t ton" transform="translate(9,-250) rotate(-90)" text-anchor="middle">LEOPOLDSTRASSE · 96 breit</text>
+    <text class="t ton" transform="translate(9,-250) rotate(-90)" text-anchor="middle">LEOPOLDSTRASSE · 110 breit</text>
     <text class="t ton" transform="translate(9,190) rotate(-90)" text-anchor="middle">LUDWIGSTRASSE</text>
-    <text class="t ts" transform="translate(-68,-220) rotate(-90)" text-anchor="middle">Ladenzeile</text>
-    <text class="t ts" transform="translate(84,-220) rotate(-90)" text-anchor="middle">Ladenzeile</text>
+    <text class="t ts" transform="translate(-81,-220) rotate(-90)" text-anchor="middle">Ladenzeile</text>
+    <text class="t ts" transform="translate(81,-220) rotate(-90)" text-anchor="middle">Ladenzeile</text>
     <text class="t" x="56" y="-18">Siegestor</text>
     <text class="t ts" x="-136" y="95" text-anchor="end">Café-Terrasse</text>
     <text class="t ts" x="-170" y="180" text-anchor="end">Uni-Fassade</text>
@@ -240,7 +245,8 @@ ul.rec .k { font: 700 22px/1 var(--disp); color: var(--water); }
     <text class="t ts" x="420" y="-523" text-anchor="middle">Mapgrenze: Häuserwand 60 tief × 90 hoch</text>
     <text class="t ts" x="-120" y="-632" text-anchor="start" transform="translate(-60,0)">München Arena (Kulisse, nicht betretbar)</text>
     <text class="t ts" x="640" y="-285" text-anchor="start" transform="translate(30,0)">B0</text>
-    <text class="t ts" x="680" y="-90">B1</text><text class="t ts" x="826" y="-48">B2</text><text class="t ts ton" x="800" y="418">B3 · Luitpoldbrücke</text><text class="t" x="945" y="236" text-anchor="middle">Friedensengel</text><text class="t ts" x="930" y="-440">B4</text><text class="t ts" x="640" y="108" text-anchor="end">B5</text>
+    <text class="t ts" x="680" y="-90">B1</text><text class="t ts" x="826" y="-48">B2</text><text class="t ts ton" x="800" y="418">B3 · Luitpoldbrücke</text><text class="t" x="945" y="236" text-anchor="middle">Friedensengel</text>
+    <text class="t ts" x="-91" y="-393" text-anchor="middle">Isarbank</text><text class="t ts" x="-325" y="126" text-anchor="middle">Kiosk</text><text class="t ts" x="-157" y="-190" text-anchor="middle">Parkhaus</text><text class="t ts" x="930" y="-440">B4</text><text class="t ts" x="640" y="108" text-anchor="end">B5</text>
     <g transform="translate(0,0)">
       <path class="dim" d="M-745,548 H1160 M-745,540 V556 M1160,540 V556"/>
       <text class="t tm" x="207" y="580" text-anchor="middle">1905 Studs</text>
@@ -252,7 +258,7 @@ ul.rec .k { font: 700 22px/1 var(--disp); color: var(--water); }
   </g>
 </svg>
         </div>
-        <figcaption>Draufsicht. Straßen und Wasser sind maßstabsgetreu gezeichnet (Breite = echte Studs). B0–B5 sind die sechs Brücken, rot gestrichelt sind die zwei Flusstore in der Wand, gelb sind Landmarks und Orte. Die Ebenen oben lassen sich einzeln ausblenden.</figcaption>
+        <figcaption>Draufsicht. Straßen und Wasser sind maßstabsgetreu gezeichnet (Breite = echte Studs). B0–B5 sind die sechs Brücken, rot gestrichelt sind die zwei Flusstore in der Wand, gelb sind Landmarks und Orte. Rote Quadrate sind überfallbare Ziele, die graue Fläche ist das Parkhaus, helle Streifen an den Straßen sind Parkbuchten. Die Ebenen oben lassen sich einzeln ausblenden.</figcaption>
       </figure>
     </div>
   </section>
@@ -261,17 +267,18 @@ ul.rec .k { font: 700 22px/1 var(--disp); color: var(--water); }
     <h2>Querschnitte</h2>
     <div class="grid2">
       <figure class="card sec">
-        <svg viewBox="0 0 400 150" role="img" aria-label="Querschnitt Achse: Gehweg 14, zwei Spuren je 14, Mittelstreifen 12, zwei Spuren je 14, Gehweg 14, zusammen 96 Studs">
-          <rect x="0" y="100" width="400" height="30" class="s-ground"/>
-          <rect x="8" y="94" width="56" height="6" class="s-walk"/><rect x="64" y="98" width="112" height="2" class="s-road"/>
-          <rect x="176" y="92" width="48" height="8" class="s-med"/><rect x="224" y="98" width="112" height="2" class="s-road"/><rect x="336" y="94" width="56" height="6" class="s-walk"/>
-          <path d="M120,98 v2 M280,98 v2" class="s-dash"/>
-          <path d="M200,92 v-22" class="s-line"/><circle cx="200" cy="58" r="16" class="s-tree"/>
-          <g class="s-t" text-anchor="middle"><text x="36" y="120">14</text><text x="92" y="120">14</text><text x="148" y="120">14</text><text x="200" y="120">12</text><text x="252" y="120">14</text><text x="308" y="120">14</text><text x="364" y="120">14</text></g>
-          <path d="M8,132 V138 H392 V132" class="s-line"/><text x="200" y="148" text-anchor="middle" class="s-t">96 Studs</text>
-          <text x="36" y="82" text-anchor="middle" class="s-m">Gehweg</text><text x="120" y="82" text-anchor="middle" class="s-m">2 Spuren</text><text x="280" y="82" text-anchor="middle" class="s-m">2 Spuren</text><text x="364" y="82" text-anchor="middle" class="s-m">Gehweg</text>
+        <svg viewBox="0 0 456 150" role="img" aria-label="Querschnitt Achse: Gehweg 12, Parken 9, zwei Spuren je 14, Mittelstreifen 12, zwei Spuren je 14, Parken 9, Gehweg 12, zusammen 110 Studs">
+          <rect x="0" y="100" width="456" height="30" class="s-ground"/>
+          <rect x="8" y="94" width="48" height="6" class="s-walk"/><rect x="56" y="98" width="36" height="2" class="s-bay"/><rect x="92" y="98" width="112" height="2" class="s-road"/>
+          <rect x="204" y="92" width="48" height="8" class="s-med"/><rect x="252" y="98" width="112" height="2" class="s-road"/><rect x="364" y="98" width="36" height="2" class="s-bay"/><rect x="400" y="94" width="48" height="6" class="s-walk"/>
+          <path d="M148,98 v2 M308,98 v2" class="s-dash"/>
+          <rect x="60" y="86" width="28" height="12" rx="2" class="s-car"/><rect x="368" y="86" width="28" height="12" rx="2" class="s-car"/>
+          <path d="M228,92 v-22" class="s-line"/><circle cx="228" cy="58" r="16" class="s-tree"/>
+          <g class="s-t" text-anchor="middle"><text x="32" y="120">12</text><text x="74" y="120">9</text><text x="120" y="120">14</text><text x="176" y="120">14</text><text x="228" y="120">12</text><text x="280" y="120">14</text><text x="336" y="120">14</text><text x="382" y="120">9</text><text x="424" y="120">12</text></g>
+          <path d="M8,132 V138 H448 V132" class="s-line"/><text x="228" y="148" text-anchor="middle" class="s-t">110 Studs</text>
+          <g class="s-m" text-anchor="middle"><text x="32" y="82">Gehweg</text><text x="74" y="78">Parken</text><text x="148" y="82">2 Spuren</text><text x="308" y="82">2 Spuren</text><text x="382" y="78">Parken</text><text x="424" y="82">Gehweg</text></g>
         </svg>
-        <figcaption><b>Achse Leopoldstraße / Ludwigstraße.</b> Vier Fahrspuren à 14 Studs, Mittelstreifen mit Bäumen. Ein Auto (ca. 7 breit) hat je 3,5 Studs Luft, ein breiter Einsatzwagen (ca. 10) noch 2.</figcaption>
+        <figcaption><b>Achse Leopoldstraße / Ludwigstraße.</b> Vier Fahrspuren à 14 Studs, Mittelstreifen mit Bäumen, Parkbuchten (9 × 16) auf beiden Seiten. Ein Auto (ca. 7 breit) hat je 3,5 Studs Luft, ein breiter Einsatzwagen (ca. 10) noch 2.</figcaption>
       </figure>
 
       <figure class="card sec">
@@ -283,7 +290,18 @@ ul.rec .k { font: 700 22px/1 var(--disp); color: var(--water); }
           <path d="M104,132 V138 H296 V132" class="s-line"/><text x="200" y="148" text-anchor="middle" class="s-t">48 Studs</text>
           <text x="124" y="82" text-anchor="middle" class="s-m">Gehweg</text><text x="200" y="82" text-anchor="middle" class="s-m">2 Spuren</text><text x="276" y="82" text-anchor="middle" class="s-m">Gehweg</text>
         </svg>
-        <figcaption><b>Nebenstraße, Ring, Diagonale, Isarspange.</b> Gleiche 14er-Fahrspur wie die Achse, nur eine pro Richtung, dafür schmalere Gehwege (10). Dieses Profil gilt für rund 90 % aller Straßenmeter.</figcaption>
+        <figcaption><b>Nebenstraße, Ring, Diagonale, Isarspange.</b> Gleiche 14er-Fahrspur wie die Achse, nur eine pro Richtung, dafür schmalere Gehwege (10). Dieses Profil gilt für rund 70 % der Straßenmeter (Ring, Diagonale, Isarspange), ohne Parken.</figcaption>
+      </figure>
+      <figure class="card sec">
+        <svg viewBox="0 0 400 150" role="img" aria-label="Querschnitt Schwabing-Raster: Gehweg 10, zwei Spuren je 14, Parken 9, Gehweg 10, zusammen 57 Studs">
+          <rect x="0" y="100" width="400" height="30" class="s-ground"/>
+          <rect x="86" y="94" width="40" height="6" class="s-walk"/><rect x="126" y="98" width="112" height="2" class="s-road"/><rect x="238" y="98" width="36" height="2" class="s-bay"/><rect x="274" y="94" width="40" height="6" class="s-walk"/>
+          <path d="M182,98 v2" class="s-dash"/><rect x="242" y="86" width="28" height="12" rx="2" class="s-car"/>
+          <g class="s-t" text-anchor="middle"><text x="106" y="120">10</text><text x="154" y="120">14</text><text x="210" y="120">14</text><text x="256" y="120">9</text><text x="294" y="120">10</text></g>
+          <path d="M86,132 V138 H314 V132" class="s-line"/><text x="200" y="148" text-anchor="middle" class="s-t">57 Studs</text>
+          <g class="s-m" text-anchor="middle"><text x="106" y="82">Gehweg</text><text x="182" y="82">2 Spuren</text><text x="256" y="78">Parken</text><text x="294" y="82">Gehweg</text></g>
+        </svg>
+        <figcaption><b>Schwabing-Raster.</b> Wie die Nebenstraße plus eine Parkreihe auf einer Seite. Ein Auto (ca. 7 breit) steht in der 9er-Bucht mit 1 Stud Luft je Seite.</figcaption>
       </figure>
 
       <figure class="card sec" style="grid-column: 1 / -1">
@@ -350,22 +368,37 @@ ul.rec .k { font: 700 22px/1 var(--disp); color: var(--water); }
     <h2>Flächenverteilung</h2>
     <div class="card">
       <figure>
-        <div class="bar" role="img" aria-label="Flächenanteile: Mapgrenze 17 Prozent, Straßen 29 Prozent, Wasser 5 Prozent, Parks 9 Prozent, Baufläche 40 Prozent">
+        <div class="bar" role="img" aria-label="Flächenanteile: Mapgrenze 17 Prozent, Straßen 30 Prozent, Wasser 5 Prozent, Parks 9 Prozent, Baufläche 39 Prozent">
           <div style="width:17%;background:var(--wallline)">17 %</div>
-          <div style="width:29%;background:var(--road)">29 %</div>
+          <div style="width:30%;background:var(--road)">30 %</div>
           <div style="width:5%;background:var(--water)">5 %</div>
           <div style="width:9%;background:var(--park2);color:var(--fg)">9 %</div>
-          <div style="width:40%;background:var(--accent);color:#1a1a1a">40 % Baufläche</div>
+          <div style="width:39%;background:var(--accent);color:#1a1a1a">39 % Baufläche</div>
         </div>
         <div class="legend">
           <span><i style="background:var(--wallline)"></i>Mapgrenze 340 000 Studs²</span>
-          <span><i style="background:var(--road)"></i>Straßen ≈ 576 000</span>
+          <span><i style="background:var(--road)"></i>Straßen ≈ 609 000</span>
           <span><i style="background:var(--water)"></i>Wasser ≈ 98 000</span>
           <span><i style="background:var(--park2)"></i>Parks ≈ 170 000</span>
-          <span><i style="background:var(--accent)"></i>Baufläche für Häuser ≈ 815 000</span>
+          <span><i style="background:var(--accent)"></i>Baufläche für Häuser ≈ 783 000</span>
         </div>
-        <figcaption>Aus den Plan-Maßen gerechnet, Überlappungen vernachlässigt (±2 Prozentpunkte). Wichtig für später: 40 % der Fläche sind Häuserblöcke. Die Straßen sind mit 29 % ein großer Posten, weil sie für Fahrzeuge bewusst überbreit sind.</figcaption>
+        <figcaption>Aus den Plan-Maßen gerechnet, Überlappungen vernachlässigt (±2 Prozentpunkte). Wichtig für später: 39 % der Fläche sind Häuserblöcke. Die Straßen sind mit 30 % ein großer Posten, weil sie für Fahrzeuge bewusst überbreit sind.</figcaption>
       </figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>Überfallziele und Parken</h2>
+    <div class="card tablewrap">
+      <table>
+        <thead><tr><th>Ort</th><th>Lage (Studs)</th><th>Warum dort</th><th>Spielwerte (Startwerte)</th></tr></thead>
+        <tbody>
+          <tr><td><b>Isarbank</b> <span class="pill">erfundener Name</span></td><td class="n">(−127…−55, −385…−315)</td><td>Eckgebäude Leopoldstraße / Querstraße H1. Zwei Fluchtstraßen, das Parkhaus liegt nur ca. 40 Studs entfernt (Fluchtwagen wechseln).</td><td>Schwerstes Ziel: Tresor, Team 3–5, Alarm direkt an die Polizei, Cooldown ca. 10 min.</td></tr>
+          <tr><td><b>Kiosk</b></td><td class="n">(−350…−300, 66…106)</td><td>Abseits der Hauptachse, einfacher Einstieg für Einzelspieler.</td><td>1–2 Spieler, Cooldown ca. 5 min, Beute grob 15–20 % der Bank (Annahme).</td></tr>
+          <tr><td><b>Parkhaus</b></td><td class="n">(−205…−109, −250…−140)</td><td>Einfahrt von H1 und V2, gegenüber der Bank. Parkplatz für Spieler und Ort zum Fahrzeugwechsel nach dem Überfall.</td><td>4 Ebenen à 14 Studs, ≈ 100–130 Stellplätze, Rampe an der Längsseite 14 breit mit Steigung 1:6. Rampe im Studio mit einem Auto testen.</td></tr>
+          <tr><td><b>Straßenparken</b></td><td class="n">Achse + Raster</td><td>Leopoldstraße ist am breitesten und bekommt die meisten Buchten.</td><td>≈ 165 Buchten (9 × 16), Annahme 16 Studs Länge je Auto.</td></tr>
+        </tbody>
+      </table>
     </div>
   </section>
 
@@ -378,7 +411,7 @@ ul.rec .k { font: 700 22px/1 var(--disp); color: var(--water); }
           <tr><td class="n">1</td><td>Vorbereitung</td><td>Ordner <span class="mono">Map/Terrain, Strassen, Bruecken, Grenze, Orte</span>. Skizze als Referenz-Decal. Marker am Siegestor (0,0) und an den vier Ecken.</td><td>Ecken-Marker haben exakt 1905 × 1050 Abstand.</td><td class="n">5 %</td></tr>
           <tr><td class="n">2</td><td>Terrain-Boden</td><td>Terrain-Fläche 1905 × 1050, Oberkante Y 0, 20 Studs dick (ggf. in Kacheln füllen).</td><td>Ein Spieler läuft einmal quer, ohne Loch.</td><td class="n">10 %</td></tr>
           <tr><td class="n">3</td><td>Isar, Bach, Hügel</td><td>Isar und Bach nach den Querschnitten ausheben und fluten. Eisbach-Abschnitt tiefer. Monopteros-Hügel und Friedensengel-Terrasse.</td><td>Figur schwimmt in der Isar, watet im Bach, kommt an beiden Ufern wieder raus.</td><td class="n">20 %</td></tr>
-          <tr><td class="n">4</td><td>Straßen</td><td>Ring, Achse, Schwabing-Raster, Diagonale, Isarspange, Kreisel, Fußgängerzone. Erst Mittellinien als Marker, dann Parts.</td><td>Auto fährt den Ring in 87 s ± 10 s ohne Hänger. Breitestes Fahrzeug passt in jede Spur mit ≥ 2 Studs Luft je Seite.</td><td class="n">30 %</td></tr>
+          <tr><td class="n">4</td><td>Straßen</td><td>Ring, Achse, Schwabing-Raster, Diagonale, Isarspange, Kreisel, Fußgängerzone. Parkbuchten 9 × 16 aufmalen. Erst Mittellinien als Marker, dann Parts.</td><td>Auto fährt den Ring in 87 s ± 10 s ohne Hänger. Breitestes Fahrzeug passt in jede Spur mit ≥ 2 Studs Luft je Seite.</td><td class="n">30 %</td></tr>
           <tr><td class="n">5</td><td>Brücken B0–B5</td><td>Fünf Straßenbrücken, eine Fußgängerbrücke.</td><td>Auto quert alle fünf in beide Richtungen, Figur geht über B5.</td><td class="n">10 %</td></tr>
           <tr><td class="n">6</td><td>Mapgrenze</td><td>Wandband 60 × 90, Querriegel Nord, Feldherrnhalle Süd, zwei Flusstore mit Wehr und Brückenhaus.</td><td>Rundlauf am Ring: nirgends Blick nach draußen oder in Lücken.</td><td class="n">20 %</td></tr>
           <tr><td class="n">7</td><td>Abnahme</td><td>Kamera-Test (Zoom auf Maximum, steiler Winkel), Fahrt Achse Nord–Süd, Fahrt West–Ost.</td><td>Achse ≈ 15 s, Querung ≈ 29 s bei 60 Studs/s.</td><td class="n">5 %</td></tr>
@@ -401,13 +434,15 @@ ul.rec .k { font: 700 22px/1 var(--disp); color: var(--water); }
   </section>
 
   <section>
-    <h2>Entschieden in Runde 2</h2>
+    <h2>Entschieden</h2>
     <div class="card">
       <ul class="rec">
         <li><span class="k">A</span><div><b>Isar ist schwimmbar</b> (6 Studs tief). Wasserrettung später ohne Umbau möglich.</div></li>
-        <li><span class="k">B</span><div><b>Fahrspur 14 Studs, Gesamtbreiten bleiben 96 und 48.</b> Regel: Spur = breitestes Fahrzeug + mindestens 6. Ein typisches Roblox-Auto (ca. 6–8 breit, grobe Schätzung) hat dann 3,5 Studs Luft je Seite. Dafür werden nur die Gehwege schmaler (Achse 14, Nebenstraße 10), die Karte ändert sich nicht.</div></li>
+        <li><span class="k">B</span><div><b>Fahrspur 14 Studs.</b> Regel: Spur = breitestes Fahrzeug + mindestens 6. Ein typisches Roblox-Auto (ca. 6–8 breit, grobe Schätzung) hat dann 3,5 Studs Luft je Seite. Die Gesamtbreiten stehen unter E (mit Parken).</div></li>
         <li><span class="k">C</span><div><b>Fußgängerzone ist für Einsatzfahrzeuge befahrbar.</b> 40 Studs breit, an beiden Enden Poller mit 20 Studs Lücke. Zivile Autos sperrt später ein Script (Kollisionsgruppe), nicht die Geometrie.</div></li>
         <li><span class="k">D</span><div><b>Friedensengel steht am Ostende der Luitpoldbrücke (B3).</b> Das ist die Brücke der Prinzregentenstraße, an der auch die Eisbachwelle liegt. So entsteht eine Sehenswürdigkeiten-Kette Eisbachwelle, Brücke, Friedensengel entlang des Südrings. Die Maximilianbrücke entfällt, sie liegt ca. 1 km südlich des Kartenrands.</div></li>
+        <li><span class="k">E</span><div><b>Parken am Straßenrand.</b> Parkbucht 9 × 16. Achse (Leopoldstraße und Ludwigstraße) wird <b>110</b> breit mit Parken auf beiden Seiten, ≈ 69 Buchten. Schwabing-Raster wird <b>57</b> breit mit einer Parkreihe, ≈ 96 Buchten. Ring, Diagonale und Isarspange bleiben 48 ohne Parken. Am Siegestor und am Odeonsplatz wird nicht geparkt.</div></li>
+        <li><span class="k">F</span><div><b>Überfallbare Ziele und Parkhaus</b> (Abschnitt darunter): Isarbank, Kiosk, Parkhaus, alle in der Schwabing-Hälfte westlich der Achse.</div></li>
       </ul>
     </div>
   </section>
