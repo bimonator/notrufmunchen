@@ -67,10 +67,31 @@ Einsatzarten: Verkehrsunfall, Herzstillstand, Sturz an der Eisbachwelle, **Verle
 Standorte, Grundrisse und Maße stehen in `docs/phase1_bauplan.html` (Abschnitt „Wachen und Krankenhaus").
 
 - **Polizeiwache** (klein, modern): Empfang mit Job-Terminal, Umkleide mit Spind, Rollenspiel-Räume, Zellen, Innenhof mit 8 Spawnplätzen und Schranke zum Ring.
-- **Feuerwache mit Rettungsdienst:** 5 Tore auf die Leopoldstraße, Job-Terminal, Spinde, Aufenthalt, Einsatzleitung.
+- **Feuer- und Rettungswache** im Schwabing-Raster: 8 Tore, vorne 4 Feuerwehr (Straße V1), hinten 4 Rettungsdienst (Straße V2), Job-Terminal, Spinde, Aufenthalt, Einsatzleitung.
 - **Krankenhaus** (nur Rollenspiel): Notaufnahme, Schockraum, OP, 4 Krankenzimmer mit Betten.
 - **Rettungseinsatz:** Standard ist Wiederbelebung vor Ort (ca. 10–15 s). Der Transport ins Krankenhaus ist freiwillig (Rollenspiel) und gibt einen kleinen Bonus.
 - **Job-Ablauf:** Wache betreten, am Job-Terminal bewerben, am Spind Uniform und Ausrüstung holen, Fahrzeug spawnen.
+
+## 3b. Wiederbelebung mit Infusion
+
+Der Sanitäter hält die Infusion in der Hand (Beutel als Werkzeug, Fortschrittsring) und legt sie am Patienten an (Taste gedrückt halten).
+
+| Item | Heilung | Zeit bis der Patient aufsteht | Vorrat im Rettungswagen |
+|---|---|---|---|
+| Kochsalzlösung | 3 HP/s, bis max. 60 HP | ca. 10 s (aufstehen ab 30 HP) | 6 |
+| **Blutinfusion** (stärker) | 8 HP/s, bis 100 HP | ca. 4 s | 2 |
+
+- Startwerte: Patient ist bei 0 HP „down", Verblutungs-Timer 120 s. Blut ist knapp und für Schwerverletzte gedacht.
+- Nachfüllen an der Wache oder im Krankenhaus, mit kurzer Sperre (30 s), damit nicht dauernd nachgefüllt wird.
+- Die Infusion ersetzt das Minispiel aus Abschnitt 2. Das spart Aufwand und passt zum Rollenspiel.
+
+## 3c. Tankstelle und Tanken
+
+- Tank voll = ca. 15 min Fahrt (Annahme), Anzeige im HUD.
+- Tanken: 8–10 s halten an der Zapfsäule, Preis ca. 0,2 E (ca. 3 % des Verdienstes in 15 min Rettungsdienst).
+- Leerer Tank: Auto rollt aus, ein Zivilist mit Abschleppdienst-Job kann mit dem Kanister helfen.
+- Einsatzfahrzeuge tanken kostenlos an eigener Zapfsäule im Wachen-Hof (kein Umweg im Einsatz).
+- Tankstelle: langer Schirm mit 8 Zapfsäulen an der Leopoldstraße. Anspielung auf die bekannte Tankstelle dort, aber **erfundener Name** (nicht den echten Markennamen verwenden). Ihr Shop kann als weiteres Loot-Ziel dienen und nachts als Treffpunkt.
 
 ## 4. Schmuggelware und Schwarzmarkt
 
@@ -171,3 +192,19 @@ Balance-Gedanke: Die Polizei hat ca. 10 % mehr Spitze, Fluchtautos der Kriminell
 2. Welche Toolbox-Fahrzeuge (2–3 pro Klasse)? Schick mir die Namen, dann prüfe ich die Ziele.
 3. Dein X-Logo: soll es für alle Fahrzeuge gleich sein oder gibt es Varianten pro Klasse?
 4. Loot-Spots erweitern: Juwelier, Club-Kasse, Geldtransporter ja oder nein?
+
+## 11. Was sonst noch wichtig wäre (Vorschläge)
+
+| Priorität | Feature | Warum |
+|---|---|---|
+| v1 | Minimap, GPS-Marker zu Einsätzen und Orten | Orientierung auf 1900 × 1050 Studs |
+| v1 | Fahrzeug-Garage (Fahrzeuge speichern, spawnen) | Basis für Kauf und Tuning |
+| v1 | Tutorial für Neulinge (Team wählen, Job-Terminal) | Neue Spieler springen sonst ab |
+| v1 | Server-seitig Anti-Cheat, Melden von Spielern | Pflicht bei Geld und Überfällen |
+| v2 | Autohaus, Werkstatt, Tuning, Abschleppdienst | Geldsenke und Bindung |
+| v2 | Wohnungen und Häuser (kaufen oder mieten) | Fortschritt, eigene Garage |
+| v2 | Handy (Notruf, Navigation, Kontakte) | Rollenspiel und Notrufe |
+| v2 | Strafzettel und Blitzer (Polizei) | mehr Alltagsaufgaben für die Polizei |
+| v3 | U-Bahn als Schnellreise, Taxi, Lieferjobs | Zivilisten-Beschäftigung |
+| v3 | Wetter, Radio im Auto, Emotes | Atmosphäre |
+| v3 | Events (Christkindlmarkt, Sommer an der Isar) | Wiederkehr |
