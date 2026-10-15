@@ -15,6 +15,7 @@ Baut die Karte aus `docs/MAP_PLAN.md` und `docs/phase1_bauplan.html` per Code: T
 [boden] Terrain-Oberkante gemessen: -2.0, alle weiteren Teile werden daran ausgerichtet
 [wasser] ok (... Wasser-Zellen am Messpunkt)
 [roads] 1321 Teile, 157 Parkbuchten
+[lights] 319 Laternen, 13 Ampeln, 2 Fußgängerampeln, 1030 Teile
 [houses] 129 Häuser, 8147 Teile
 [wall] 128 Gebäude, 8743 Teile
 Fertig
@@ -30,7 +31,7 @@ Strg+Z nimmt den ganzen Lauf zurück. Erneutes Bauen ersetzt die Ordner `Strasse
 
 ### Schritt für Schritt (wenn etwas nicht klappt)
 
-Die Schritte laufen in dieser Reihenfolge und sind unabhängig voneinander ausführbar: `terrain` → `roads` → `houses` → `wall`. Im Script oben `STEPS = { "terrain" }`, dann `{ "roads" }` usw. Fehler eines Schritts stoppen die anderen nicht, sie stehen im Output als `FEHLER: ...`.
+Die Schritte laufen in dieser Reihenfolge und sind unabhängig voneinander ausführbar: `terrain` → `roads` → `lights` → `houses` → `wall`. Im Script oben `STEPS = { "terrain" }`, dann `{ "roads" }` usw. Fehler eines Schritts stoppen die anderen nicht, sie stehen im Output als `FEHLER: ...`.
 
 ## Dateien
 

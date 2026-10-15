@@ -6,7 +6,7 @@ import os
 import re
 
 here = os.path.dirname(os.path.abspath(__file__))
-ORDER = ["Geo", "Config", "Planner", "Blocks", "Specials", "RoadsPlanner", "TerrainPlanner", "WallPlanner", "Builder", "BuildAll"]
+ORDER = ["Geo", "Config", "Planner", "Blocks", "Specials", "RoadsPlanner", "LightsPlanner", "TerrainPlanner", "WallPlanner", "Builder", "BuildAll"]
 
 
 def read(name):
@@ -23,7 +23,7 @@ def modules():
 script = """-- MapBuilder_Script.lua  (automatisch erzeugt mit make_bundles.py, nicht von Hand ändern)
 -- Test: in ServerScriptService ein Script anlegen, alles einfügen, oben im Studio auf RUN (nicht Play) klicken.
 -- Die Karte entsteht nur zur Laufzeit und ist nach dem Stoppen weg. Für dauerhaftes Bauen: MapBuilder_Plugin.lua.
-local STEPS = { "terrain", "roads", "houses", "wall" } -- Teilmenge möglich, z. B. { "roads" }
+local STEPS = { "terrain", "roads", "lights", "houses", "wall" } -- Teilmenge möglich, z. B. { "roads" }
 local ONLY = nil -- nur bestimmte Häuserblöcke, z. B. { "B_NordMitte" }; nil = alle
 local ORIGIN = Vector3.new(0, 0, 0) -- Position des Siegestors
 
@@ -36,7 +36,7 @@ plugin = """-- MapBuilder_Plugin.lua  (automatisch erzeugt mit make_bundles.py, 
 local ORIGIN = Vector3.new(0, 0, 0) -- Position des Siegestors
 
 """ + modules() + """local toolbar = plugin:CreateToolbar("Notruf München")
-local button = toolbar:CreateButton("Karte bauen", "Terrain, Straßen, Häuser und Mapgrenze bauen", "")
+local button = toolbar:CreateButton("Karte bauen", "Terrain, Straßen, Ampeln, Laternen, Häuser und Mapgrenze bauen", "")
 button.Click:Connect(function()
 	BuildAll.run({ origin = ORIGIN })
 end)

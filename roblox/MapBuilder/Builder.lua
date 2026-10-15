@@ -10,7 +10,7 @@ local Builder = {}
 local MATERIALS = {
 	SmoothPlastic = Enum.Material.SmoothPlastic, Concrete = Enum.Material.Concrete, Brick = Enum.Material.Brick,
 	Glass = Enum.Material.Glass, Wood = Enum.Material.Wood, Metal = Enum.Material.Metal, Asphalt = Enum.Material.Asphalt,
-	Pavement = Enum.Material.Pavement, Grass = Enum.Material.Grass, Water = Enum.Material.Water, Air = Enum.Material.Air,
+	Pavement = Enum.Material.Pavement, Grass = Enum.Material.Grass, Water = Enum.Material.Water, Neon = Enum.Material.Neon, Air = Enum.Material.Air,
 }
 
 local function buildPart(spec, origin)
@@ -31,6 +31,9 @@ local function buildPart(spec, origin)
 	if spec.tag then
 		CollectionService:AddTag(p, spec.tag) -- Tag-Skript schaltet nachts Lit-Fenster auf Neon
 		p:SetAttribute("Lit", spec.lit == true)
+	end
+	if spec.attrs then
+		for k, v in pairs(spec.attrs) do p:SetAttribute(k, v) end -- z. B. Lampenfarbe für das Ampel-Skript
 	end
 	return p
 end

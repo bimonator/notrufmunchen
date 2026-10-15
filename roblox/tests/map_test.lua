@@ -5,6 +5,7 @@ local Geo = require("Geo")
 local RoadsPlanner = require("RoadsPlanner")
 local TerrainPlanner = require("TerrainPlanner")
 local WallPlanner = require("WallPlanner")
+local LightsPlanner = require("LightsPlanner")
 local Planner = require("Planner")
 
 local failures = 0
@@ -242,6 +243,72 @@ for _, h in ipairs(wall.houses) do
 end
 check(special == 2, "Querriegel und Feldherrnhalle erwartet")
 check(#wall.parts == 4, "Brückenhäuser und Gitter erwartet")
+
+-- ===== Laternen und Ampeln =====
+local lights = LightsPlanner.plan(Config, road)
+print(string.format("Beleuchtung: %d Laternen, %d Ampeln, %d Fußgängerampeln, %d Teile", lights.stats.lamps, lights.stats.signals, lights.stats.ped, #lights.parts))
+check(lights.stats.lamps > 250, "zu wenige Laternen: " .. lights.stats.lamps)
+check(lights.stats.signals == #Config.signals and lights.stats.ped == 2, "Ampeln unvollständig")
+-- Nummerierung der Ampelgruppen laut Plan: Ring Nord, H1, Odeonsplatz, 2 Wachen-Ausfahrten
+local groups = {}
+for _, s in ipairs(Config.signals) do groups[s.name] = true end
+local ng = 0
+for _ in pairs(groups) do ng = ng + 1 end
+check(ng == 5, "Ampelanlagen " .. ng .. " statt 5")
+-- Jeder Mast (Laterne, Ampel) steht auf einem Gehweg und in keiner Fahrbahn einer Straße
+local carriage = {}
+for _, p in ipairs(parts) do
+	if p.kind == "road" or p.kind == "median" or p.kind == "tunnel" then carriage[#carriage + 1] = p end
+end
+local masts, onRoad, offWalk = 0, 0, 0
+for _, p in ipairs(lights.parts) do
+	if p.name == "LaternenMast" or p.name == "AmpelMast" or p.name == "FussgaengerMast" then
+		masts = masts + 1
+		local onWalkPart = false
+		for _, w in ipairs(parts) do
+			if (w.kind == "walk" or w.kind == "plaza") and Geo.inPart(p.pos[1], p.pos[3], w, 0) then onWalkPart = true break end
+		end
+		local onAsphalt = false
+		for _, c in ipairs(carriage) do
+			if c.pos[2] > -3 and Geo.inPart(p.pos[1], p.pos[3], c, 0) then onAsphalt = true break end
+		end
+		if not onWalkPart then offWalk = offWalk + 1 print("  Mast ohne Gehweg: " .. p.name .. " bei " .. p.pos[1] .. "," .. p.pos[3]) end
+		if onAsphalt then onRoad = onRoad + 1 print("  Mast auf Fahrbahn: " .. p.name .. " bei " .. p.pos[1] .. "," .. p.pos[3]) end
+	end
+end
+check(masts == lights.stats.lamps + lights.stats.signals + lights.stats.ped, "Mastanzahl " .. masts)
+check(onRoad == 0, onRoad .. " Masten auf der Fahrbahn")
+check(offWalk == 0, offWalk .. " Masten außerhalb von Gehwegen")
+-- Laternen stehen nicht dichter als der halbe Abstand (keine doppelten)
+local lampPos = {}
+for _, p in ipairs(lights.parts) do
+	if p.name == "LaternenMast" then lampPos[#lampPos + 1] = p end
+end
+local close = 0
+for i = 1, #lampPos do
+	for j = i + 1, #lampPos do
+		local dx, dz = lampPos[i].pos[1] - lampPos[j].pos[1], lampPos[i].pos[3] - lampPos[j].pos[3]
+		if dx * dx + dz * dz < 10 * 10 then close = close + 1 end
+	end
+end
+check(close == 0, close .. " Laternenpaare enger als 10 Studs")
+-- Leopoldstraße (Achse, nördlich des Tunnels) hat Laternen auf beiden Seiten
+local west, east = 0, 0
+for _, p in ipairs(lampPos) do
+	if math.abs(p.pos[1]) > 40 and math.abs(p.pos[1]) < 60 and p.pos[3] < -150 then
+		if p.pos[1] < 0 then west = west + 1 else east = east + 1 end
+	end
+end
+check(west > 3 and east > 3, "Achse: Laternen West " .. west .. ", Ost " .. east)
+-- Signalkopf: pro Ampelmast 3 Lampen, genau eine (rot) an
+local lampsOn, signalLamps = 0, 0
+for _, p in ipairs(lights.parts) do
+	if p.tag == "TrafficLight" then
+		signalLamps = signalLamps + 1
+		if p.attrs.Lit then lampsOn = lampsOn + 1 end
+	end
+end
+check(signalLamps == 3 * #Config.signals and lampsOn == #Config.signals, "Ampellampen " .. signalLamps .. "/" .. lampsOn)
 
 print(string.format("Wand: Höhe %d bis %d", minH, maxH))
 if failures > 0 then

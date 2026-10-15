@@ -105,6 +105,23 @@ C.parks = { -- Gras-Oberfläche (Terrain)
 C.hills = { { name = "Monopteros", x = 575, z = 75, layers = { { 44, 0, 4 }, { 30, 4, 8 } } } } -- { Radius, y0, y1 }, nur 8 hoch
 C.terrace = { name = "Friedensengel", x0 = 870, z0 = 250, x1 = 1020, z1 = 346, height = 4 }
 
+-- Straßenlaternen: Abstand entlang der Gehwege, Mast steht 2 Studs hinter dem Bordstein, Ausleger zeigt über die Fahrbahn
+C.lamps = { spacing = 56, inset = 2.5, height = 13 }
+
+-- Ampeln (Standort Mast + Blickrichtung des Signalkopfes, also zum ankommenden Verkehr) und Fußgängerampeln.
+-- Rechtsverkehr: Achse Süd-Richtung fährt auf der Westseite. Maste stehen auf Gehwegen, nie auf der Fahrbahn.
+C.signals = {
+	{ name = "Achse_RingNord", x = 45, z = -445, fx = 0, fz = 1 }, { name = "Achse_RingNord", x = -58, z = -456, fx = -1, fz = 0 },
+	{ name = "Achse_RingNord", x = 58, z = -488, fx = 1, fz = 0 },
+	{ name = "Achse_H1", x = -45, z = -317, fx = 0, fz = -1 }, { name = "Achse_H1", x = 45, z = -254, fx = 0, fz = 1 },
+	{ name = "Achse_H1", x = -58, z = -264, fx = -1, fz = 0 },
+	{ name = "Achse_Odeonsplatz", x = -45, z = 288, fx = 0, fz = -1 }, { name = "Achse_Odeonsplatz", x = -58, z = 427, fx = -1, fz = 0 },
+	{ name = "Achse_Odeonsplatz", x = 58, z = 393, fx = 1, fz = 0 },
+	{ name = "Wache_V1", x = -436.5, z = -90, fx = 0, fz = 1 }, { name = "Wache_V1", x = -483.5, z = -210, fx = 0, fz = -1 },
+	{ name = "Wache_V2", x = -211.5, z = -90, fx = 0, fz = 1 }, { name = "Wache_V2", x = -258.5, z = -210, fx = 0, fz = -1 },
+}
+C.pedSignals = { { name = "Siegestor_West", x = -62, z = 8, fx = 1, fz = 0 }, { name = "Siegestor_Ost", x = 62, z = 14, fx = -1, fz = 0 } }
+
 C.wall = {
 	gates = { N = { { -60, 60 }, { 915, 1055 } }, S = { { -40, 40 }, { 590, 745 } } },
 	specials = { { side = "N", name = "Querriegel", x0 = -60, x1 = 60, floors = 10 }, { side = "S", name = "Feldherrnhalle", x0 = -40, x1 = 40, floors = 2 } },

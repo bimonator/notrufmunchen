@@ -9,6 +9,7 @@ local Blocks = require(script and script.Parent.Blocks or "Blocks")
 local Planner = require(script and script.Parent.Planner or "Planner")
 local Specials = require(script and script.Parent.Specials or "Specials")
 local RoadsPlanner = require(script and script.Parent.RoadsPlanner or "RoadsPlanner")
+local LightsPlanner = require(script and script.Parent.LightsPlanner or "LightsPlanner")
 local TerrainPlanner = require(script and script.Parent.TerrainPlanner or "TerrainPlanner")
 local WallPlanner = require(script and script.Parent.WallPlanner or "WallPlanner")
 local Builder = require(script and script.Parent.Builder or "Builder")
@@ -26,6 +27,11 @@ local STEPS = {
 		local plan = RoadsPlanner.plan(Config)
 		Builder.buildParts(plan.parts, Builder.container("Strassen"), origin)
 		return string.format("%d Teile, %d Parkbuchten", #plan.parts, plan.stats.bays)
+	end,
+	lights = function(opts, origin)
+		local plan = LightsPlanner.plan(Config, RoadsPlanner.plan(Config))
+		Builder.buildParts(plan.parts, Builder.container("Strassenmobiliar"), origin)
+		return string.format("%d Laternen, %d Ampeln, %d Fußgängerampeln, %d Teile", plan.stats.lamps, plan.stats.signals, plan.stats.ped, #plan.parts)
 	end,
 	houses = function(opts, origin)
 		local only, houses, parts = {}, 0, 0
@@ -59,7 +65,7 @@ local STEPS = {
 	end,
 }
 
-BuildAll.order = { "terrain", "roads", "houses", "wall" }
+BuildAll.order = { "terrain", "roads", "lights", "houses", "wall" }
 
 -- Nach dem Terrain: echte Bodenhöhe messen (alles weitere wird daran ausgerichtet) und prüfen, ob Wasser da ist.
 local function afterTerrain(base)
