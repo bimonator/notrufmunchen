@@ -21,6 +21,7 @@ Grundlage: `docs/map_sketch.png` (Paint-Skizze). Alle Koordinaten unten sind aus
 | Verkehr | **Siegestor-Unterführung:** Achse taucht unter der durchgehenden Querstraße H2/D ab (Rampen 136, Tunnel 72). 3 Ampelkreuzungen, 2 Fußgängerampeln, Ring = Vorfahrtstraße, Schilder nach StVO-Vorbild, braune Wegweiser. Details in `docs/phase1_bauplan.html`. |
 | Server | Ein Server für alles, mit Chill-Spots (Schutzzonen) und Loot-Spots. Fahrzeuge aus der Toolbox, vereinheitlicht. Siehe `docs/SYSTEMPLAN.md`. |
 | Gebäude | **Polizeiwache** (SO, Innenhof mit Schranke), **Feuer- und Rettungswache** (im Schwabing-Raster, 8 Tore: vorne Feuerwehr, hinten Rettung), **Tankstelle** an der Leopoldstraße, **Krankenhaus** (NO, über neue Straße V3, nur Rollenspiel). Siehe `docs/phase1_bauplan.html`. |
+| Häuser | Reihenhaus-Generator (Luau) für die Schwabing-Blöcke A, B, D in `roblox/`, Geometrie getestet, Roblox-Teil noch ungeprüft. |
 | Spielsystem | Teams Zivilist, Polizei, Rettungsdienst, Kriminelle. Banküberfall mit Sprengladung, Schmuggelware statt Drogen. Siehe `docs/SYSTEMPLAN.md`. |
 | Parken am Straßenrand | Achse **110** breit (Parken beidseitig, ≈ 69 Buchten), Schwabing-Raster **57** (einseitig, ≈ 88). Bucht 9 × 16. |
 | Überfallziele | **Isarbank** (Eck Leopoldstraße/H1), **Kiosk** (Schwabing), **Parkhaus** (gegenüber der Bank, Fluchtwagenwechsel). Details in `docs/phase1_bauplan.html`. |
