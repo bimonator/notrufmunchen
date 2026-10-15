@@ -18,6 +18,7 @@ Grundlage: `docs/map_sketch.png` (Paint-Skizze). Alle Koordinaten unten sind aus
 | Zielplattform | **PC zuerst**, Mobile zweitrangig. Optimierung später. |
 | Isar | **Schwimmbar** (80 breit, 6 tief). |
 | Straßenbreiten | **Fahrspur 14 Studs** (Roblox-Auto passt mit Luft), Gesamtbreite Achse 96, alle anderen 48. Details in `docs/phase1_bauplan.html`. |
+| Verkehr | **Siegestor-Unterführung:** Achse taucht unter der durchgehenden Querstraße H2/D ab (Rampen 136, Tunnel 72). 3 Ampelkreuzungen, 2 Fußgängerampeln, Ring = Vorfahrtstraße, Schilder nach StVO-Vorbild, braune Wegweiser. Details in `docs/phase1_bauplan.html`. |
 | Parken am Straßenrand | Achse **110** breit (Parken beidseitig, ≈ 69 Buchten), Schwabing-Raster **57** (einseitig, ≈ 96). Bucht 9 × 16. |
 | Überfallziele | **Isarbank** (Eck Leopoldstraße/H1), **Kiosk** (Schwabing), **Parkhaus** (gegenüber der Bank, Fluchtwagenwechsel). Details in `docs/phase1_bauplan.html`. |
 | Fußgängerzone Marienplatz | **Für Einsatzfahrzeuge befahrbar** (40 breit, Poller mit 20 Studs Lücke). |
@@ -64,6 +65,7 @@ Braun-graue Form im Englischen Garten (≈ (+590, +120)): nur Wege. Der **Monopt
 ## 4. Straßennetz
 
 - **Achse:** Leopoldstraße/Ludwigstraße, 4 Fahrspuren à 14 + Mittelstreifen 12 + Parken 2 × 9 + Gehwege 2 × 12, gesamt 110, Bäume am Rand.
+- **Unterführung:** Die vier Fahrspuren der Achse tauchen am Siegestor unter der Querstraße H2/D durch (kreuzungsfrei). Sonst ist die Achse bei den Querstraßen ampelgeregelt.
 - **NW-Raster (Schwabing):** 2 Längs- + 2 Querstraßen, Blöcke ca. 200 × 150 Studs.
 - **Diagonale NO→Siegestor-Bereich:** Verbindung Richtung Hofgarten/Isarbrücke.
 - **Südliche Querstraße (unten):** verbindet Marienplatz-Kreisel, Odeonsplatz und Eisbachbrücke.

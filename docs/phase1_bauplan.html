@@ -78,6 +78,7 @@ ul.rec .k { font: 700 22px/1 var(--disp); color: var(--water); }
 .ped { stroke: var(--plaza); fill: none; stroke-dasharray: 3 5; } .plaza { fill: var(--plaza); }
 .bridge { fill: var(--bridge); stroke: var(--fg); stroke-width: 2; }
 .shop { fill: var(--accent); opacity: .28; } .casc { fill: var(--water); } .heist { fill: var(--hot); stroke: var(--fg); stroke-width: 2; } .garage { fill: var(--walk); stroke: var(--fg); stroke-width: 2; }
+.tun { fill: var(--fg); opacity: .2; } .tun2 { opacity: .4; } .sig { fill: var(--hot); stroke: #fff; stroke-width: 2.5; } .sigp { fill: var(--park2); stroke: #fff; stroke-width: 2.5; }
 .bay { stroke: var(--roadline); stroke-opacity: .6; fill: none; stroke-dasharray: 14 2; } .poi { fill: var(--accent); stroke: var(--fg); stroke-width: 2; }
 .church { fill: var(--church); stroke: var(--fg); stroke-width: 2; }
 .wall { fill: url(#wallhatch); stroke: var(--wallline); stroke-width: 2; } .wallbase { fill: var(--wall); } .wallln { stroke: var(--wallline); stroke-width: 3; }
@@ -118,6 +119,7 @@ ul.rec .k { font: 700 22px/1 var(--disp); color: var(--water); }
         <label><input type="checkbox" data-layer="l-water" checked> Isar &amp; Bach</label>
         <label><input type="checkbox" data-layer="l-roads" checked> Straßen</label>
         <label><input type="checkbox" data-layer="l-bridges" checked> Brücken</label>
+        <label><input type="checkbox" data-layer="l-traffic" checked> Unterführung &amp; Ampeln</label>
         <label><input type="checkbox" data-layer="l-places" checked> Orte</label>
         <label><input type="checkbox" data-layer="l-wall" checked> Mapgrenze</label>
         <label><input type="checkbox" data-layer="l-grid" checked> 200er-Raster</label>
@@ -169,6 +171,12 @@ ul.rec .k { font: 700 22px/1 var(--disp); color: var(--water); }
     <path class="ped" stroke-width="40" d="M-480,254 H-55"/><circle cx="-65" cy="236" r="3.5" class="s-fg"/><circle cx="-65" cy="242" r="3.5" class="s-fg"/><circle cx="-65" cy="266" r="3.5" class="s-fg"/><circle cx="-65" cy="272" r="3.5" class="s-fg"/><circle cx="-470" cy="236" r="3.5" class="s-fg"/><circle cx="-470" cy="242" r="3.5" class="s-fg"/><circle cx="-470" cy="266" r="3.5" class="s-fg"/><circle cx="-470" cy="272" r="3.5" class="s-fg"/>
   </g>
 
+  <g id="l-traffic">
+    <rect x="-34" y="-144" width="68" height="136" class="tun"/><rect x="-34" y="-8" width="68" height="72" class="tun tun2"/><rect x="-34" y="64" width="68" height="136" class="tun"/>
+    <circle cx="62" cy="-440" r="11" class="sig"/><circle cx="62" cy="-285" r="11" class="sig"/><circle cx="70" cy="394" r="11" class="sig"/>
+    <circle cx="-62" cy="14" r="8" class="sigp"/><circle cx="62" cy="14" r="8" class="sigp"/>
+  </g>
+
   <g id="l-bridges">
     <g transform="translate(640,-257) rotate(-39)"><rect x="-28" y="-26" width="56" height="52" class="bridge"/></g>
     <g transform="translate(661,-62) rotate(4)"><rect x="-28" y="-26" width="56" height="52" class="bridge"/></g>
@@ -186,7 +194,7 @@ ul.rec .k { font: 700 22px/1 var(--disp); color: var(--water); }
     <rect x="-140" y="296" width="280" height="90" class="plaza"/>
     <rect x="-200" y="316" width="56" height="44" class="poi"/>
     <rect x="144" y="300" width="50" height="40" class="poi"/>
-    <rect x="-40" y="-7" width="80" height="14" class="poi"/>
+    <rect x="-40" y="-3" width="80" height="6" class="poi"/>
     <rect x="-570" y="242" width="40" height="24" class="church"/>
     <circle cx="-576" cy="247" r="4" class="church"/><circle cx="-576" cy="261" r="4" class="church"/>
     <rect x="560" y="330" width="56" height="40" class="poi"/>
@@ -221,6 +229,7 @@ ul.rec .k { font: 700 22px/1 var(--disp); color: var(--water); }
     <text class="t ts" transform="translate(-81,-220) rotate(-90)" text-anchor="middle">Ladenzeile</text>
     <text class="t ts" transform="translate(81,-220) rotate(-90)" text-anchor="middle">Ladenzeile</text>
     <text class="t" x="56" y="-18">Siegestor</text>
+    <text class="t ts" x="-62" y="-80" text-anchor="end">Unterführung</text>
     <text class="t ts" x="-136" y="95" text-anchor="end">Café-Terrasse</text>
     <text class="t ts" x="-170" y="180" text-anchor="end">Uni-Fassade</text>
     <text class="t" x="-550" y="352" text-anchor="middle">Frauenkirche · Marienplatz</text>
@@ -258,7 +267,7 @@ ul.rec .k { font: 700 22px/1 var(--disp); color: var(--water); }
   </g>
 </svg>
         </div>
-        <figcaption>Draufsicht. Straßen und Wasser sind maßstabsgetreu gezeichnet (Breite = echte Studs). B0–B5 sind die sechs Brücken, rot gestrichelt sind die zwei Flusstore in der Wand, gelb sind Landmarks und Orte. Rote Quadrate sind überfallbare Ziele, die graue Fläche ist das Parkhaus, helle Streifen an den Straßen sind Parkbuchten. Die Ebenen oben lassen sich einzeln ausblenden.</figcaption>
+        <figcaption>Draufsicht. Straßen und Wasser sind maßstabsgetreu gezeichnet (Breite = echte Studs). B0–B5 sind die sechs Brücken, rot gestrichelt sind die zwei Flusstore in der Wand, gelb sind Landmarks und Orte. Rote Quadrate sind überfallbare Ziele, die graue Fläche ist das Parkhaus, helle Streifen an den Straßen sind Parkbuchten. Dunkel auf der Achse ist die Unterführung, rote Punkte sind Ampeln, grüne Punkte Fußgängerampeln. Die Ebenen oben lassen sich einzeln ausblenden.</figcaption>
       </figure>
     </div>
   </section>
@@ -403,6 +412,62 @@ ul.rec .k { font: 700 22px/1 var(--disp); color: var(--water); }
   </section>
 
   <section>
+    <h2>Verkehr: Unterführung, Ampeln, Schilder</h2>
+    <div class="card">
+      <figure>
+        <svg viewBox="0 0 960 250" role="img" aria-label="Längsschnitt der Siegestor-Unterführung: Rampe 136 Studs, Tunnel 72 Studs, Rampe 136 Studs, Tiefe 17, lichte Höhe 14, Querstraße und Siegestor oben auf Ebene 0" style="min-width:760px">
+          <polygon class="s-ground" points="30,140 68.4,140 394.8,180.8 567.6,180.8 894,140 932.4,140 932.4,228 30,228"/>
+          <rect x="394.8" y="140" width="172.8" height="7.2" class="s-walk"/>
+          <path d="M30,140 H932.4" class="s-line" style="stroke-dasharray:2 4"/>
+          <rect x="407" y="22" width="22" height="118" class="poi"/>
+          <g transform="translate(150,150) rotate(7.1)"><rect x="-17" y="-14" width="34" height="14" rx="3" class="s-car"/></g>
+          <g transform="translate(790,150) rotate(-7.1)"><rect x="-17" y="-14" width="34" height="14" rx="3" class="s-car"/></g>
+          <rect x="425" y="167" width="34" height="14" rx="3" class="s-car"/>
+          <rect x="520" y="126" width="34" height="14" rx="3" class="s-car"/>
+          <path d="M600,140 V181 M595,140 H605 M595,181 H605" class="s-line"/><text x="610" y="166" class="s-t">Tiefe 17</text>
+          <path d="M475,148 V181 M470,148 H480 M470,181 H480" class="s-line"/><text x="484" y="170" class="s-m">lichte Höhe 14</text>
+          <text x="418" y="14" text-anchor="middle" class="s-t">Siegestor-Platz</text>
+          <text x="560" y="118" class="s-m">Querstraße H2/D, Ebene 0, ungeregelt</text>
+          <text x="36" y="128" class="s-m">Y +0,5</text><text x="36" y="196" class="s-m">Y −16,5</text>
+          <text x="36" y="244" class="s-m">Norden</text><text x="932" y="244" text-anchor="end" class="s-m">Süden</text>
+          <path d="M68.4,214 H394.8 M394.8,214 H567.6 M567.6,214 H894 M68.4,208 V220 M394.8,208 V220 M567.6,208 V220 M894,208 V220" class="s-line"/>
+          <g class="s-t" text-anchor="middle"><text x="231" y="232">Rampe 136, Steigung 1:8</text><text x="481" y="232">Tunnel 72</text><text x="731" y="232">Rampe 136</text></g>
+        </svg>
+        <figcaption><b>Längsschnitt der Siegestor-Unterführung.</b> Die vier Fahrspuren der Achse tauchen 136 Studs lang ab, laufen 72 Studs unter der durchgehenden Querstraße und dem Siegestor-Platz und tauchen wieder auf. Querstraße und Fußgänger bleiben auf Ebene 0, deshalb braucht die Achse dort keine Ampel. Das Siegestor steht frei auf dem Platz und die Sichtachse zur Feldherrnhalle bleibt offen, anders als bei einer Brücke (Rampe über 17 Studs hoch).</figcaption>
+      </figure>
+    </div>
+
+    <div class="card">
+      <figure>
+        <div class="bar" role="img" aria-label="Ampelphase einer Kreuzung, 38 Sekunden: Achse grün 18 s (47 Prozent), Wechsel 5 s, Querstraße grün 10 s (26 Prozent), Wechsel 5 s">
+          <div style="width:47.4%;background:var(--park2);color:var(--fg)">Achse grün 18 s</div>
+          <div style="width:13.2%;background:var(--accent);color:#1a1a1a">5 s</div>
+          <div style="width:26.3%;background:var(--park2);color:var(--fg)">Quer grün 10 s</div>
+          <div style="width:13.2%;background:var(--accent);color:#1a1a1a">5 s</div>
+        </div>
+        <figcaption><b>Ampelzyklus, Startwert 38 s.</b> Die Achse hat 47 % grün, die Querstraße 26 %, die restlichen 26 % sind Gelb und Alles-Rot (je Wechsel 3 s Gelb + 2 s Räumzeit). Kurz gehalten, damit Spieler nicht gelangweilt warten. <b>Vorrangschaltung:</b> nähert sich ein Einsatzfahrzeug mit Sirene (Radius ≈ 120 Studs), schaltet die Ampel für seine Richtung auf grün und für den Rest auf rot.</figcaption>
+      </figure>
+    </div>
+
+    <div class="card tablewrap">
+      <table>
+        <thead><tr><th>Stelle</th><th>Regelung</th><th>Schilder</th></tr></thead>
+        <tbody>
+          <tr><td>Achse × Ring Nord, Achse × H1, Achse × Odeonsplatz</td><td>3 Ampelkreuzungen (rote Punkte)</td><td>Ampeln, Tempo 50, Fußgängerüberweg</td></tr>
+          <tr><td>Achse × Querstraße H2/D (Siegestor)</td><td>Achse unter der Querstraße (Unterführung), oben ungeregelt, 2 Fußgängerampeln</td><td>„Tunnel", Tempo 50 vor der Rampe, Rampenbeleuchtung</td></tr>
+          <tr><td>Ring (alle Einmündungen)</td><td>Ring ist Vorfahrtstraße, alle Stichstraßen geben Vorfahrt</td><td>Vorfahrtstraße (gelbe Raute), Vorfahrt gewähren (Dreieck)</td></tr>
+          <tr><td>Schwabing-Raster (4 Kreuzungen)</td><td>H1 und H2 Vorfahrtstraße, V1 und V2 geben Vorfahrt. Tempo 30.</td><td>Raute, Dreieck, Zone 30, Parken (blaues P)</td></tr>
+          <tr><td>Diagonale × Isarspange</td><td>Diagonale hat Vorfahrt, Isarspange gibt sie</td><td>Raute, Dreieck</td></tr>
+          <tr><td>Kreisel Marienplatz</td><td>Kreisverkehr, Vorfahrt im Kreis</td><td>Kreisverkehr, Dreieck an den Zufahrten</td></tr>
+          <tr><td>Fußgängerzone</td><td>Einsatzfahrzeuge frei, 20 Studs Poller-Lücke</td><td>Fußgängerzone mit Zusatz „Einsatzfahrzeuge frei"</td></tr>
+          <tr><td>Orientierung</td><td>Straßennamen an jeder Kreuzung, braune Wegweiser</td><td>Namensschilder, braune Schilder zu Siegestor, Frauenkirche, Eisbachwelle, Friedensengel, Englischer Garten</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="sub">Namen: Achse Nord = Leopoldstraße, Achse Süd = Ludwigstraße (wie in der Realität). Raster-Straßen und Ring bekommen noch Namen. Ampeln, Schilder und das Vorrang-Script kommen später (Phase 3 und 5), die Unterführung gehört zum Straßenbau in Phase 1. Die Maße von Rampe und Tunnel sind gerechnet (Annahme: höchstes Fahrzeug ≤ 12 Studs, Rampensteigung 1:8), nicht im Studio gemessen.</p>
+  </section>
+
+  <section>
     <h2>Bauschritte mit Abnahme</h2>
     <div class="card tablewrap">
       <table>
@@ -411,8 +476,8 @@ ul.rec .k { font: 700 22px/1 var(--disp); color: var(--water); }
           <tr><td class="n">1</td><td>Vorbereitung</td><td>Ordner <span class="mono">Map/Terrain, Strassen, Bruecken, Grenze, Orte</span>. Skizze als Referenz-Decal. Marker am Siegestor (0,0) und an den vier Ecken.</td><td>Ecken-Marker haben exakt 1905 × 1050 Abstand.</td><td class="n">5 %</td></tr>
           <tr><td class="n">2</td><td>Terrain-Boden</td><td>Terrain-Fläche 1905 × 1050, Oberkante Y 0, 20 Studs dick (ggf. in Kacheln füllen).</td><td>Ein Spieler läuft einmal quer, ohne Loch.</td><td class="n">10 %</td></tr>
           <tr><td class="n">3</td><td>Isar, Bach, Hügel</td><td>Isar und Bach nach den Querschnitten ausheben und fluten. Eisbach-Abschnitt tiefer. Monopteros-Hügel und Friedensengel-Terrasse.</td><td>Figur schwimmt in der Isar, watet im Bach, kommt an beiden Ufern wieder raus.</td><td class="n">20 %</td></tr>
-          <tr><td class="n">4</td><td>Straßen</td><td>Ring, Achse, Schwabing-Raster, Diagonale, Isarspange, Kreisel, Fußgängerzone. Parkbuchten 9 × 16 aufmalen. Erst Mittellinien als Marker, dann Parts.</td><td>Auto fährt den Ring in 87 s ± 10 s ohne Hänger. Breitestes Fahrzeug passt in jede Spur mit ≥ 2 Studs Luft je Seite.</td><td class="n">30 %</td></tr>
-          <tr><td class="n">5</td><td>Brücken B0–B5</td><td>Fünf Straßenbrücken, eine Fußgängerbrücke.</td><td>Auto quert alle fünf in beide Richtungen, Figur geht über B5.</td><td class="n">10 %</td></tr>
+          <tr><td class="n">4</td><td>Straßen</td><td>Ring, Achse, Schwabing-Raster, Diagonale, Isarspange, Kreisel, Fußgängerzone. Parkbuchten 9 × 16 aufmalen. Ampeln und Schilder erst in Phase 3. Erst Mittellinien als Marker, dann Parts.</td><td>Auto fährt den Ring in 87 s ± 10 s ohne Hänger. Breitestes Fahrzeug passt in jede Spur mit ≥ 2 Studs Luft je Seite.</td><td class="n">25 %</td></tr>
+          <tr><td class="n">5</td><td>Brücken B0–B5, Unterführung</td><td>Fünf Straßenbrücken, eine Fußgängerbrücke, Siegestor-Unterführung (Rampen 136, Tunnel 72, lichte Höhe 14).</td><td>Auto quert alle Brücken in beide Richtungen, höchstes Fahrzeug passt durch den Tunnel ohne Berührung.</td><td class="n">15 %</td></tr>
           <tr><td class="n">6</td><td>Mapgrenze</td><td>Wandband 60 × 90, Querriegel Nord, Feldherrnhalle Süd, zwei Flusstore mit Wehr und Brückenhaus.</td><td>Rundlauf am Ring: nirgends Blick nach draußen oder in Lücken.</td><td class="n">20 %</td></tr>
           <tr><td class="n">7</td><td>Abnahme</td><td>Kamera-Test (Zoom auf Maximum, steiler Winkel), Fahrt Achse Nord–Süd, Fahrt West–Ost.</td><td>Achse ≈ 15 s, Querung ≈ 29 s bei 60 Studs/s.</td><td class="n">5 %</td></tr>
         </tbody>
@@ -443,6 +508,7 @@ ul.rec .k { font: 700 22px/1 var(--disp); color: var(--water); }
         <li><span class="k">D</span><div><b>Friedensengel steht am Ostende der Luitpoldbrücke (B3).</b> Das ist die Brücke der Prinzregentenstraße, an der auch die Eisbachwelle liegt. So entsteht eine Sehenswürdigkeiten-Kette Eisbachwelle, Brücke, Friedensengel entlang des Südrings. Die Maximilianbrücke entfällt, sie liegt ca. 1 km südlich des Kartenrands.</div></li>
         <li><span class="k">E</span><div><b>Parken am Straßenrand.</b> Parkbucht 9 × 16. Achse (Leopoldstraße und Ludwigstraße) wird <b>110</b> breit mit Parken auf beiden Seiten, ≈ 69 Buchten. Schwabing-Raster wird <b>57</b> breit mit einer Parkreihe, ≈ 96 Buchten. Ring, Diagonale und Isarspange bleiben 48 ohne Parken. Am Siegestor und am Odeonsplatz wird nicht geparkt.</div></li>
         <li><span class="k">F</span><div><b>Überfallbare Ziele und Parkhaus</b> (Abschnitt darunter): Isarbank, Kiosk, Parkhaus, alle in der Schwabing-Hälfte westlich der Achse.</div></li>
+        <li><span class="k">G</span><div><b>Verkehr:</b> Die Achse taucht unter der durchgehenden Querstraße H2/D (am Siegestor) ab, siehe Abschnitt „Verkehr“. Drei Ampelkreuzungen, zwei Fußgängerampeln, Ring als Vorfahrtstraße, Schilder nach Vorbild der StVO.</div></li>
       </ul>
     </div>
   </section>
@@ -453,6 +519,7 @@ ul.rec .k { font: 700 22px/1 var(--disp); color: var(--water); }
       <ul class="rec">
         <li><span class="k">1</span><div><b>Breite deines Test-Autos.</b> Im Studio das Fahrzeug anklicken und die Breite aus <span class="mono">Size</span> ablesen. Ist das breiteste Einsatzfahrzeug über 8 Studs breit, nimm Spur = Breite + 6 und sag mir Bescheid, dann ziehe ich die Maße nach.</div></li>
         <li><span class="k">2</span><div><b>Poller-Lücke ausprobieren.</b> 20 Studs sind für Fahrzeuge bis 10 Studs Breite gedacht. Das zeigt sich erst beim Fahren.</div></li>
+        <li><span class="k">3</span><div><b>Höhe deines größten Fahrzeugs.</b> Die Unterführung hat 14 Studs lichte Höhe und geht von höchstens 12 aus. Miss das höchste Einsatzfahrzeug (Feuerwehr, Leiter).</div></li>
       </ul>
     </div>
   </section>
