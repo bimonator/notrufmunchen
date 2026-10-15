@@ -21,6 +21,7 @@ Grundlage: `docs/map_sketch.png` (Paint-Skizze). Alle Koordinaten unten sind aus
 | Verkehr | **Siegestor-Unterführung:** Achse taucht unter der durchgehenden Querstraße H2/D ab (Rampen 136, Tunnel 72). 3 Ampelkreuzungen, 2 Fußgängerampeln, Ring = Vorfahrtstraße, Schilder nach StVO-Vorbild, braune Wegweiser. Details in `docs/phase1_bauplan.html`. |
 | Server | Ein Server für alles, mit Chill-Spots (Schutzzonen) und Loot-Spots. Fahrzeuge aus der Toolbox, vereinheitlicht. Siehe `docs/SYSTEMPLAN.md`. |
 | Gebäude | **Polizeiwache** (SO, Innenhof mit Schranke), **Feuer- und Rettungswache** (im Schwabing-Raster, 8 Tore: vorne Feuerwehr, hinten Rettung), **Tankstelle** an der Leopoldstraße, **Krankenhaus** (NO, über neue Straße V3, nur Rollenspiel). Siehe `docs/phase1_bauplan.html`. |
+| Höhen (Stand Studio-Test) | Monopteros-Hügel +8, Friedensengel-Terrasse +4, Mittelstreifen +0,8. Isar-Brücken gewölbt (8–12 hoch). Häuser variieren stärker und stehen jetzt auch entlang der Leopoldstraße. |
 | Bau per Code | `roblox/MapBuilder`: Terrain mit Isar und Bach, Straßen mit Parkbuchten, Brücken, Unterführung, Reihenhäuser (Blöcke A, B, D) und Mapgrenze. Geometrie getestet, Roblox-Teil nur gegen Attrappe. Anleitung in `roblox/README.md`. |
 | Spielsystem | Teams Zivilist, Polizei, Rettungsdienst, Kriminelle. Banküberfall mit Sprengladung, Schmuggelware statt Drogen. Siehe `docs/SYSTEMPLAN.md`. |
 | Parken am Straßenrand | Achse **110** breit (Parken beidseitig, ≈ 69 Buchten), Schwabing-Raster **57** (einseitig, ≈ 88). Bucht 9 × 16. |

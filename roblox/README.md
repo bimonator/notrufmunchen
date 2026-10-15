@@ -1,6 +1,6 @@
 # MapBuilder (Roblox, Luau)
 
-Baut die Karte aus `docs/MAP_PLAN.md` und `docs/phase1_bauplan.html` per Code: Terrain mit Isar und Bach, Straßen mit Gehwegen, Parkbuchten, Brücken und der Siegestor-Unterführung, die Reihenhäuser im Schwabing-Raster und die Mapgrenze. Geometrie und Roblox-Aufrufe sind getrennt, damit die Geometrie ohne Roblox getestet werden kann.
+Baut die Karte aus `docs/MAP_PLAN.md` und `docs/phase1_bauplan.html` per Code: Terrain mit Isar und Bach, Straßen mit Gehwegen, Parkbuchten, gewölbten Isar-Brücken und der Siegestor-Unterführung, Reihenhäuser im Schwabing-Raster und entlang der Leopoldstraße, Platzhalter für die Sonderbauten (Bank, Wachen, Krankenhaus ...) und die Mapgrenze. Geometrie und Roblox-Aufrufe sind getrennt, damit die Geometrie ohne Roblox getestet werden kann.
 
 ## So fügst du alles zusammen (empfohlen: Plugin, dauerhaft)
 
@@ -11,10 +11,10 @@ Baut die Karte aus `docs/MAP_PLAN.md` und `docs/phase1_bauplan.html` per Code: T
 5. Im Output steht je Schritt eine Zeile. Erwartet:
 
 ```
-[terrain] 105 Terrain-Operationen
-[roads] 1124 Teile, 157 Parkbuchten
-[houses] 64 Häuser, 2903 Teile
-[wall] 131 Gebäude, 9483 Teile
+[terrain] 103 Terrain-Operationen
+[roads] 1321 Teile, 157 Parkbuchten
+[houses] 129 Häuser, 8140 Teile
+[wall] 128 Gebäude, 8743 Teile
 Fertig
 ```
 
@@ -34,8 +34,8 @@ Die Schritte laufen in dieser Reihenfolge und sind unabhängig voneinander ausf�
 |---|---|---|
 | `MapBuilder/Geo.lua` | 2D-Mathematik (Strecken, Schnitte) | ja |
 | `MapBuilder/Config.lua` | Alle Maße aus dem Plan als Daten (Straßen, Wasser, Tunnel, Brücken, Parks, Wand) | ja (wird getestet) |
-| `MapBuilder/Planner.lua`, `Blocks.lua` | Reihenhäuser und Mapgrenzen-Gebäude | ja |
-| `MapBuilder/RoadsPlanner.lua` | Straßen, Gehwege, Markierungen, Parkbuchten, Brücken, Unterführung | ja |
+| `MapBuilder/Planner.lua`, `Blocks.lua`, `Specials.lua` | Reihenhäuser (7 Blöcke), Sonderbauten als Platzhalter, Mapgrenzen-Gebäude | ja |
+| `MapBuilder/RoadsPlanner.lua` | Straßen, Gehwege, Markierungen, Parkbuchten, Brücken (3 gewölbt), Unterführung | ja |
 | `MapBuilder/TerrainPlanner.lua` | Terrain-Operationen (Boden, Parks, Hügel, Terrasse, Isar, Bach, Tunnelgraben) | ja (nur die Liste) |
 | `MapBuilder/WallPlanner.lua` | Mapgrenze mit Toren, Querriegel, Feldherrnhalle | ja |
 | `MapBuilder/Builder.lua`, `BuildAll.lua` | Erzeugt daraus Roblox-Objekte | **nur gegen eine Attrappe** |
@@ -44,23 +44,35 @@ Die Schritte laufen in dieser Reihenfolge und sind unabhängig voneinander ausf�
 
 Nach jeder Änderung an `MapBuilder/*.lua` die Einzeldateien neu erzeugen: `python3 make_bundles.py`.
 
+## Feinjustierung (ohne Programmieren)
+
+| Was | Wo | Beispiel |
+|---|---|---|
+| Hügel und Terrasse niedriger oder höher | `MapBuilder/Config.lua`: `C.hills` (Schichten `{ Radius, von, bis }`) und `C.terrace.height` | Terrasse 4 → 0 entfernt sie fast |
+| Höhe und Länge der Isar-Brücken | `C.archBridges`: `peak` (Scheitelhöhe), `len`, `walk` (Gehwegbreite) | `peak = 16` für höhere Brücken |
+| Mittelstreifen-Höhe | `MapBuilder/RoadsPlanner.lua`: `TOP.median` | 0.8 (Gehweg 1.0, Straße 0.5) |
+| Abwechslung der Häuser | `MapBuilder/Planner.lua`: `DEFAULTS.floorWeights`, `palette`, `targetWidth` | mehr Hochhäuser: `{ 6, 0.3 }` |
+| Anderer Zufall | `seed` in `MapBuilder_Script.lua` bzw. `BuildAll.run({ seed = 7 })` | gleiche Zahl = gleiche Häuser |
+
+Nach jeder Änderung `python3 make_bundles.py` ausführen und das Plugin bzw. Script neu einfügen.
+
 ## Was getestet wurde (Cloud-Session, kein Roblox)
 
-- `python3 tests/run_with_lupa.py` (Lua 5.1): Häuser (Maße, Überlappung, Eckhäuser), Straßen (157 Parkbuchten wie im Plan, kein Gehweg in einer Kreuzung, jede Straße asphaltiert, Tunnel frei, Rampenneigung 7,1° und lichte Höhe ≥ 13,5), Terrain (Kacheln decken die Karte genau ab, Wasser nur zwischen Bett und Wasserlinie), Wand (innen bleibt der Ring frei, Tore frei, Höhen 74–110).
-- `python3 tests/bundle_smoke_test.py`: `Builder` und `BuildAll` laufen gegen eine selbst gebaute Roblox-Attrappe: 195 Models, 13 510 Teile, 105 Terrain-Aufrufe, zweiter Lauf ersetzt statt zu verdoppeln.
+- `python3 tests/run_with_lupa.py` (Lua 5.1): Häuser (Maße, Überlappung, Eckhäuser, Abwechslung bei Farben, Geschossen, Dachformen, Breiten, Sonderflächen frei), Sonderbauten (Grundfläche stimmt, keine Überlappung), Straßen (157 Parkbuchten wie im Plan, kein Gehweg in einer Kreuzung, jede Straße asphaltiert, Tunnel frei, Rampenneigung 7,1° und lichte Höhe ≥ 13,5, Brücken: Scheitelhöhe, Enden auf Straßenniveau, zwei Pfeiler im Fluss, keine flache Straße darunter), Terrain (Kacheln decken die Karte genau ab, Wasser nur zwischen Bett und Wasserlinie), Wand (innen bleibt der Ring frei, Tore frei, Höhen 74–110).
+- `python3 tests/bundle_smoke_test.py`: `Builder` und `BuildAll` laufen gegen eine selbst gebaute Roblox-Attrappe: 257 Models, 18 204 Teile, 103 Terrain-Aufrufe, zweiter Lauf ersetzt statt zu verdoppeln.
 - Eine Draufsicht der berechneten Teile (aus den Plänen gezeichnet) stimmt mit der Karte im Bauplan überein.
-- Die Tests wurden gezielt mit eingebauten Fehlern geprüft (Gehweg-Schnitt aus, Tunnel nicht ausgenommen, falscher Drehwinkel): sie schlagen dann an.
+- Die Tests wurden gezielt mit eingebauten Fehlern geprüft (Gehweg-Schnitt aus, Brücken-Schnitt aus, Tunnel nicht ausgenommen, falscher Drehwinkel): sie schlagen dann an.
 
 ## Was NICHT geprüft werden konnte (bitte im Studio ansehen)
 
 - Ob die echte Roblox-API sich wie die Attrappe verhält (`Terrain:FillBlock` mit gedrehtem CFrame, `FillCylinder`, `Terrain:Clear`, `CollectionService`).
 - Ob die Isar im Terrain sauber aussieht. Sie ist aus gestapelten Blöcken gebaut (Stufen von 4 Studs). Falls sie treppig wirkt, im Terrain-Editor mit **Smooth** glätten.
 - Das Aussehen: Höhenlage von Gehweg, Straße und Brücken (Z-Fighting möglich), Wirkung der Mapgrenze, Rampe und Tunnel.
-- Die Leistung: ca. 13 500 Teile. Die Mapgrenze allein ca. 9 500 (Fenster der Wandgebäude).
+- Die Leistung: ca. 18 000 Teile (Häuser 8 100, Mapgrenze 8 700, Straßen 1 300). Wenn es ruckelt, zuerst die Mapgrenze vereinfachen.
 
 ## Bewusst (noch) nicht enthalten
 
-Ampeln, Schilder und Straßennamen, Straßenlampen und Bäume, Tankstelle, Polizeiwache, Feuerwache, Krankenhaus, Bank, Parkhaus, Supermarkt, Kirche und Plätze mit Brunnen, Siegestor, Friedensengel, Monopteros-Tempel, Schrägdächer. Das Wasser der Eisbachwelle ist ein normaler Bach. Die Fußgängerbrücke B5 ist flach (keine Rampen). Brücke B2 liegt über einem Knick der Isarspange und ist nur grob ausgerichtet.
+Ampeln, Schilder und Straßennamen, Straßenlampen und Bäume, Innenräume und Details der Sonderbauten (Bank, Wachen, Krankenhaus, Parkhaus, Tankstellen-Shop sind nur Platzhalter-Gebäude, die Tankstelle hat Schirm und Zapfsäulen), Supermarkt, Werkstatt, Kirche und Plätze mit Brunnen, Siegestor, Friedensengel, Monopteros-Tempel, Schrägdächer (nur flache und Mansarddächer). Das Wasser der Eisbachwelle ist ein normaler Bach. Die Fußgängerbrücke B5 ist flach (keine Rampen). Die Isar-Brücken haben Pfeiler, aber keine echten Bögen und Lampen.
 
 ## Übergabe an eine neue Claude-Session
 

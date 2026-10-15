@@ -3,6 +3,7 @@
 package.path = "../MapBuilder/?.lua;MapBuilder/?.lua;roblox/MapBuilder/?.lua;" .. package.path
 local Planner = require("Planner")
 local Blocks = require("Blocks")
+local Specials = require("Specials")
 
 local EPS = 0.01 -- Positionen sind auf 0,001 gerundet
 local failures = 0
@@ -32,19 +33,42 @@ for _, block in ipairs(Blocks) do
 	local st = Planner.stats(plan)
 	totalHouses, totalParts, totalArea = totalHouses + st.houses, totalParts + st.parts, totalArea + st.footprint
 	local tag = "[" .. block.name .. "] "
-	check(st.houses >= 6, tag .. "zu wenige Häuser: " .. st.houses)
+	check(st.houses >= 5, tag .. "zu wenige Häuser: " .. st.houses)
 
 	-- 1. Fassadenlängen: Breiten je Seite ergeben die Seitenlänge
 	local sum = { N = 0, S = 0, W = 0, E = 0 }
 	for _, h in ipairs(plan.houses) do
 		sum[h.side] = sum[h.side] + h.width
-		check(h.width >= 18 and h.width <= 40, tag .. h.name .. " Breite " .. h.width)
-		check(h.floors >= 4 and h.floors <= 5, tag .. h.name .. " Geschosse")
+		check(h.width >= 24 and h.width <= 60, tag .. h.name .. " Breite " .. h.width)
+		check(h.floors >= 3 and h.floors <= 6, tag .. h.name .. " Geschosse")
 	end
 	local lx = (block.xmax - block.xmin) - 4
 	local lz = (block.zmax - block.zmin) - 4 - 56
-	check(math.abs(sum.N - lx) < EPS and math.abs(sum.S - lx) < EPS, tag .. "N/S-Länge")
-	check(math.abs(sum.W - lz) < EPS and math.abs(sum.E - lz) < EPS, tag .. "W/E-Länge")
+	if not block.reserved then -- bei Sonderbauten entfallen Häuser, dann ist die Summe kleiner
+		check(math.abs(sum.N - lx) < EPS and math.abs(sum.S - lx) < EPS, tag .. "N/S-Länge")
+		check(math.abs(sum.W - lz) < EPS and math.abs(sum.E - lz) < EPS, tag .. "W/E-Länge")
+	end
+	for _, r in ipairs(block.reserved or {}) do -- nichts steht auf Sonderflächen
+		for _, h in ipairs(plan.houses) do
+			local x0, _, z0, x1, _, z1 = Planner.aabb(bodyOf(h))
+			check(not (x0 < r[3] - 0.4 and x1 > r[1] + 0.4 and z0 < r[4] - 0.4 and z1 > r[2] + 0.4), tag .. h.name .. " steht auf der Sonderfläche")
+		end
+	end
+	-- Abwechslung: mehrere Farben, Geschosszahlen, Dachformen und unterschiedliche Breiten
+	local colors, floorSet, roofs, minW, maxW = {}, {}, {}, 1e9, 0
+	for _, h in ipairs(plan.houses) do
+		colors[h.facade[1] .. "," .. h.facade[2] .. "," .. h.facade[3]] = true
+		floorSet[h.floors] = true
+		roofs[h.roof] = true
+		minW, maxW = math.min(minW, h.width), math.max(maxW, h.width)
+	end
+	local function count(t) local n = 0 for _ in pairs(t) do n = n + 1 end return n end
+	if st.houses >= 14 then
+		check(count(colors) >= 5, tag .. "zu wenige Farben: " .. count(colors))
+		check(count(floorSet) >= 3, tag .. "zu wenige Geschosszahlen: " .. count(floorSet))
+		check(count(roofs) >= 2, tag .. "zu wenige Dachformen: " .. count(roofs))
+		check(maxW - minW >= 3, tag .. "Hausbreiten zu gleichförmig")
+	end
 
 	-- 2. Grundflächen: im Block, nicht im Innenhof, ohne Überlappung
 	local cy = plan.courtyard
@@ -59,14 +83,14 @@ for _, block in ipairs(Blocks) do
 		end
 	end
 
-	-- 3. Alle Teile höchstens 1 Stud über den Blockrand hinaus (Balkone, Gesimse)
+	-- 3. Alle Teile höchstens 2 Studs über den Blockrand hinaus (Erker, Markisen: ragen in den 10 Studs breiten Gehweg)
 	for _, h in ipairs(plan.houses) do
 		for _, p in ipairs(h.parts) do
 			local x0, y0, z0, x1, y1, z1 = Planner.aabb(p)
-			check(x0 >= block.xmin - 1 - EPS and x1 <= block.xmax + 1 + EPS and z0 >= block.zmin - 1 - EPS and z1 <= block.zmax + 1 + EPS, tag .. h.name .. "/" .. p.name .. " ragt über den Blockrand")
+			check(x0 >= block.xmin - 2 - EPS and x1 <= block.xmax + 2 + EPS and z0 >= block.zmin - 2 - EPS and z1 <= block.zmax + 2 + EPS, tag .. h.name .. "/" .. p.name .. " ragt über den Blockrand")
 			check(y0 >= 0.5 and y1 <= 90, tag .. h.name .. "/" .. p.name .. " Höhe " .. y1)
 		end
-		check(h.height <= 62, tag .. h.name .. " zu hoch")
+		check(h.height <= 74, tag .. h.name .. " zu hoch")
 	end
 
 	-- 4. Rahmen (Fenster, Tür) liegen innerhalb der Wandfläche und überlappen sich nicht
@@ -110,6 +134,25 @@ for _, block in ipairs(Blocks) do
 	check(differs, tag .. "Seed hat keine Wirkung")
 
 	print(string.format("%-12s %2d Häuser, %4d Teile, Grundfläche %6.0f, Innenhof %.0f x %.0f", block.name, st.houses, st.parts, st.footprint, cy[3] - cy[1], cy[4] - cy[2]))
+end
+
+-- Sonderbauten: eigene Grundfläche, kein Block-Haus darauf, keine Überlappung untereinander
+do
+	local plans = {}
+	for _, sp in ipairs(Specials) do
+		local pl = Planner.planSpecial(sp, { seed = 1 })
+		local b = bodyOf(pl.houses[1])
+		local x0, _, z0, x1, _, z1 = Planner.aabb(b)
+		check(math.abs(x0 - sp.x0) < 0.01 and math.abs(x1 - sp.x1) < 0.01 and math.abs(z0 - sp.z0) < 0.01 and math.abs(z1 - sp.z1) < 0.01,
+			sp.name .. " hat nicht die geplante Grundfläche: " .. x0 .. "," .. z0 .. "," .. x1 .. "," .. z1)
+		plans[#plans + 1] = { sp = sp, b = b }
+	end
+	for i = 1, #plans do
+		for j = i + 1, #plans do
+			check(not overlap3(plans[i].b, plans[j].b), plans[i].sp.name .. " überlappt " .. plans[j].sp.name)
+		end
+	end
+	print(string.format("Sonderbauten: %d, Grundflächen stimmen", #plans))
 end
 
 -- Eckhäuser gezielt (Block B)

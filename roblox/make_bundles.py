@@ -6,7 +6,7 @@ import os
 import re
 
 here = os.path.dirname(os.path.abspath(__file__))
-ORDER = ["Geo", "Config", "Planner", "Blocks", "RoadsPlanner", "TerrainPlanner", "WallPlanner", "Builder", "BuildAll"]
+ORDER = ["Geo", "Config", "Planner", "Blocks", "Specials", "RoadsPlanner", "TerrainPlanner", "WallPlanner", "Builder", "BuildAll"]
 
 
 def read(name):

@@ -7,6 +7,7 @@
 local Config = require(script and script.Parent.Config or "Config")
 local Blocks = require(script and script.Parent.Blocks or "Blocks")
 local Planner = require(script and script.Parent.Planner or "Planner")
+local Specials = require(script and script.Parent.Specials or "Specials")
 local RoadsPlanner = require(script and script.Parent.RoadsPlanner or "RoadsPlanner")
 local TerrainPlanner = require(script and script.Parent.TerrainPlanner or "TerrainPlanner")
 local WallPlanner = require(script and script.Parent.WallPlanner or "WallPlanner")
@@ -33,6 +34,15 @@ local STEPS = {
 			if next(only) == nil or only[block.name] then
 				local plan = Planner.planBlock(block, { seed = opts.seed or 1 })
 				Builder.build(plan, Builder.container("Gebaeude", block.name), origin)
+				local st = Planner.stats(plan)
+				houses, parts = houses + st.houses, parts + st.parts
+			end
+		end
+		if next(only) == nil then
+			local folder = Builder.container("Gebaeude", "Sonderbauten")
+			for _, spec in ipairs(Specials) do
+				local plan = Planner.planSpecial(spec, { seed = opts.seed or 1 })
+				Builder.build(plan, folder, origin)
 				local st = Planner.stats(plan)
 				houses, parts = houses + st.houses, parts + st.parts
 			end

@@ -11,7 +11,8 @@ function WallPlanner.plan(cfg, opts)
 	opts = opts or {}
 	local o = {}
 	for k, v in pairs(opts) do o[k] = v end
-	o.targetWidth, o.depth, o.minFloors, o.maxFloors = o.targetWidth or 40, 60, 6, 9
+	o.targetWidth, o.depth = o.targetWidth or 40, 60
+	o.floorWeights = { { 6, 0.25 }, { 7, 0.3 }, { 8, 0.3 }, { 9, 0.15 } } -- Wandhöhe 74-110
 	local gates = { N = {}, S = {} }
 	for side, list in pairs(cfg.wall.gates) do
 		for _, g in ipairs(list) do gates[side][#gates[side] + 1] = g end

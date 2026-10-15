@@ -41,7 +41,7 @@ C.roads = {
 	{ name = "H1", profile = "raster57", pts = { { -661, -285 }, { 0, -285 } } },
 	{ name = "H2", profile = "raster57", pts = { { -661, 30 }, { 0, 30 } } },
 	{ name = "Diagonale", profile = "std48", pts = { { 0, 30 }, { 290, 36 }, { 455, -77 }, { 605, -212 }, { 770, -347 }, { 790, -472 } } },
-	{ name = "Isarspange", profile = "std48", pts = { { 455, -77 }, { 700, -60 }, { 890, -15 }, { 960, 60 }, { 1076, 210 } } },
+	{ name = "Isarspange", profile = "std48", pts = { { 455, -77 }, { 700, -60 }, { 780, -40 }, { 990, 0 }, { 1030, 70 }, { 1076, 210 } } },
 	{ name = "V3", profile = "std48", pts = { { 300, -472 }, { 300, 32 } } },
 	{ name = "KreiselNord", profile = "std48", pts = { { -550, 30 }, { -550, 196 } } },
 	{ name = "KreiselWest", profile = "std48", pts = { { -661, 254 }, { -612, 254 } } },
@@ -64,14 +64,19 @@ C.plazas = {
 	{ name = "MarienplatzInsel", x0 = -580, z0 = 224, x1 = -520, z1 = 284 },
 }
 
--- Brücken: Deck unter der Straße, Länge entlang der Straße, Breite quer, yaw in Grad
+-- Kleine Brücken (flaches Deck unter der Straße, Länge entlang der Straße, Breite quer, yaw in Grad)
 C.bridges = {
 	{ name = "B0", x = 640, z = -257, len = 56, wid = 48, yaw = 39.3 },
 	{ name = "B1", x = 661, z = -62, len = 56, wid = 48, yaw = 356 },
-	{ name = "B2", x = 888, z = -15, len = 130, wid = 56, yaw = 330 },
-	{ name = "B3", x = 687.5, z = 410, len = 205, wid = 48, yaw = 0 },
-	{ name = "B4", x = 985, z = -472, len = 140, wid = 48, yaw = 0 },
 	{ name = "B5", x = 672, z = 120, len = 44, wid = 10, yaw = 0, pedestrian = true },
+}
+
+-- Isar-Brücken: gewölbte Steinbrücken (Fahrbahn steigt zur Mitte um peak), breiter als die Straße, mit Pfeilern im Fluss.
+-- len = Gesamtlänge entlang der Straße, wid = Breite der Fahrbahn, walk = Breite jedes Gehwegs, yaw = Richtung der Straße
+C.archBridges = {
+	{ name = "B2", x = 890, z = -19, len = 170, wid = 28, walk = 14, yaw = 349.4, peak = 10 },
+	{ name = "B3", x = 687.5, z = 410, len = 220, wid = 28, walk = 14, yaw = 0, peak = 12 }, -- Luitpoldbrücke über Bach und Isar
+	{ name = "B4", x = 985, z = -472, len = 170, wid = 28, walk = 14, yaw = 0, peak = 8 },
 }
 
 -- Siegestor-Unterführung: die vier Fahrspuren der Achse tauchen unter der Querstraße H2/D ab
@@ -93,8 +98,8 @@ C.parks = { -- Gras-Oberfläche (Terrain)
 	{ name = "EnglischerGarten", x0 = 430, z0 = -45, x1 = 700, z1 = 345 },
 	{ name = "Hinterhofpark", x0 = -401.5, z0 = -418, x1 = -293.5, z1 = -343.5 },
 }
-C.hills = { { name = "Monopteros", x = 575, z = 75, layers = { { 44, 0, 4 }, { 36, 4, 8 }, { 28, 8, 12 }, { 20, 12, 15 } } } } -- { Radius, y0, y1 }
-C.terrace = { name = "Friedensengel", x0 = 870, z0 = 250, x1 = 1020, z1 = 346, height = 12 }
+C.hills = { { name = "Monopteros", x = 575, z = 75, layers = { { 44, 0, 4 }, { 30, 4, 8 } } } } -- { Radius, y0, y1 }, nur 8 hoch
+C.terrace = { name = "Friedensengel", x0 = 870, z0 = 250, x1 = 1020, z1 = 346, height = 4 }
 
 C.wall = {
 	gates = { N = { { -60, 60 }, { 915, 1055 } }, S = { { -40, 40 }, { 590, 745 } } },

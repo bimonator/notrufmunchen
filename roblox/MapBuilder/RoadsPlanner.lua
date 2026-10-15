@@ -11,8 +11,8 @@ local COLOR = {
 	dash = { 236, 236, 230 }, deck = { 140, 140, 146 }, rail = { 70, 70, 76 }, tunnel = { 110, 110, 116 },
 }
 local MATERIAL = { road = "Asphalt", walk = "Concrete", plaza = "Pavement", median = "Grass" }
-local TOP = { road = 0.5, walk = 1.0, plaza = 0.5, median = 1.0 }
-local THICK = { road = 1, walk = 2, plaza = 1, median = 2 }
+local TOP = { road = 0.5, walk = 1.0, plaza = 0.5, median = 0.8 }
+local THICK = { road = 1, walk = 2, plaza = 1, median = 1.8 }
 
 local function part(parts, name, kind, x, y, z, sx, sy, sz, yaw, color, material, extra)
 	extra = extra or {}
@@ -91,12 +91,23 @@ function RoadsPlanner.plan(cfg)
 			if t0 > t1 then t0, t1 = t1, t0 end
 			tunnelCut = { t0, t1 }
 		end
+		local bridgeCuts = {}
+		for _, b in ipairs(cfg.archBridges) do
+			local br = math.rad(b.yaw)
+			local bx, bz = math.cos(br), -math.sin(br)
+			local dx, dz = b.x - p0x, b.z - p0z
+			local along, across = dx * seg.ux + dz * seg.uz, dx * nx + dz * nz
+			if math.abs(across) < 2.5 and math.abs(bx * seg.ux + bz * seg.uz) > 0.95 then
+				bridgeCuts[#bridgeCuts + 1] = { along - b.len / 2, along + b.len / 2 }
+			end
+		end
 		for si, st in ipairs(seg.prof.strips) do
 			local mid, w, kind = (st[1] + st[2]) / 2, st[2] - st[1], st[3]
 			local sx, sz = p0x + nx * mid, p0z + nz * mid
 			local cuts = {}
 			if kind == "walk" then cuts = crossCuts(segs, seg, sx, sz, L, 0.05) end
 			if st[4] and tunnelCut then cuts[#cuts + 1] = tunnelCut end
+			for _, bc in ipairs(bridgeCuts) do cuts[#cuts + 1] = bc end
 			for _, sp in ipairs(Geo.subtract({ { 0, L } }, cuts)) do
 				local len = sp[2] - sp[1]
 				if len > 0.5 then
@@ -111,6 +122,7 @@ function RoadsPlanner.plan(cfg)
 			local sx, sz = p0x + nx * d, p0z + nz * d
 			local cuts = crossCuts(segs, seg, sx, sz, L, 0.5)
 			if seg.prof.dashesUnderground and tunnelCut then cuts[#cuts + 1] = tunnelCut end
+			for _, bc in ipairs(bridgeCuts) do cuts[#cuts + 1] = bc end
 			for _, sp in ipairs(Geo.subtract({ { 0, L } }, cuts)) do
 				local t = sp[1] + 1
 				while t + 6 <= sp[2] - 1 do
@@ -150,6 +162,43 @@ function RoadsPlanner.plan(cfg)
 			local off = side * (b.wid / 2 - 0.2)
 			part(parts, "Rail_" .. b.name, "rail", b.x + off * s, 2.5, b.z + off * c, b.len, 3, 0.4, b.yaw, COLOR.rail, "Metal", {})
 		end
+	end
+
+	-- Gewölbte Isar-Brücken: Fahrbahn und Gehwege als geneigte Platten entlang einer Parabel, Brüstungen, Pfeiler im Fluss
+	local STONE = { 196, 188, 172 }
+	for _, b in ipairs(cfg.archBridges) do
+		local r = math.rad(b.yaw)
+		local ux, uz = math.cos(r), -math.sin(r) -- Richtung der Brücke
+		local nx2, nz2 = -uz, ux -- quer
+		local yawZ = b.yaw + 90 -- lokale z-Achse der Platten läuft entlang der Brücke
+		local N = 16
+		local function top(s) -- Oberkante der Fahrbahn bei s (Mitte = 0)
+			local q = 2 * s / b.len
+			return 0.5 + b.peak * (1 - q * q)
+		end
+		for i = 0, N - 1 do
+			local s0, s1 = -b.len / 2 + b.len * i / N, -b.len / 2 + b.len * (i + 1) / N
+			local sm = (s0 + s1) / 2
+			local y0, y1 = top(s0), top(s1)
+			local ym = (y0 + y1) / 2
+			local L = math.sqrt((s1 - s0) ^ 2 + (y1 - y0) ^ 2) + 0.2
+			local pitch = -math.deg(math.atan2(y1 - y0, s1 - s0)) -- steigt mit s: negativer Pitch
+			local cx, cz = b.x + ux * sm, b.z + uz * sm
+			local function slab(name, kind, lat, w, thick, up, color, mat)
+				part(parts, name, kind, cx + nx2 * lat, ym + up - thick / 2, cz + nz2 * lat, w, thick, L, yawZ, color, mat, { pitch = pitch })
+			end
+			slab("BrueckeFahrbahn", "road", 0, b.wid, 4, 0, COLOR.road, "Asphalt")
+			for _, side in ipairs({ -1, 1 }) do
+				slab("BrueckeGehweg", "walk", side * (b.wid / 2 + b.walk / 2), b.walk, 4, 0.5, STONE, "Concrete")
+				slab("BrueckeBruestung", "rail", side * (b.wid / 2 + b.walk + 0.6), 1.2, 4.5, 4, STONE, "Concrete")
+			end
+		end
+		for _, side in ipairs({ -1, 1 }) do -- zwei Pfeiler im Fluss, vom Flussbett (-14) bis unter die Fahrbahn
+			local s = side * b.len * 0.2
+			local deckBottom = top(s) - 4
+			part(parts, "BrueckePfeiler", "deck", b.x + ux * s, (deckBottom - 14) / 2, b.z + uz * s, 6, deckBottom + 14, b.wid + 2 * b.walk - 4, b.yaw, STONE, "Concrete", {})
+		end
+		stats.archBridges = (stats.archBridges or 0) + 1
 	end
 
 	-- Unterführung: Rampen (geneigt), Boden, Decke unter der Querstraße, Seitenwände des Tunnelkastens

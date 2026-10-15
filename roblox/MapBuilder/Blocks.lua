@@ -1,10 +1,14 @@
 -- Blocks.lua
--- Häuserblöcke im Schwabing-Raster (Kartenkoordinaten in Studs, Ursprung = Siegestor, x = Ost, z = Süd).
--- Außenkante = Straßenrand (Straße 57 breit, Mittellinien V1 x=-460, V2 x=-235, H1 z=-285, H2 z=30; Ring 48 breit).
--- Bank, Parkhaus, Feuerwache und die Leopoldstraße-Ladenzeile sind hier absichtlich NICHT enthalten.
+-- Häuserblöcke (Kartenkoordinaten in Studs, Ursprung = Siegestor, x = Ost, z = Süd).
+-- Außenkante = Straßenrand (Raster-Straßen 57 breit: V1 x=-460, V2 x=-235, H1 z=-285, H2 z=30; Ring 48 breit; Achse 110 breit).
+-- reserved = Flächen der Sonderbauten (Specials.lua): dort entfallen Blockrand-Häuser.
 
 return {
-	{ name = "A_NordWest", xmin = -637, zmin = -448, xmax = -488.5, zmax = -313.5 }, -- Supermarkt kommt später in den Innenhof
-	{ name = "B_NordMitte", xmin = -431.5, zmin = -448, xmax = -263.5, zmax = -313.5 }, -- Innenhof wird der Hinterhofpark
-	{ name = "D_West", xmin = -637, zmin = -256.5, xmax = -488.5, zmax = 1.5 }, -- Wohnhäuser
+	{ name = "A_NordWest", xmin = -637, zmin = -448, xmax = -488.5, zmax = -313.5 },
+	{ name = "B_NordMitte", xmin = -431.5, zmin = -448, xmax = -263.5, zmax = -313.5 },
+	{ name = "C_LeopoldWestNord", xmin = -206.5, zmin = -448, xmax = -55, zmax = -313.5, reserved = { { -127, -385, -55, -315 } } },
+	{ name = "D_West", xmin = -637, zmin = -256.5, xmax = -488.5, zmax = 1.5 },
+	{ name = "E_Mitte", xmin = -431.5, zmin = -256.5, xmax = -263.5, zmax = 1.5, reserved = { { -425, -200, -275, -100 } } },
+	{ name = "F_LeopoldWestSued", xmin = -206.5, zmin = -256.5, xmax = -55, zmax = 1.5, reserved = { { -205, -250, -109, -140 } } },
+	{ name = "G_LeopoldOst", xmin = 55, zmin = -448, xmax = 276, zmax = 4, reserved = { { 58, -300, 168, -190 } } },
 }

@@ -131,7 +131,7 @@ C.roads = {
 	{ name = "H1", profile = "raster57", pts = { { -661, -285 }, { 0, -285 } } },
 	{ name = "H2", profile = "raster57", pts = { { -661, 30 }, { 0, 30 } } },
 	{ name = "Diagonale", profile = "std48", pts = { { 0, 30 }, { 290, 36 }, { 455, -77 }, { 605, -212 }, { 770, -347 }, { 790, -472 } } },
-	{ name = "Isarspange", profile = "std48", pts = { { 455, -77 }, { 700, -60 }, { 890, -15 }, { 960, 60 }, { 1076, 210 } } },
+	{ name = "Isarspange", profile = "std48", pts = { { 455, -77 }, { 700, -60 }, { 780, -40 }, { 990, 0 }, { 1030, 70 }, { 1076, 210 } } },
 	{ name = "V3", profile = "std48", pts = { { 300, -472 }, { 300, 32 } } },
 	{ name = "KreiselNord", profile = "std48", pts = { { -550, 30 }, { -550, 196 } } },
 	{ name = "KreiselWest", profile = "std48", pts = { { -661, 254 }, { -612, 254 } } },
@@ -154,14 +154,19 @@ C.plazas = {
 	{ name = "MarienplatzInsel", x0 = -580, z0 = 224, x1 = -520, z1 = 284 },
 }
 
--- Brücken: Deck unter der Straße, Länge entlang der Straße, Breite quer, yaw in Grad
+-- Kleine Brücken (flaches Deck unter der Straße, Länge entlang der Straße, Breite quer, yaw in Grad)
 C.bridges = {
 	{ name = "B0", x = 640, z = -257, len = 56, wid = 48, yaw = 39.3 },
 	{ name = "B1", x = 661, z = -62, len = 56, wid = 48, yaw = 356 },
-	{ name = "B2", x = 888, z = -15, len = 130, wid = 56, yaw = 330 },
-	{ name = "B3", x = 687.5, z = 410, len = 205, wid = 48, yaw = 0 },
-	{ name = "B4", x = 985, z = -472, len = 140, wid = 48, yaw = 0 },
 	{ name = "B5", x = 672, z = 120, len = 44, wid = 10, yaw = 0, pedestrian = true },
+}
+
+-- Isar-Brücken: gewölbte Steinbrücken (Fahrbahn steigt zur Mitte um peak), breiter als die Straße, mit Pfeilern im Fluss.
+-- len = Gesamtlänge entlang der Straße, wid = Breite der Fahrbahn, walk = Breite jedes Gehwegs, yaw = Richtung der Straße
+C.archBridges = {
+	{ name = "B2", x = 890, z = -19, len = 170, wid = 28, walk = 14, yaw = 349.4, peak = 10 },
+	{ name = "B3", x = 687.5, z = 410, len = 220, wid = 28, walk = 14, yaw = 0, peak = 12 }, -- Luitpoldbrücke über Bach und Isar
+	{ name = "B4", x = 985, z = -472, len = 170, wid = 28, walk = 14, yaw = 0, peak = 8 },
 }
 
 -- Siegestor-Unterführung: die vier Fahrspuren der Achse tauchen unter der Querstraße H2/D ab
@@ -183,8 +188,8 @@ C.parks = { -- Gras-Oberfläche (Terrain)
 	{ name = "EnglischerGarten", x0 = 430, z0 = -45, x1 = 700, z1 = 345 },
 	{ name = "Hinterhofpark", x0 = -401.5, z0 = -418, x1 = -293.5, z1 = -343.5 },
 }
-C.hills = { { name = "Monopteros", x = 575, z = 75, layers = { { 44, 0, 4 }, { 36, 4, 8 }, { 28, 8, 12 }, { 20, 12, 15 } } } } -- { Radius, y0, y1 }
-C.terrace = { name = "Friedensengel", x0 = 870, z0 = 250, x1 = 1020, z1 = 346, height = 12 }
+C.hills = { { name = "Monopteros", x = 575, z = 75, layers = { { 44, 0, 4 }, { 30, 4, 8 } } } } -- { Radius, y0, y1 }, nur 8 hoch
+C.terrace = { name = "Friedensengel", x0 = 870, z0 = 250, x1 = 1020, z1 = 346, height = 4 }
 
 C.wall = {
 	gates = { N = { { -60, 60 }, { 915, 1055 } }, S = { { -40, 40 }, { 590, 745 } } },
@@ -198,7 +203,7 @@ end)()
 
 local Planner = (function()
 -- Planner.lua
--- Reine Geometrie für Reihenhaus-Blockränder. Keine Roblox-Funktionen, läuft in Luau und in Lua 5.1 (Tests).
+-- Reine Geometrie für Häuser (Blockränder, Sonderbauten, Mapgrenze). Keine Roblox-Funktionen, läuft in Luau und in Lua 5.1 (Tests).
 -- Koordinaten wie im Kartenplan: x = Ost, z = Süd, y = oben. Einheiten: Studs.
 -- Lokales Haus-System: x läuft entlang der Fassade, z zeigt von der Fassade in den Block hinein, y nach oben.
 -- Alles, was vor der Wand liegt (Fenster, Gesimse, Balkone), hat lokal z < 0.
@@ -208,18 +213,17 @@ local Planner = {}
 Planner.DEFAULTS = {
 	depth = 28, -- Gebäudetiefe
 	setback = 2, -- Abstand der Fassade zur Blockkante (der Gehweg liegt schon in der Straße)
-	targetWidth = 26, -- Wunschbreite eines Reihenhauses
+	targetWidth = 30, -- Mindest-Durchschnittsbreite eines Hauses (Anzahl = Länge / targetWidth, abgerundet)
 	floorY = 1, -- Gehweg-Oberkante = Boden des Erdgeschosses
 	groundH = 14, -- Höhe Erdgeschoss
 	upperH = 12, -- Höhe jedes Obergeschosses
-	minFloors = 4,
-	maxFloors = 5,
+	floorWeights = { { 3, 0.2 }, { 4, 0.35 }, { 5, 0.3 }, { 6, 0.15 } }, -- Geschosse und ihre Häufigkeit
 	seed = 1,
 	litChance = 0.35, -- Anteil Fenster, die nachts leuchten
-	simple = false, -- true: keine Fensterbänke, Balkone, Schornsteine, Seitenfenster (für die Mapgrenze, spart Teile)
+	simple = false, -- true: keine Fensterbänke, Balkone, Schornsteine, Erker, Seitenfenster (Mapgrenze, spart Teile)
 	palette = { -- Putzfarben (RGB 0-255)
-		{ 236, 226, 200 }, { 232, 208, 150 }, { 214, 200, 178 }, { 228, 186, 150 },
-		{ 196, 204, 200 }, { 214, 168, 150 }, { 188, 200, 216 },
+		{ 236, 226, 200 }, { 232, 208, 150 }, { 214, 200, 178 }, { 228, 186, 150 }, { 196, 204, 200 }, { 214, 168, 150 },
+		{ 188, 200, 216 }, { 240, 224, 160 }, { 222, 170, 130 }, { 240, 238, 232 }, { 176, 190, 170 }, { 200, 200, 204 },
 	},
 }
 
@@ -249,13 +253,23 @@ local function newRng(seed)
 	function self.pick(t)
 		return t[self.int(1, #t)]
 	end
+	function self.weighted(list) -- { { wert, gewicht }, ... }
+		local r, cum = self.next(), 0
+		for _, e in ipairs(list) do
+			cum = cum + e[2]
+			if r <= cum then return e[1] end
+		end
+		return list[#list][1]
+	end
 	return self
 end
 
 local function tint(c, f) -- Richtung weiß mischen
-	return {
-		math.floor(c[1] + (255 - c[1]) * f), math.floor(c[2] + (255 - c[2]) * f), math.floor(c[3] + (255 - c[3]) * f),
-	}
+	return { math.floor(c[1] + (255 - c[1]) * f), math.floor(c[2] + (255 - c[2]) * f), math.floor(c[3] + (255 - c[3]) * f) }
+end
+
+local function shade(c, f) -- Richtung schwarz mischen
+	return { math.floor(c[1] * (1 - f)), math.floor(c[2] * (1 - f)), math.floor(c[3] * (1 - f)) }
 end
 
 local function mergeOpts(opts)
@@ -276,7 +290,7 @@ local function add(h, name, kind, lx, ly, lz, sx, sy, sz, color, material, extra
 		name = name, kind = kind,
 		size = { sx, sy, sz },
 		pos = { round3(h.ox + lx * c + lz * s), round3(ly), round3(h.oz - lx * s + lz * c) },
-		yaw = (h.yaw + (extra.yaw or 0)) % 360,
+		yaw = (h.yaw + (extra.yaw or 0)) % 360, pitch = extra.pitch or 0,
 		color = color, material = material,
 		collide = extra.collide == true,
 		lit = extra.lit, tag = extra.tag,
@@ -296,45 +310,68 @@ end
 local FRAME = { 70, 62, 56 }
 local GLASS = { 70, 92, 112 }
 local GLASS_LIT = { 255, 214, 140 }
+local SHUTTERS = { { 70, 100, 80 }, { 110, 60, 50 }, { 60, 70, 100 }, { 90, 90, 94 } }
+local AWNINGS = { { 190, 60, 50 }, { 60, 100, 150 }, { 70, 130, 90 }, { 220, 170, 60 } }
 
--- Fenster: Rahmen und Scheibe sitzen vor der Wand (kein Ausschnitt), Fensterbank darunter.
-local function addWindow(h, label, face, u, yc, w, hgt, lit)
-	local lx, lz, ey = onFace(h, face, u, 0.2)
+-- Fenster: Rahmen und Scheibe sitzen vor der Wand (kein Ausschnitt), Fensterbank darunter. shift = zusätzlicher Abstand (Erker).
+local function addWindow(h, label, face, u, yc, w, hgt, lit, shift)
+	shift = shift or 0
+	local lx, lz, ey = onFace(h, face, u, 0.2 + shift)
 	add(h, "Frame" .. label, "frame", lx, yc, lz, w + 1.6, hgt + 1.6, 0.4, FRAME, "SmoothPlastic", { yaw = ey })
-	lx, lz = onFace(h, face, u, 0.4)
-	add(h, "Glass" .. label, "glass", lx, yc, lz, w, hgt, 0.2, lit and GLASS_LIT or GLASS, "Glass",
-		{ yaw = ey, lit = lit, tag = "HouseWindow" })
+	lx, lz = onFace(h, face, u, 0.4 + shift)
+	add(h, "Glass" .. label, "glass", lx, yc, lz, w, hgt, 0.2, lit and GLASS_LIT or GLASS, "Glass", { yaw = ey, lit = lit, tag = "HouseWindow" })
 	if h.simple then return end
-	lx, lz = onFace(h, face, u, 0.5)
+	lx, lz = onFace(h, face, u, 0.5 + shift)
 	add(h, "Sill" .. label, "trim", lx, yc - hgt / 2 - 1.1, lz, w + 3, 0.6, 1.0, { 200, 196, 188 }, "Concrete", { yaw = ey })
 end
 
 local function planHouse(h, o, rng, cornerA, cornerB)
 	local W, D = h.width, h.depth
-	local floors = rng.int(o.minFloors, o.maxFloors)
+	local floors = rng.weighted(o.floorWeights)
 	if h.forceFloors then floors = h.forceFloors end
 	local H = o.groundH + o.upperH * (floors - 1)
 	local y0 = o.floorY
 	local facade = rng.pick(o.palette)
+	if h.color then facade = h.color end
 	local doorSign = (rng.next() < 0.5) and -1 or 1
-	local balcony = rng.next() < 0.5
-	local staffel = floors == o.minFloors and rng.next() < 0.35
+	local balconyStyle = rng.weighted({ { "none", 0.35 }, { "single", 0.25 }, { "full", 0.15 }, { "juliet", 0.25 } })
+	local roofRoll = rng.next()
+	local roof = (roofRoll < 0.5) and "flat" or ((roofRoll < 0.8 and floors >= 4) and "mansard" or ((floors <= 4) and "staffel" or "flat"))
 	local chimneys = rng.int(0, 2)
-	h.floors, h.height, h.facade = floors, H, facade
+	local erker = rng.next() < 0.4 and floors >= 4 and W >= 28 and not h.simple
+	local shutters = rng.next() < 0.35 and not h.simple
+	local shop = rng.next() < 0.4 and W >= 30
+	local plinthColor = rng.pick({ { 140, 140, 140 }, { 112, 104, 98 }, { 160, 150, 138 } })
+	local ledgeColor = (rng.next() < 0.5) and tint(facade, 0.35) or shade(facade, 0.12)
+	local shutterColor = rng.pick(SHUTTERS)
+	local awning = rng.pick(AWNINGS)
+	h.floors, h.height, h.facade, h.roof = floors, H, facade, roof
 
-	-- Hauptkörper, Sockel, Gesimse, Dachabschluss
+	-- Hauptkörper, Sockel, Gesimse
 	add(h, "Body", "body", 0, y0 + H / 2, D / 2, W, H, D, facade, "SmoothPlastic", { collide = true })
-	add(h, "Plinth", "trim", 0, y0 + 1.2, -0.25, W, 2.4, 0.5, { 140, 140, 140 }, "Concrete")
+	add(h, "Plinth", "trim", 0, y0 + 1.2, -0.25, W, 2.4, 0.5, plinthColor, "Concrete")
 	for k = 1, floors - 1 do
 		local yb = y0 + o.groundH + o.upperH * (k - 1)
-		add(h, "Ledge" .. k, "trim", 0, yb, -0.4, W, 0.7, 0.8, tint(facade, 0.35), "Concrete")
+		add(h, "Ledge" .. k, "trim", 0, yb, -0.4, W, 0.7, 0.8, ledgeColor, "Concrete")
 	end
 	add(h, "Cornice", "trim", 0, y0 + H - 0.8, -0.8, W, 1.6, 1.6, tint(facade, 0.45), "Concrete")
-	add(h, "Roof", "roof", 0, y0 + H + 0.3, D / 2, W, 0.6, D, { 96, 96, 100 }, "Concrete", { collide = true })
-	add(h, "ParapetF", "trim", 0, y0 + H + 1.6, 0.4, W, 2, 0.8, tint(facade, 0.2), "Concrete")
-	add(h, "ParapetB", "trim", 0, y0 + H + 1.6, D - 0.4, W, 2, 0.8, tint(facade, 0.2), "Concrete")
-	local roofTop = y0 + H + 0.6
-	if staffel then
+
+	-- Dach: flach mit Attika, Mansarddach (steile Front, flaches Dach dahinter) oder zurückgesetztes Staffelgeschoss
+	local base = y0 + H
+	add(h, "Roof", "roof", 0, base + 0.3, D / 2, W, 0.6, D, { 96, 96, 100 }, "Concrete", { collide = true })
+	local roofTop = base + 0.6
+	if roof == "flat" or roof == "staffel" then
+		add(h, "ParapetF", "trim", 0, base + 1.6, 0.4, W, 2, 0.8, tint(facade, 0.2), "Concrete")
+		add(h, "ParapetB", "trim", 0, base + 1.6, D - 0.4, W, 2, 0.8, tint(facade, 0.2), "Concrete")
+	end
+	if roof == "mansard" then
+		local run, rise = 3.5, 6
+		local len = math.sqrt(run * run + rise * rise)
+		add(h, "MansardFront", "roof", 0, base + rise / 2 + 0.3, run / 2, W, 0.8, len, { 88, 88, 96 }, "Metal", { pitch = -math.deg(math.atan2(rise, run)) })
+		add(h, "MansardFill", "body", 0, base + rise / 2 + 0.3, run + (D - run - 1) / 2, W, rise, D - run - 1, shade(facade, 0.08), "SmoothPlastic", { collide = true })
+		add(h, "MansardTop", "roof", 0, base + rise + 0.6, run + (D - run) / 2, W, 0.6, D - run, { 88, 88, 96 }, "Metal")
+		roofTop = base + rise + 0.9
+	elseif roof == "staffel" then
 		add(h, "Staffel", "body", 0, roofTop + 5, D / 2, W - 4, 10, D - 12, tint(facade, 0.15), "SmoothPlastic", { collide = true })
 		add(h, "StaffelGlass", "glass", 0, roofTop + 5, 5.8, W - 8, 6, 0.3, GLASS, "Glass", { tag = "HouseWindow", lit = false })
 		add(h, "StaffelRoof", "roof", 0, roofTop + 10.3, D / 2, W - 3, 0.6, D - 11, { 96, 96, 100 }, "Concrete")
@@ -345,34 +382,68 @@ local function planHouse(h, o, rng, cornerA, cornerB)
 		add(h, "Chimney" .. i, "chimney", rng.int(-lim, lim), roofTop + 3, D - 6, 2.5, 6, 2.5, { 170, 100, 80 }, "Brick")
 	end
 
-	-- Obergeschoss-Fenster (vorne) und optionale Balkone
+	-- Obergeschoss: Fenster, Erker, Fensterläden, Balkone
 	local nw = math.max(2, math.floor((W - 4) / 9))
+	local erkerIdx
+	if erker then
+		erkerIdx = 1
+		for i = 1, nw do
+			if math.abs(-W / 2 + (i - 0.5) * W / nw) < math.abs(-W / 2 + (erkerIdx - 0.5) * W / nw) then erkerIdx = i end
+		end
+		local ex = -W / 2 + (erkerIdx - 0.5) * W / nw
+		local yb1 = y0 + o.groundH
+		add(h, "Erker", "body", ex, yb1 + o.upperH, -1.25, 8, o.upperH * 2, 2.5, tint(facade, 0.1), "SmoothPlastic", { collide = true })
+		add(h, "ErkerRoof", "trim", ex, yb1 + o.upperH * 2 + 0.3, -1.45, 8.6, 0.6, 3.1, { 96, 96, 100 }, "Concrete")
+	end
 	for k = 1, floors - 1 do
 		local yb = y0 + o.groundH + o.upperH * (k - 1)
 		for i = 1, nw do
-			addWindow(h, "F" .. k .. "_" .. i, "front", -W / 2 + (i - 0.5) * W / nw, yb + 6, 4.4, 6.4, rng.next() < o.litChance)
+			local u = -W / 2 + (i - 0.5) * W / nw
+			local lit = rng.next() < o.litChance
+			if erker and i == erkerIdx and k <= 2 then
+				addWindow(h, "E" .. k, "front", u, yb + 6, 4.4, 6.4, lit, 2.5)
+			else
+				addWindow(h, "F" .. k .. "_" .. i, "front", u, yb + 6, 4.4, 6.4, lit)
+				if shutters then
+					for _, sd in ipairs({ -1, 1 }) do
+						add(h, "Shutter" .. k .. "_" .. i, "trim", u + sd * 3.8, yb + 6, -0.15, 1.4, 7.8, 0.3, shutterColor, "Wood")
+					end
+				end
+			end
 		end
-		if balcony and k >= 2 and not h.simple then
-			local bw = math.min(14, W - 10)
-			add(h, "Balcony" .. k, "balcony", 0, yb + 0.3, -1.25, bw, 0.6, 2.5, { 150, 150, 150 }, "Concrete")
-			add(h, "Rail" .. k, "balcony", 0, yb + 2.1, -2.35, bw, 3, 0.3, { 60, 60, 66 }, "Metal")
+		if k >= 2 and not h.simple and balconyStyle ~= "none" and not (erker and k <= 2) then
+			local bw = (balconyStyle == "full") and (W - 10) or math.min(14, W - 10)
+			if balconyStyle ~= "juliet" and (balconyStyle == "full" or k % 2 == 0) then
+				add(h, "Balcony" .. k, "balcony", 0, yb + 0.3, -1.25, bw, 0.6, 2.5, { 150, 150, 150 }, "Concrete")
+				add(h, "Rail" .. k, "balcony", 0, yb + 2.1, -2.35, bw, 3, 0.3, { 60, 60, 66 }, "Metal")
+			elseif balconyStyle == "juliet" then
+				add(h, "Rail" .. k, "balcony", 0, yb + 2.1, -0.5, math.min(W - 12, 18), 2.4, 0.3, { 60, 60, 66 }, "Metal")
+			end
 		end
 	end
 
-	-- Erdgeschoss: Tür auf einer Seite, Schaufenster auf der anderen
+	-- Erdgeschoss: Tür auf einer Seite; Schaufenster mit Markise oder zwei kleinere Fenster
 	local a = W / 2 - 6
 	local dx = doorSign * a
 	add(h, "DoorFrame", "frame", dx, y0 + 5, -0.25, 6.4, 10, 0.5, { 70, 52, 42 }, "Wood")
 	add(h, "Door", "door", dx, y0 + 4.5, -0.55, 5, 9, 0.3, { 110, 70, 45 }, "Wood")
 	add(h, "DoorCanopy", "trim", dx, y0 + 10.6, -1, 7, 0.5, 2, { 120, 120, 124 }, "Concrete")
-	local nwg = math.max(1, math.floor((W - 21) / 9) + 1)
-	for i = 1, nwg do
-		addWindow(h, "G_" .. i, "front", -dx + doorSign * 9 * (i - 1), y0 + 8, 4.4, 5.4, rng.next() < o.litChance)
+	if shop then
+		local lo, hi = -W / 2 + 2, W / 2 - 2
+		if doorSign > 0 then hi = dx - 4.5 else lo = dx + 4.5 end
+		local ws = hi - lo
+		addWindow(h, "Shop", "front", (lo + hi) / 2, y0 + 7.5, ws - 1.6, 7, rng.next() < o.litChance)
+		add(h, "Awning", "trim", (lo + hi) / 2, y0 + 12, -1.6, ws, 0.5, 3.2, awning, "Concrete")
+	elseif W >= 24 then
+		local nwg = math.max(1, math.floor((W - 21) / 9) + 1)
+		for i = 1, nwg do
+			addWindow(h, "G_" .. i, "front", -dx + doorSign * 9 * (i - 1), y0 + 8, 4.4, 5.4, rng.next() < o.litChance)
+		end
 	end
 
 	-- Eckhaus: Fenster auch an der Seitenfläche zur Querstraße
 	for _, face in ipairs({ cornerA and "-x" or false, cornerB and "+x" or false }) do
-		if face then
+		if face and not h.simple then
 			for _, u in ipairs({ 7, D - 7 }) do
 				for k = 1, floors - 1 do
 					addWindow(h, "SideF" .. k .. "_" .. face .. u, face, u, y0 + o.groundH + o.upperH * (k - 1) + 6, 4.4, 6.4, rng.next() < o.litChance)
@@ -381,6 +452,17 @@ local function planHouse(h, o, rng, cornerA, cornerB)
 			end
 		end
 	end
+end
+
+-- Zufällige Hausbreiten, die genau die Länge füllen (Abweichung höchstens etwa +-10 % vom Durchschnitt)
+local function splitWidths(len, n, rng)
+	local w, sum = {}, 0
+	for i = 1, n do
+		w[i] = 0.9 + 0.2 * rng.next()
+		sum = sum + w[i]
+	end
+	for i = 1, n do w[i] = len * w[i] / sum end
+	return w
 end
 
 -- Häuser entlang mehrerer Fassadenlinien. side = { name, yaw, sx, sz, ux, uz, len, corners, ranges }
@@ -392,18 +474,20 @@ local function planSides(name, sides, o, rng, plan, depth)
 		for ri, range in ipairs(ranges) do
 			local len = range[2] - range[1]
 			if len >= 12 then
-				local n = math.max(1, math.floor(len / o.targetWidth + 0.5))
-				local width = len / n
-				for i = 0, n - 1 do
+				local n = math.max(1, math.floor(len / o.targetWidth))
+				local widths = splitWidths(len, n, rng)
+				local t = range[1]
+				for i = 1, n do
 					idx = idx + 1
-					local t = range[1] + (i + 0.5) * width
+					local width = widths[i]
 					local h = {
 						side = side.name, index = idx, simple = o.simple,
-						ox = side.sx + side.ux * t, oz = side.sz + side.uz * t,
+						ox = side.sx + side.ux * (t + width / 2), oz = side.sz + side.uz * (t + width / 2),
 						yaw = side.yaw, width = width, depth = depth, parts = {},
 						name = string.format("Haus_%s_%s%d", name, side.name, idx),
 					}
-					planHouse(h, o, rng, side.corners and ri == 1 and i == 0, side.corners and ri == #ranges and i == n - 1)
+					t = t + width
+					planHouse(h, o, rng, side.corners and ri == 1 and i == 1, side.corners and ri == #ranges and i == n)
 					plan.houses[#plan.houses + 1] = h
 				end
 			end
@@ -411,7 +495,21 @@ local function planSides(name, sides, o, rng, plan, depth)
 	end
 end
 
--- block = { name, xmin, zmin, xmax, zmax } (Außenkante = Straßenrand). Gibt den Bauplan zurück.
+local function bodyOf(h)
+	for _, p in ipairs(h.parts) do
+		if p.name == "Body" then return p end
+	end
+end
+
+-- Achsparallele Außenmaße eines Teils (Drehung nur in 90-Grad-Schritten).
+function Planner.aabb(p)
+	local sx, sy, sz = p.size[1], p.size[2], p.size[3]
+	if p.yaw % 180 == 90 then sx, sz = sz, sx end
+	return p.pos[1] - sx / 2, p.pos[2] - sy / 2, p.pos[3] - sz / 2, p.pos[1] + sx / 2, p.pos[2] + sy / 2, p.pos[3] + sz / 2
+end
+
+-- block = { name, xmin, zmin, xmax, zmax, reserved = { {x0,z0,x1,z1}, ... } } (Außenkante = Straßenrand).
+-- Häuser, die in reserved-Flächen (Sonderbauten) stehen würden, entfallen.
 function Planner.planBlock(block, opts)
 	local o = mergeOpts(opts)
 	local rng = newRng(o.seed + hash(block.name))
@@ -423,12 +521,52 @@ function Planner.planBlock(block, opts)
 		{ name = "W", yaw = 90, sx = xmin + s, sz = zmax - s - D, ux = 0, uz = -1, len = (zmax - zmin) - 2 * s - 2 * D, corners = false },
 		{ name = "E", yaw = 270, sx = xmax - s, sz = zmin + s + D, ux = 0, uz = 1, len = (zmax - zmin) - 2 * s - 2 * D, corners = false },
 	}
-	local plan = {
-		block = block, houses = {},
-		courtyard = { xmin + s + D, zmin + s + D, xmax - s - D, zmax - s - D },
-	}
+	local plan = { block = block, houses = {}, dropped = 0, courtyard = { xmin + s + D, zmin + s + D, xmax - s - D, zmax - s - D } }
 	planSides(block.name, sides, o, rng, plan, D)
+	if block.reserved then
+		local kept = {}
+		for _, h in ipairs(plan.houses) do
+			local x0, _, z0, x1, _, z1 = Planner.aabb(bodyOf(h))
+			local hit = false
+			for _, r in ipairs(block.reserved) do
+				if x0 < r[3] - 0.5 and x1 > r[1] + 0.5 and z0 < r[4] - 0.5 and z1 > r[2] + 0.5 then hit = true end
+			end
+			if hit then plan.dropped = plan.dropped + 1 else kept[#kept + 1] = h end
+		end
+		plan.houses = kept
+	end
 	return plan
+end
+
+-- Sonderbau (Bank, Wache, Krankenhaus ...) als Platzhalter-Gebäude auf einer Rechteckfläche.
+-- spec = { name, x0, z0, x1, z1, facing = "N"|"S"|"E"|"W" (Seite zur Straße), floors, color, canopy = { x0, z0, x1, z1 } }
+function Planner.planSpecial(spec, opts)
+	local o = mergeOpts(opts)
+	local rng = newRng(o.seed + hash(spec.name))
+	local f = spec.facing
+	local h = {
+		side = f, index = 0, simple = false, forceFloors = spec.floors, color = spec.color, parts = {}, name = "Sonder_" .. spec.name,
+	}
+	if f == "N" then h.ox, h.oz, h.yaw, h.width, h.depth = (spec.x0 + spec.x1) / 2, spec.z0, 0, spec.x1 - spec.x0, spec.z1 - spec.z0
+	elseif f == "S" then h.ox, h.oz, h.yaw, h.width, h.depth = (spec.x0 + spec.x1) / 2, spec.z1, 180, spec.x1 - spec.x0, spec.z1 - spec.z0
+	elseif f == "W" then h.ox, h.oz, h.yaw, h.width, h.depth = spec.x0, (spec.z0 + spec.z1) / 2, 90, spec.z1 - spec.z0, spec.x1 - spec.x0
+	else h.ox, h.oz, h.yaw, h.width, h.depth = spec.x1, (spec.z0 + spec.z1) / 2, 270, spec.z1 - spec.z0, spec.x1 - spec.x0 end
+	planHouse(h, o, rng, false, false)
+	if spec.canopy then -- Tankstellen-Schirm: Dach auf vier Pfeilern, 8 Zapfsäulen
+		local c = spec.canopy
+		local cx, cz, w, d = (c[1] + c[3]) / 2, (c[2] + c[4]) / 2, c[3] - c[1], c[4] - c[2]
+		local function w3(name, x, y, z, sx, sy, sz, color, mat)
+			h.parts[#h.parts + 1] = { name = name, kind = "trim", size = { sx, sy, sz }, pos = { round3(x), round3(y), round3(z) }, yaw = 0, pitch = 0, color = color, material = mat, collide = false, lpos = { 0, y, 0 } }
+		end
+		w3("CanopyRoof", cx, 14.5, cz, w, 1, d, { 232, 200, 60 }, "SmoothPlastic")
+		for _, px in ipairs({ c[1] + 3, c[3] - 3 }) do
+			for _, pz in ipairs({ c[2] + 3, c[4] - 3 }) do w3("CanopyPillar", px, 7.5, pz, 1.5, 14, 1.5, { 200, 200, 204 }, "Metal") end
+		end
+		for _, px in ipairs({ cx - 6, cx + 6 }) do
+			for k = 0, 3 do w3("Pump", px, 3.5, c[2] + 10 + k * (d - 20) / 3, 1.5, 5, 1.5, { 200, 60, 50 }, "SmoothPlastic") end
+		end
+	end
+	return { houses = { h } }
 end
 
 -- Mapgrenze: Häuserband rund um die Karte, Fassade zeigt nach innen zur Ringstraße.
@@ -437,11 +575,10 @@ end
 function Planner.planWall(wall, opts)
 	local o = mergeOpts(opts)
 	o.simple, o.setback = true, 0
-	local D = wall.outer.xmin - wall.inner.xmin
-	D = math.abs(D)
+	local D = math.abs(wall.outer.xmin - wall.inner.xmin)
 	local rng = newRng(o.seed + hash("Mapgrenze"))
 	local ix0, iz0, ix1, iz1 = wall.inner.xmin, wall.inner.zmin, wall.inner.xmax, wall.inner.zmax
-	local ox0, oz0, oz1 = wall.outer.xmin, wall.outer.zmin, wall.outer.zmax
+	local oz0, oz1 = wall.outer.zmin, wall.outer.zmax
 	local function ranges(len, startCoord, dirSign, gaps) -- Lücken (Weltkoordinate) in Abschnitte entlang der Laufrichtung umrechnen
 		local cuts = {}
 		for _, g in ipairs(gaps or {}) do
@@ -467,26 +604,17 @@ function Planner.planWall(wall, opts)
 	}
 	local plan = { houses = {}, wall = wall }
 	planSides("Wand", sides, o, rng, plan, D)
-	-- Sonderbauten in den Lücken (Querriegel, Feldherrnhalle)
-	for _, sp in ipairs(wall.specials) do
-		local w = sp.x1 - sp.x0
+	for _, sp in ipairs(wall.specials) do -- Sonderbauten in den Lücken (Querriegel, Feldherrnhalle)
 		local north = sp.side == "N"
 		local h = {
 			side = sp.side, index = 0, simple = true, forceFloors = sp.floors,
 			ox = (sp.x0 + sp.x1) / 2, oz = north and iz0 or iz1,
-			yaw = north and 180 or 0, width = w, depth = D, parts = {}, name = "Sonder_" .. sp.name,
+			yaw = north and 180 or 0, width = sp.x1 - sp.x0, depth = D, parts = {}, name = "Sonder_" .. sp.name,
 		}
 		planHouse(h, o, rng, false, false)
 		plan.houses[#plan.houses + 1] = h
 	end
 	return plan
-end
-
--- Achsparallele Außenmaße eines Teils (Drehung nur in 90-Grad-Schritten).
-function Planner.aabb(p)
-	local sx, sy, sz = p.size[1], p.size[2], p.size[3]
-	if p.yaw % 180 == 90 then sx, sz = sz, sx end
-	return p.pos[1] - sx / 2, p.pos[2] - sy / 2, p.pos[3] - sz / 2, p.pos[1] + sx / 2, p.pos[2] + sy / 2, p.pos[3] + sz / 2
 end
 
 function Planner.stats(plan)
@@ -504,14 +632,40 @@ end)()
 
 local Blocks = (function()
 -- Blocks.lua
--- Häuserblöcke im Schwabing-Raster (Kartenkoordinaten in Studs, Ursprung = Siegestor, x = Ost, z = Süd).
--- Außenkante = Straßenrand (Straße 57 breit, Mittellinien V1 x=-460, V2 x=-235, H1 z=-285, H2 z=30; Ring 48 breit).
--- Bank, Parkhaus, Feuerwache und die Leopoldstraße-Ladenzeile sind hier absichtlich NICHT enthalten.
+-- Häuserblöcke (Kartenkoordinaten in Studs, Ursprung = Siegestor, x = Ost, z = Süd).
+-- Außenkante = Straßenrand (Raster-Straßen 57 breit: V1 x=-460, V2 x=-235, H1 z=-285, H2 z=30; Ring 48 breit; Achse 110 breit).
+-- reserved = Flächen der Sonderbauten (Specials.lua): dort entfallen Blockrand-Häuser.
 
 return {
-	{ name = "A_NordWest", xmin = -637, zmin = -448, xmax = -488.5, zmax = -313.5 }, -- Supermarkt kommt später in den Innenhof
-	{ name = "B_NordMitte", xmin = -431.5, zmin = -448, xmax = -263.5, zmax = -313.5 }, -- Innenhof wird der Hinterhofpark
-	{ name = "D_West", xmin = -637, zmin = -256.5, xmax = -488.5, zmax = 1.5 }, -- Wohnhäuser
+	{ name = "A_NordWest", xmin = -637, zmin = -448, xmax = -488.5, zmax = -313.5 },
+	{ name = "B_NordMitte", xmin = -431.5, zmin = -448, xmax = -263.5, zmax = -313.5 },
+	{ name = "C_LeopoldWestNord", xmin = -206.5, zmin = -448, xmax = -55, zmax = -313.5, reserved = { { -127, -385, -55, -315 } } },
+	{ name = "D_West", xmin = -637, zmin = -256.5, xmax = -488.5, zmax = 1.5 },
+	{ name = "E_Mitte", xmin = -431.5, zmin = -256.5, xmax = -263.5, zmax = 1.5, reserved = { { -425, -200, -275, -100 } } },
+	{ name = "F_LeopoldWestSued", xmin = -206.5, zmin = -256.5, xmax = -55, zmax = 1.5, reserved = { { -205, -250, -109, -140 } } },
+	{ name = "G_LeopoldOst", xmin = 55, zmin = -448, xmax = 276, zmax = 4, reserved = { { 58, -300, 168, -190 } } },
+}
+
+end)()
+
+local Specials = (function()
+-- Specials.lua
+-- Sonderbauten als Platzhalter-Gebäude (richtige Grundfläche, Farbe nach Art). Details und Innenräume kommen später.
+-- facing = Seite zur Straße. Koordinaten wie in docs/phase1_bauplan.html.
+
+return {
+	{ name = "Isarbank", x0 = -127, z0 = -385, x1 = -55, z1 = -315, facing = "E", floors = 4, color = { 176, 120, 100 } },
+	{ name = "Parkhaus", x0 = -205, z0 = -250, x1 = -109, z1 = -140, facing = "N", floors = 4, color = { 170, 170, 176 } },
+	{ name = "Tankstellen-Shop", x0 = 112, z0 = -280, x1 = 164, z1 = -210, facing = "W", floors = 1, color = { 232, 200, 60 }, canopy = { 68, -292, 102, -196 } },
+	{ name = "Feuer-und-Rettungswache", x0 = -425, z0 = -200, x1 = -275, z1 = -100, facing = "W", floors = 3, color = { 200, 70, 55 } },
+	{ name = "Polizeiwache", x0 = 215, z0 = 310, x1 = 295, z1 = 380, facing = "S", floors = 3, color = { 70, 110, 200 } },
+	{ name = "Krankenhaus", x0 = 340, z0 = -430, x1 = 500, z1 = -310, facing = "W", floors = 5, color = { 90, 170, 150 } },
+	{ name = "Kiosk", x0 = -350, z0 = 66, x1 = -300, z1 = 106, facing = "N", floors = 1, color = { 200, 70, 55 } },
+	{ name = "Cafe-Terrasse", x0 = -130, z0 = 64, x1 = -66, z1 = 116, facing = "E", floors = 2, color = { 226, 190, 120 } },
+	{ name = "Uni-Fassade", x0 = -160, z0 = 130, x1 = -60, z1 = 220, facing = "E", floors = 4, color = { 214, 204, 176 } },
+	{ name = "Casino-Odeon", x0 = -200, z0 = 316, x1 = -144, z1 = 360, facing = "E", floors = 2, color = { 70, 56, 84 } },
+	{ name = "Kaffeehaus", x0 = 144, z0 = 300, x1 = 194, z1 = 340, facing = "W", floors = 2, color = { 100, 150, 100 } },
+	{ name = "Prinz-Eins", x0 = 560, z0 = 330, x1 = 616, z1 = 370, facing = "S", floors = 2, color = { 52, 44, 76 } },
 }
 
 end)()
@@ -530,8 +684,8 @@ local COLOR = {
 	dash = { 236, 236, 230 }, deck = { 140, 140, 146 }, rail = { 70, 70, 76 }, tunnel = { 110, 110, 116 },
 }
 local MATERIAL = { road = "Asphalt", walk = "Concrete", plaza = "Pavement", median = "Grass" }
-local TOP = { road = 0.5, walk = 1.0, plaza = 0.5, median = 1.0 }
-local THICK = { road = 1, walk = 2, plaza = 1, median = 2 }
+local TOP = { road = 0.5, walk = 1.0, plaza = 0.5, median = 0.8 }
+local THICK = { road = 1, walk = 2, plaza = 1, median = 1.8 }
 
 local function part(parts, name, kind, x, y, z, sx, sy, sz, yaw, color, material, extra)
 	extra = extra or {}
@@ -610,12 +764,23 @@ function RoadsPlanner.plan(cfg)
 			if t0 > t1 then t0, t1 = t1, t0 end
 			tunnelCut = { t0, t1 }
 		end
+		local bridgeCuts = {}
+		for _, b in ipairs(cfg.archBridges) do
+			local br = math.rad(b.yaw)
+			local bx, bz = math.cos(br), -math.sin(br)
+			local dx, dz = b.x - p0x, b.z - p0z
+			local along, across = dx * seg.ux + dz * seg.uz, dx * nx + dz * nz
+			if math.abs(across) < 2.5 and math.abs(bx * seg.ux + bz * seg.uz) > 0.95 then
+				bridgeCuts[#bridgeCuts + 1] = { along - b.len / 2, along + b.len / 2 }
+			end
+		end
 		for si, st in ipairs(seg.prof.strips) do
 			local mid, w, kind = (st[1] + st[2]) / 2, st[2] - st[1], st[3]
 			local sx, sz = p0x + nx * mid, p0z + nz * mid
 			local cuts = {}
 			if kind == "walk" then cuts = crossCuts(segs, seg, sx, sz, L, 0.05) end
 			if st[4] and tunnelCut then cuts[#cuts + 1] = tunnelCut end
+			for _, bc in ipairs(bridgeCuts) do cuts[#cuts + 1] = bc end
 			for _, sp in ipairs(Geo.subtract({ { 0, L } }, cuts)) do
 				local len = sp[2] - sp[1]
 				if len > 0.5 then
@@ -630,6 +795,7 @@ function RoadsPlanner.plan(cfg)
 			local sx, sz = p0x + nx * d, p0z + nz * d
 			local cuts = crossCuts(segs, seg, sx, sz, L, 0.5)
 			if seg.prof.dashesUnderground and tunnelCut then cuts[#cuts + 1] = tunnelCut end
+			for _, bc in ipairs(bridgeCuts) do cuts[#cuts + 1] = bc end
 			for _, sp in ipairs(Geo.subtract({ { 0, L } }, cuts)) do
 				local t = sp[1] + 1
 				while t + 6 <= sp[2] - 1 do
@@ -669,6 +835,43 @@ function RoadsPlanner.plan(cfg)
 			local off = side * (b.wid / 2 - 0.2)
 			part(parts, "Rail_" .. b.name, "rail", b.x + off * s, 2.5, b.z + off * c, b.len, 3, 0.4, b.yaw, COLOR.rail, "Metal", {})
 		end
+	end
+
+	-- Gewölbte Isar-Brücken: Fahrbahn und Gehwege als geneigte Platten entlang einer Parabel, Brüstungen, Pfeiler im Fluss
+	local STONE = { 196, 188, 172 }
+	for _, b in ipairs(cfg.archBridges) do
+		local r = math.rad(b.yaw)
+		local ux, uz = math.cos(r), -math.sin(r) -- Richtung der Brücke
+		local nx2, nz2 = -uz, ux -- quer
+		local yawZ = b.yaw + 90 -- lokale z-Achse der Platten läuft entlang der Brücke
+		local N = 16
+		local function top(s) -- Oberkante der Fahrbahn bei s (Mitte = 0)
+			local q = 2 * s / b.len
+			return 0.5 + b.peak * (1 - q * q)
+		end
+		for i = 0, N - 1 do
+			local s0, s1 = -b.len / 2 + b.len * i / N, -b.len / 2 + b.len * (i + 1) / N
+			local sm = (s0 + s1) / 2
+			local y0, y1 = top(s0), top(s1)
+			local ym = (y0 + y1) / 2
+			local L = math.sqrt((s1 - s0) ^ 2 + (y1 - y0) ^ 2) + 0.2
+			local pitch = -math.deg(math.atan2(y1 - y0, s1 - s0)) -- steigt mit s: negativer Pitch
+			local cx, cz = b.x + ux * sm, b.z + uz * sm
+			local function slab(name, kind, lat, w, thick, up, color, mat)
+				part(parts, name, kind, cx + nx2 * lat, ym + up - thick / 2, cz + nz2 * lat, w, thick, L, yawZ, color, mat, { pitch = pitch })
+			end
+			slab("BrueckeFahrbahn", "road", 0, b.wid, 4, 0, COLOR.road, "Asphalt")
+			for _, side in ipairs({ -1, 1 }) do
+				slab("BrueckeGehweg", "walk", side * (b.wid / 2 + b.walk / 2), b.walk, 4, 0.5, STONE, "Concrete")
+				slab("BrueckeBruestung", "rail", side * (b.wid / 2 + b.walk + 0.6), 1.2, 4.5, 4, STONE, "Concrete")
+			end
+		end
+		for _, side in ipairs({ -1, 1 }) do -- zwei Pfeiler im Fluss, vom Flussbett (-14) bis unter die Fahrbahn
+			local s = side * b.len * 0.2
+			local deckBottom = top(s) - 4
+			part(parts, "BrueckePfeiler", "deck", b.x + ux * s, (deckBottom - 14) / 2, b.z + uz * s, 6, deckBottom + 14, b.wid + 2 * b.walk - 4, b.yaw, STONE, "Concrete", {})
+		end
+		stats.archBridges = (stats.archBridges or 0) + 1
 	end
 
 	-- Unterführung: Rampen (geneigt), Boden, Decke unter der Querstraße, Seitenwände des Tunnelkastens
@@ -792,7 +995,8 @@ function WallPlanner.plan(cfg, opts)
 	opts = opts or {}
 	local o = {}
 	for k, v in pairs(opts) do o[k] = v end
-	o.targetWidth, o.depth, o.minFloors, o.maxFloors = o.targetWidth or 40, 60, 6, 9
+	o.targetWidth, o.depth = o.targetWidth or 40, 60
+	o.floorWeights = { { 6, 0.25 }, { 7, 0.3 }, { 8, 0.3 }, { 9, 0.15 } } -- Wandhöhe 74-110
 	local gates = { N = {}, S = {} }
 	for side, list in pairs(cfg.wall.gates) do
 		for _, g in ipairs(list) do gates[side][#gates[side] + 1] = g end
@@ -940,6 +1144,7 @@ local BuildAll = (function()
 local Config = Config
 local Blocks = Blocks
 local Planner = Planner
+local Specials = Specials
 local RoadsPlanner = RoadsPlanner
 local TerrainPlanner = TerrainPlanner
 local WallPlanner = WallPlanner
@@ -966,6 +1171,15 @@ local STEPS = {
 			if next(only) == nil or only[block.name] then
 				local plan = Planner.planBlock(block, { seed = opts.seed or 1 })
 				Builder.build(plan, Builder.container("Gebaeude", block.name), origin)
+				local st = Planner.stats(plan)
+				houses, parts = houses + st.houses, parts + st.parts
+			end
+		end
+		if next(only) == nil then
+			local folder = Builder.container("Gebaeude", "Sonderbauten")
+			for _, spec in ipairs(Specials) do
+				local plan = Planner.planSpecial(spec, { seed = opts.seed or 1 })
+				Builder.build(plan, folder, origin)
 				local st = Planner.stats(plan)
 				houses, parts = houses + st.houses, parts + st.parts
 			end

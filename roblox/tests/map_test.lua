@@ -22,7 +22,7 @@ print(string.format("Straßen: %d Teile, %d Segmente, %d Parkbuchten, %d Strichl
 
 check(road.stats.bays == 157, "Parkbuchten " .. road.stats.bays .. " statt 157 (Plan)")
 for _, p in ipairs(parts) do
-	check(p.pos[2] > -25 and p.pos[2] < 6, "Teil " .. p.name .. " liegt auf Höhe " .. p.pos[2])
+	check(p.pos[2] > -25 and p.pos[2] < 20, "Teil " .. p.name .. " liegt auf Höhe " .. p.pos[2])
 	check(p.size[1] > 0 and p.size[2] > 0 and p.size[3] > 0, "Teil " .. p.name .. " ohne Größe")
 end
 
@@ -34,7 +34,7 @@ local function inSeg(px, pz, s, margin)
 end
 local walks, bad = 0, 0
 for _, p in ipairs(parts) do
-	if p.kind == "walk" then
+	if p.kind == "walk" and p.seg then -- Brückengehwege haben kein seg und liegen bewusst auf der Straße
 		walks = walks + 1
 		local r = math.rad(p.yaw)
 		local ux, uz = math.cos(r), -math.sin(r)
@@ -105,12 +105,39 @@ for _, p in ipairs(parts) do
 end
 check(clear >= 13.5, "lichte Höhe " .. clear)
 
+-- Gewölbte Isar-Brücken: Scheitel, Enden auf Straßenniveau, zwei Pfeiler, darunter keine flache Straße mehr
+for _, b in ipairs(Config.archBridges) do
+	local r = math.rad(b.yaw)
+	local ux, uz = math.cos(r), -math.sin(r)
+	local topMax, topEnd, n, piers, flat = -1e9, 1e9, 0, 0, 0
+	for _, p in ipairs(parts) do
+		local along = (p.pos[1] - b.x) * ux + (p.pos[3] - b.z) * uz
+		local across = -(p.pos[1] - b.x) * uz + (p.pos[3] - b.z) * ux
+		if p.name == "BrueckeFahrbahn" and math.abs(across) < 2 and math.abs(along) < b.len / 2 + 1 then
+			n = n + 1
+			local top = p.pos[2] + 2 -- Platte 4 dick, Oberkante etwa Mitte + 2
+			topMax = math.max(topMax, top)
+			if math.abs(along) > b.len / 2 - b.len / 16 then topEnd = math.min(topEnd, top) end
+		end
+		if p.name == "BrueckePfeiler" and math.abs(across) < 2 and math.abs(along) < b.len / 2 then
+			piers = piers + 1
+			check(math.abs((p.pos[2] - p.size[2] / 2) - (-14)) < 0.01, b.name .. " Pfeiler steht nicht auf dem Flussbett")
+		end
+		if p.seg and (p.kind == "road" or p.kind == "walk" or p.kind == "median") and math.abs(across) < 24 and math.abs(along) < b.len / 2 - 3 then flat = flat + 1 end
+	end
+	check(n == 16, b.name .. " Fahrbahnplatten " .. n)
+	check(math.abs(topMax - (0.5 + b.peak)) < 0.8, b.name .. " Scheitelhöhe " .. topMax .. " statt " .. (0.5 + b.peak))
+	check(topEnd < 0.5 + 2.5, b.name .. " Brückenenden zu hoch: " .. topEnd)
+	check(piers == 2, b.name .. " Pfeiler " .. piers)
+	check(flat == 0, b.name .. ": " .. flat .. " flache Straßenteile unter der Brücke")
+end
+
 -- Brücken
 local decks = 0
 for _, p in ipairs(parts) do
 	if p.kind == "deck" then decks = decks + 1 end
 end
-check(decks == #Config.bridges, "Brückendecks " .. decks)
+check(decks == #Config.bridges + 2 * #Config.archBridges, "Brückendecks und Pfeiler " .. decks)
 
 -- ===== Terrain =====
 local ops = TerrainPlanner.plan(Config)

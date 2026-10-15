@@ -58,9 +58,9 @@ with open(os.path.join(here, "..", "MapBuilder_Script.lua"), encoding="utf-8") a
 lua.execute(code)
 parts, models, terrain = lua.eval("count(workspace_, 'Part')"), lua.eval("count(workspace_, 'Model')"), lua.eval("terrainCalls")
 print("Attrappe: %d Models, %d Parts, %d Terrain-Aufrufe, %d Fenster-Tags" % (models, parts, terrain, lua.eval("tagged")))
-assert models == 64 + 131, "Models: %d" % models
-assert terrain == 105, "Terrain-Aufrufe: %d" % terrain
-assert parts > 13000, "Parts: %d" % parts
+assert models > 220, "Models: %d" % models
+assert terrain == 103, "Terrain-Aufrufe: %d" % terrain
+assert parts > 16000, "Parts: %d" % parts
 lua.execute(code)  # zweiter Lauf ersetzt die Ordner statt sie zu verdoppeln
 assert lua.eval("count(workspace_, 'Model')") == models and lua.eval("count(workspace_, 'Part')") == parts, "zweiter Lauf hat verdoppelt"
 print("Smoke-Test bestanden (auch der zweite Lauf)")
