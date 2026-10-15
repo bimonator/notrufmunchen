@@ -334,7 +334,7 @@ local function add(h, name, kind, lx, ly, lz, sx, sy, sz, color, material, extra
 		yaw = (h.yaw + (extra.yaw or 0)) % 360, pitch = extra.pitch or 0,
 		color = color, material = material,
 		collide = extra.collide == true,
-		lit = extra.lit, tag = extra.tag,
+		lit = extra.lit, tag = extra.tag, text = extra.text,
 		lpos = { lx, ly, lz },
 	}
 	h.parts[#h.parts + 1] = part
@@ -635,6 +635,155 @@ function Planner.planBlock(block, opts)
 	return plan
 end
 
+
+-- ===== Sonderbauten nach Fotovorlagen (Feuerwache 4 Schwabing, Polizeiinspektion, Klinikum) =====
+local DARKG = { 58, 60, 64 }
+local GLASS_DARK = { 40, 50, 60 }
+local WHITE = { 236, 236, 232 }
+
+-- Fensterband: Glasfelder mit Pfosten und Riegeln zwischen u0 und u1; d = Abstand vor der Wand (negativ = zurückgesetzt).
+-- litChance nil = nachts nicht beleuchtet (Tore), sonst Anteil leuchtender Felder.
+local function ribbon(h, o, rng, face, yc, hgt, u0, u1, step, glass, frame, d, litChance)
+	local n = math.max(1, math.floor((u1 - u0) / step))
+	local w = (u1 - u0) / n
+	for i = 1, n do
+		local u = u0 + (i - 0.5) * w
+		local lx, lz, ey = onFace(h, face, u, d)
+		local extra = { yaw = ey }
+		if litChance then extra.tag, extra.lit = "HouseWindow", rng.next() < litChance end
+		add(h, "Glass", "glass", lx, yc, lz, w - 0.5, hgt, 0.2, glass, "Glass", extra)
+		if i < n then
+			lx, lz = onFace(h, face, u0 + i * w, d + 0.1)
+			add(h, "Pfosten", "trim", lx, yc, lz, 0.5, hgt + 0.6, 0.5, frame, "Metal", { yaw = ey })
+		end
+	end
+	local lx, lz, ey = onFace(h, face, (u0 + u1) / 2, d + 0.1)
+	for _, dy in ipairs({ -hgt / 2 - 0.2, hgt / 2 + 0.2 }) do
+		add(h, "Riegel", "trim", lx, yc + dy, lz, u1 - u0 + 0.4, 0.5, 0.5, frame, "Metal", { yaw = ey })
+	end
+end
+
+-- Einzelfenster mit hellem Rahmen
+local function win(h, o, rng, face, u, yc, w, hgt, frame, glass)
+	local lx, lz, ey = onFace(h, face, u, 0.2)
+	add(h, "Frame", "frame", lx, yc, lz, w + 1.4, hgt + 1.4, 0.4, frame, "SmoothPlastic", { yaw = ey })
+	lx, lz = onFace(h, face, u, 0.4)
+	add(h, "Glass", "glass", lx, yc, lz, w, hgt, 0.2, glass, "Glass", { yaw = ey, tag = "HouseWindow", lit = rng.next() < o.litChance })
+end
+
+-- Schrift: unsichtbare Platte mit SurfaceGui (Builder), Vorderseite zeigt in Blickrichtung des Teils
+local function label(h, face, u, y, d, w, hgt, text, color)
+	local lx, lz, ey = onFace(h, face, u, d)
+	add(h, "Schrift", "text", lx, y, lz, w, hgt, 0.2, color, "SmoothPlastic", { yaw = ey, text = { s = text, color = color } })
+end
+
+-- Feuerwache: Fahrzeughalle mit Falttoren (vorn 4, hinten 4), roter Obergeschoss-Block mit Fensterbändern, höherer Kopfbau, Schrift, Mast
+local function styleFeuerwache(h, o, rng)
+	local W, D, y0 = h.width, h.depth, o.floorY
+	local RED, HALL, UP = { 192, 36, 34 }, { 44, 46, 52 }, 36
+	h.floors, h.height, h.facade, h.roof = 4, 14 + UP, RED, "flat"
+	add(h, "Ground", "body", 0, y0 + 7, D / 2, W, 14, D - 6, HALL, "Concrete", { collide = true })
+	add(h, "Body", "body", 0, y0 + 14 + UP / 2, D / 2, W, UP, D, RED, "SmoothPlastic", { collide = true })
+	local roofTop = y0 + 14 + UP + 0.6
+	add(h, "Roof", "roof", 0, roofTop - 0.3, D / 2, W, 0.6, D, { 90, 90, 96 }, "Concrete", { collide = true })
+	local bays = 4
+	local bw = (W - 6) / bays
+	for _, face in ipairs({ "front", "back" }) do
+		for b = 1, bays do
+			local u0 = -W / 2 + 3 + (b - 1) * bw
+			ribbon(h, o, rng, face, y0 + 7, 12, u0 + 1, u0 + bw - 1, 3.2, GLASS_DARK, DARKG, -2.8, nil)
+		end
+		for b = 0, bays do
+			local lx, lz, ey = onFace(h, face, -W / 2 + 3 + b * bw, -2.6)
+			add(h, "Pfeiler", "trim", lx, y0 + 7, lz, 1.6, 14, 1.2, DARKG, "Metal", { yaw = ey })
+		end
+		for k = 1, 3 do
+			ribbon(h, o, rng, face, y0 + 14 + 12 * (k - 1) + 6, 5.6, -W / 2 + 4, W / 2 - 4, 7, GLASS, DARKG, 0.2, o.litChance)
+		end
+	end
+	local tbw = W / 3 -- Kopfbau am Ostende, bündig zur Front
+	add(h, "TopBlock", "body", W / 2 - tbw / 2, roofTop + 6, D * 0.3, tbw, 12, D * 0.6, RED, "SmoothPlastic", { collide = true })
+	add(h, "TopBand", "trim", W / 2 - tbw / 2, roofTop + 9.5, -0.15, tbw, 2.4, 0.3, GLASS_DARK, "SmoothPlastic")
+	add(h, "Antenne", "trim", W / 2 - 4, roofTop + 20, D * 0.45, 0.6, 16, 0.6, { 140, 140, 146 }, "Metal")
+	label(h, "front", W / 2 - tbw / 2, roofTop + 4.5, 0.2, tbw - 4, 4, "FEUERWACHE SCHWABING", { 250, 250, 250 })
+	label(h, "back", 0, y0 + 14 + UP - 1.7, 0.2, 40, 2.6, "RETTUNGSWACHE", { 250, 250, 250 })
+end
+
+-- Polizeiinspektion: roter Sockel, graue Obergeschosse mit hellen Fensterrahmen, Durchfahrt zum Innenhof, blaues Schild
+local function stylePolizei(h, o, rng)
+	local W, D, y0 = h.width, h.depth, o.floorY
+	local floors = h.forceFloors or 4
+	local GREY, RED, UP = { 92, 94, 104 }, { 190, 52, 48 }, o.upperH * (floors - 1)
+	h.floors, h.height, h.facade, h.roof = floors, 14 + UP, GREY, "flat"
+	add(h, "Body", "body", 0, y0 + 14 + UP / 2, D / 2, W, UP, D, GREY, "SmoothPlastic", { collide = true })
+	add(h, "Roof", "roof", 0, y0 + 14 + UP + 0.3, D / 2, W, 0.6, D, { 80, 80, 86 }, "Concrete", { collide = true })
+	local a0, a1 = -W / 2 + 22, -W / 2 + 36 -- Durchfahrt (14 breit, 14 hoch) bleibt offen
+	add(h, "GroundL", "body", (-W / 2 + a0) / 2, y0 + 7, D / 2, a0 + W / 2, 14, D, RED, "SmoothPlastic", { collide = true })
+	add(h, "GroundR", "body", (a1 + W / 2) / 2, y0 + 7, D / 2, W / 2 - a1, 14, D, RED, "SmoothPlastic", { collide = true })
+	for _, face in ipairs({ "front", "back" }) do
+		local lx, lz, ey = onFace(h, face, a1 + 1.5, 1.5)
+		add(h, "Pfeiler", "trim", lx, y0 + 7, lz, 3, 14, 3, WHITE, "Concrete", { yaw = ey, collide = true })
+		for i = 1, 3 do win(h, o, rng, face, a1 + 8 + 12 * (i - 1), y0 + 7.5, 4.6, 8, DARKG, { 70, 110, 100 }) end
+		local nw = math.floor((W - 8) / 9)
+		for k = 1, floors - 1 do
+			for i = 1, nw do
+				win(h, o, rng, face, -W / 2 + 4 + (i - 0.5) * (W - 8) / nw, y0 + 14 + 12 * (k - 1) + 6, 5.2, 5.8, WHITE, GLASS)
+			end
+		end
+	end
+	local ux = -W / 2 + 11 -- Eingang mit Vordach und blauem Schild
+	add(h, "DoorFrame", "frame", ux, y0 + 5, -0.25, 6.4, 10, 0.5, DARKG, "Metal")
+	add(h, "Door", "door", ux, y0 + 4.5, -0.55, 5, 9, 0.3, GLASS_DARK, "Glass")
+	add(h, "Vordach", "trim", ux, y0 + 10.8, -2, 9, 0.5, 4, { 110, 112, 118 }, "Concrete")
+	add(h, "PolizeiSchild", "trim", ux, y0 + 12.6, -0.4, 11, 2.6, 0.5, { 30, 80, 190 }, "SmoothPlastic")
+	label(h, "front", ux, y0 + 12.6, 0.8, 10, 2, "POLIZEI", { 255, 255, 255 })
+end
+
+-- Klinikum: Betonfassade mit auskragenden Geschossplatten und Brüstungsbändern, Fensterbänder, Stützen im Sockel,
+-- Glasturm an der Ecke, Schriftzug und senkrechtes Schild
+local function styleKlinik(h, o, rng)
+	local W, D, y0 = h.width, h.depth, o.floorY
+	local floors = h.forceFloors or 5
+	local UP = o.upperH * (floors - 1)
+	local CONC, SLAB, PARA, MAG = { 150, 146, 140 }, { 176, 172, 164 }, { 124, 120, 114 }, { 200, 30, 100 }
+	local GLASSB = { 96, 140, 160 }
+	h.floors, h.height, h.facade, h.roof = floors, 14 + UP, CONC, "flat"
+	add(h, "Ground", "body", 0, y0 + 7, D / 2, W - 12, 14, D - 12, { 58, 66, 76 }, "Concrete", { collide = true })
+	add(h, "Body", "body", 0, y0 + 14 + UP / 2, D / 2, W, UP, D, CONC, "Concrete", { collide = true })
+	add(h, "Roof", "roof", 0, y0 + 14 + UP + 0.3, D / 2, W, 0.6, D, { 96, 96, 100 }, "Concrete", { collide = true })
+	add(h, "Staffel", "body", 0, y0 + 14 + UP + 6.6, D / 2, W - 40, 12, D - 50, { 170, 166, 158 }, "Concrete", { collide = true })
+	for _, face in ipairs({ "front", "back" }) do
+		for u = -W / 2 + 10, W / 2 - 9, 20 do
+			local lx, lz, ey = onFace(h, face, u, 3 - 0.1)
+			add(h, "Stuetze", "trim", lx, y0 + 7, lz, 3, 14, 3, CONC, "Concrete", { yaw = ey, collide = true })
+		end
+		for k = 1, floors - 1 do
+			local yb = y0 + 14 + 12 * (k - 1)
+			local lx, lz, ey = onFace(h, face, 0, 1.5)
+			add(h, "Geschossplatte", "balcony", lx, yb + 0.5, lz, W, 1, 3, SLAB, "Concrete", { yaw = ey })
+			lx, lz = onFace(h, face, 0, 2.75)
+			add(h, "Bruestung", "balcony", lx, yb + 2.25, lz, W, 2.5, 0.5, PARA, "Concrete", { yaw = ey })
+			ribbon(h, o, rng, face, yb + 6.4, 5, -W / 2 + 3, W / 2 - 3, 8, GLASS, DARKG, 0.2, o.litChance)
+		end
+	end
+	-- Glasturm an der Nordecke (in z-Richtung der Fassade am Ende), springt 12 Studs vor
+	local gx, gw = W / 2 - 17, 34
+	local gh = 14 + UP
+	add(h, "Glasturm", "glass", gx, y0 + gh / 2, -6, gw, gh, 12, GLASSB, "Glass", { collide = true })
+	for i = 0, 6 do
+		add(h, "Pfosten", "trim", gx - gw / 2 + i * gw / 6, y0 + gh / 2, -12.2, 0.6, gh, 0.6, DARKG, "Metal")
+	end
+	for k = 1, 4 do
+		add(h, "Riegel", "trim", gx, y0 + k * gh / 4, -12.2, gw, 0.6, 0.6, DARKG, "Metal")
+	end
+	add(h, "GlasturmDach", "roof", gx, y0 + gh + 0.5, -6, gw + 0.6, 1, 12.6, CONC, "Concrete")
+	add(h, "SchildTraeger", "trim", W / 2 - 38, y0 + 14 + 8, -3.4, 3.4, 17.6, 0.6, { 190, 188, 184 }, "SmoothPlastic")
+	label(h, "front", W / 2 - 38, y0 + 14 + 8, 3.8, 3, 16, "K\nL\nI\nN\nI\nK\nU\nM", MAG)
+	label(h, "front", -W / 2 + 30, y0 + 14 + 24 + 2.25, 3.15, 36, 2.2, "KLINIKUM", MAG)
+end
+
+local STYLES = { feuerwache = styleFeuerwache, polizei = stylePolizei, klinik = styleKlinik }
+
 -- Sonderbau (Bank, Wache, Krankenhaus ...) als Platzhalter-Gebäude auf einer Rechteckfläche.
 -- spec = { name, x0, z0, x1, z1, facing = "N"|"S"|"E"|"W" (Seite zur Straße), floors, color, canopy = { x0, z0, x1, z1 } }
 function Planner.planSpecial(spec, opts)
@@ -648,7 +797,7 @@ function Planner.planSpecial(spec, opts)
 	elseif f == "S" then h.ox, h.oz, h.yaw, h.width, h.depth = (spec.x0 + spec.x1) / 2, spec.z1, 180, spec.x1 - spec.x0, spec.z1 - spec.z0
 	elseif f == "W" then h.ox, h.oz, h.yaw, h.width, h.depth = spec.x0, (spec.z0 + spec.z1) / 2, 90, spec.z1 - spec.z0, spec.x1 - spec.x0
 	else h.ox, h.oz, h.yaw, h.width, h.depth = spec.x1, (spec.z0 + spec.z1) / 2, 270, spec.z1 - spec.z0, spec.x1 - spec.x0 end
-	planHouse(h, o, rng, false, false)
+	if STYLES[spec.style] then STYLES[spec.style](h, o, rng) else planHouse(h, o, rng, false, false) end
 	if spec.canopy then -- Tankstellen-Schirm: weißes Dach mit rotem Band und rotem "A" als Logo, vier Pfeiler, 8 Zapfsäulen
 		local c = spec.canopy
 		local cx, cz, w, d = (c[1] + c[3]) / 2, (c[2] + c[4]) / 2, c[3] - c[1], c[4] - c[2]
@@ -781,9 +930,9 @@ return {
 	{ name = "Isarbank", x0 = -127, z0 = -385, x1 = -55, z1 = -315, facing = "E", floors = 4, color = { 176, 120, 100 } },
 	{ name = "Parkhaus", x0 = -205, z0 = -250, x1 = -109, z1 = -140, facing = "N", floors = 4, color = { 170, 170, 176 } },
 	{ name = "Tankstellen-Shop", x0 = 150, z0 = -280, x1 = 202, z1 = -210, facing = "W", floors = 1, color = { 245, 245, 245 }, canopy = { 98, -292, 132, -196 }, lot = { 85, -300, 205, -190 }, lotGap = { -262, -226 } },
-	{ name = "Feuer-und-Rettungswache", x0 = -425, z0 = -200, x1 = -275, z1 = -100, facing = "W", floors = 3, color = { 200, 70, 55 } },
-	{ name = "Polizeiwache", x0 = 215, z0 = 310, x1 = 295, z1 = 380, facing = "S", floors = 3, color = { 70, 110, 200 } },
-	{ name = "Krankenhaus", x0 = 340, z0 = -430, x1 = 500, z1 = -310, facing = "W", floors = 5, color = { 90, 170, 150 } },
+	{ name = "Feuer-und-Rettungswache", x0 = -425, z0 = -200, x1 = -275, z1 = -100, facing = "W", floors = 4, color = { 200, 70, 55 }, style = "feuerwache" },
+	{ name = "Polizeiwache", x0 = 215, z0 = 310, x1 = 295, z1 = 380, facing = "S", floors = 4, color = { 70, 110, 200 }, style = "polizei" },
+	{ name = "Krankenhaus", x0 = 340, z0 = -430, x1 = 500, z1 = -310, facing = "W", floors = 5, color = { 90, 170, 150 }, style = "klinik" },
 	{ name = "Kiosk", x0 = -350, z0 = 66, x1 = -300, z1 = 106, facing = "N", floors = 1, color = { 200, 70, 55 } },
 	{ name = "Cafe-Terrasse", x0 = -130, z0 = 64, x1 = -66, z1 = 116, facing = "E", floors = 2, color = { 226, 190, 120 } },
 	{ name = "Uni-Fassade", x0 = -160, z0 = 130, x1 = -60, z1 = 220, facing = "E", floors = 4, color = { 214, 204, 176 } },
@@ -1402,6 +1551,23 @@ local function buildPart(spec, origin)
 	if spec.tag then
 		CollectionService:AddTag(p, spec.tag) -- Tag-Skript schaltet nachts Lit-Fenster auf Neon
 		p:SetAttribute("Lit", spec.lit == true)
+	end
+	if spec.text then -- Schrift: Platte unsichtbar, Text als SurfaceGui auf der Vorderseite
+		p.Transparency = 1
+		p.CastShadow = false
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = Enum.NormalId.Front
+		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		gui.PixelsPerStud = 30
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.fromScale(1, 1)
+		label.BackgroundTransparency = 1
+		label.TextScaled = true
+		label.Font = Enum.Font.GothamBold
+		label.Text = spec.text.s
+		label.TextColor3 = Color3.fromRGB(spec.text.color[1], spec.text.color[2], spec.text.color[3])
+		label.Parent = gui
+		gui.Parent = p
 	end
 	if spec.attrs then
 		for k, v in pairs(spec.attrs) do p:SetAttribute(k, v) end -- z. B. Lampenfarbe für das Ampel-Skript

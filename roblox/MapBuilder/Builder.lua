@@ -32,6 +32,23 @@ local function buildPart(spec, origin)
 		CollectionService:AddTag(p, spec.tag) -- Tag-Skript schaltet nachts Lit-Fenster auf Neon
 		p:SetAttribute("Lit", spec.lit == true)
 	end
+	if spec.text then -- Schrift: Platte unsichtbar, Text als SurfaceGui auf der Vorderseite
+		p.Transparency = 1
+		p.CastShadow = false
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = Enum.NormalId.Front
+		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		gui.PixelsPerStud = 30
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.fromScale(1, 1)
+		label.BackgroundTransparency = 1
+		label.TextScaled = true
+		label.Font = Enum.Font.GothamBold
+		label.Text = spec.text.s
+		label.TextColor3 = Color3.fromRGB(spec.text.color[1], spec.text.color[2], spec.text.color[3])
+		label.Parent = gui
+		gui.Parent = p
+	end
 	if spec.attrs then
 		for k, v in pairs(spec.attrs) do p:SetAttribute(k, v) end -- z. B. Lampenfarbe für das Ampel-Skript
 	end

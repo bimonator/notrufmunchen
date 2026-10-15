@@ -205,6 +205,38 @@ do
 	print(string.format("Sonderbauten: %d, Grundflächen stimmen", #plans))
 end
 
+-- Sonderbauten nach Fotovorlagen: Schrift, Tore, Durchfahrt, Glasturm
+do
+	local function parts(name)
+		for _, sp in ipairs(Specials) do
+			if sp.name == name then return Planner.planSpecial(sp, { seed = 1 }).houses[1].parts end
+		end
+	end
+	local function count(ps, name) local n = 0 for _, p in ipairs(ps) do if p.name == name then n = n + 1 end end return n end
+	local function texts(ps) local t = {} for _, p in ipairs(ps) do if p.text then t[#t + 1] = p.text.s end end return table.concat(t, "|") end
+	local wache = parts("Feuer-und-Rettungswache")
+	check(count(wache, "Pfeiler") == 10, "Wache: 4 Tore vorn und hinten = 10 Pfeiler, ist " .. count(wache, "Pfeiler"))
+	check(string.find(texts(wache), "FEUERWACHE", 1, true) and string.find(texts(wache), "RETTUNGSWACHE", 1, true), "Wache: Schrift fehlt")
+	check(count(wache, "TopBlock") == 1 and count(wache, "Ground") == 1, "Wache: Kopfbau/Halle fehlt")
+	local pol = parts("Polizeiwache")
+	check(string.find(texts(pol), "POLIZEI", 1, true) ~= nil and count(pol, "PolizeiSchild") == 1, "Polizei: Schild fehlt")
+	local l, r
+	for _, p in ipairs(pol) do
+		if p.name == "GroundL" then l = p end
+		if p.name == "GroundR" then r = p end
+	end
+	check(l and r and math.abs((r.lpos[1] - r.size[1] / 2) - (l.lpos[1] + l.size[1] / 2) - 14) < EPS, "Polizei: Durchfahrt nicht 14 breit")
+	local klinik = parts("Krankenhaus")
+	check(count(klinik, "Glasturm") == 1 and string.find(texts(klinik), "KLINIKUM", 1, true) ~= nil, "Klinikum: Glasturm/Schrift fehlt")
+	check(count(klinik, "Geschossplatte") == 8, "Klinikum: 4 Geschossplatten je Seite, ist " .. count(klinik, "Geschossplatte"))
+	for _, ps in ipairs({ wache, pol, klinik }) do
+		for _, p in ipairs(ps) do
+			local _, y0, _, _, y1 = Planner.aabb(p)
+			check(y1 <= 90 and y0 >= 0.5, p.name .. " Höhe " .. y0 .. ".." .. y1)
+		end
+	end
+end
+
 -- Eckhäuser gezielt (Block B)
 do
 	local plan = Planner.planBlock(Blocks[2], { seed = 1 })

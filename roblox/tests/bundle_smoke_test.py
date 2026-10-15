@@ -41,6 +41,10 @@ terrain.ReadVoxels = function(self, region, res) return { { { Enum.Material.Wate
 Region3 = { new = function(a, b) return { ExpandToGrid = function(self, r) return self end } end }
 RaycastParams = { new = function() return {} end }
 Enum.RaycastFilterType = { Include = "Include" }
+Enum.NormalId = { Front = "Front" }
+Enum.SurfaceGuiSizingMode = { PixelsPerStud = "PixelsPerStud" }
+Enum.Font = { GothamBold = "GothamBold" }
+UDim2 = { fromScale = function(a, b) return { a, b } end }
 terrain.FillBlock = function(self, cf, size, mat) assert(cf and size and mat, "FillBlock: Argument fehlt"); terrainCalls = terrainCalls + 1 end
 terrain.FillCylinder = function(self, cf, h, r, mat) assert(cf and h and r and mat, "FillCylinder: Argument fehlt"); terrainCalls = terrainCalls + 1 end
 local services = { Workspace = newInstance("Workspace") }
