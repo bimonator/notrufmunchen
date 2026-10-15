@@ -11,12 +11,16 @@ Baut die Karte aus `docs/MAP_PLAN.md` und `docs/phase1_bauplan.html` per Code: T
 5. Im Output steht je Schritt eine Zeile. Erwartet:
 
 ```
-[terrain] 103 Terrain-Operationen
+[terrain] 1171 Terrain-Operationen
+[boden] Terrain-Oberkante gemessen: -2.0, alle weiteren Teile werden daran ausgerichtet
+[wasser] ok (... Wasser-Zellen am Messpunkt)
 [roads] 1321 Teile, 157 Parkbuchten
-[houses] 129 Häuser, 8140 Teile
+[houses] 129 Häuser, 8147 Teile
 [wall] 128 Gebäude, 8743 Teile
 Fertig
 ```
+
+Wichtig sind die Zeilen `[boden]` und `[wasser]`. **Boden:** Roblox füllt Terrain in 4-Studs-Zellen, die tatsächliche Oberkante kann daher von der geplanten abweichen. Der Builder misst sie nach dem Terrain und setzt Straßen, Häuser und Mauer genau darauf (sonst versinken die flachen Straßen). **Wasser:** Findet er kein Terrain-Wasser, setzt er blaue Ersatz-Platten (Ordner `WasserErsatz`, nicht schwimmbar) und schreibt das in den Output. Bitte beide Zeilen mitschicken, wenn etwas nicht stimmt.
 
 Strg+Z nimmt den ganzen Lauf zurück. Erneutes Bauen ersetzt die Ordner `Strassen`, `Gebaeude.<Block>` und `Mapgrenze` (das Terrain wird zuerst geleert).
 
@@ -59,7 +63,7 @@ Nach jeder Änderung `python3 make_bundles.py` ausführen und das Plugin bzw. Sc
 ## Was getestet wurde (Cloud-Session, kein Roblox)
 
 - `python3 tests/run_with_lupa.py` (Lua 5.1): Häuser (Maße, Überlappung, Eckhäuser, Abwechslung bei Farben, Geschossen, Dachformen, Breiten, Sonderflächen frei), Sonderbauten (Grundfläche stimmt, keine Überlappung), Straßen (157 Parkbuchten wie im Plan, kein Gehweg in einer Kreuzung, jede Straße asphaltiert, Tunnel frei, Rampenneigung 7,1° und lichte Höhe ≥ 13,5, Brücken: Scheitelhöhe, Enden auf Straßenniveau, zwei Pfeiler im Fluss, keine flache Straße darunter), Terrain (Kacheln decken die Karte genau ab, Wasser nur zwischen Bett und Wasserlinie), Wand (innen bleibt der Ring frei, Tore frei, Höhen 74–110).
-- `python3 tests/bundle_smoke_test.py`: `Builder` und `BuildAll` laufen gegen eine selbst gebaute Roblox-Attrappe: 257 Models, 18 204 Teile, 103 Terrain-Aufrufe, zweiter Lauf ersetzt statt zu verdoppeln.
+- `python3 tests/bundle_smoke_test.py`: `Builder` und `BuildAll` laufen gegen eine selbst gebaute Roblox-Attrappe: 257 Models, 18 211 Teile, 1171 Terrain-Aufrufe, zweiter Lauf ersetzt statt zu verdoppeln.
 - Eine Draufsicht der berechneten Teile (aus den Plänen gezeichnet) stimmt mit der Karte im Bauplan überein.
 - Die Tests wurden gezielt mit eingebauten Fehlern geprüft (Gehweg-Schnitt aus, Brücken-Schnitt aus, Tunnel nicht ausgenommen, falscher Drehwinkel): sie schlagen dann an.
 

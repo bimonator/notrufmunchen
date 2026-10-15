@@ -76,7 +76,59 @@ function Builder.applyTerrain(ops, origin)
 		else
 			terrain:FillBlock(cf, Vector3.new(op.size[1], op.size[2], op.size[3]), MATERIALS[op.material])
 		end
-		task.wait()
+		breathe(10)
+	end
+end
+
+-- Tatsächliche Höhe der Terrain-Oberkante: Strahl von oben auf mehrere ebene Stellen, Median. 0, wenn nichts getroffen wird.
+function Builder.measureGround(origin)
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = { Workspace.Terrain }
+	local ys = {}
+	for _, p in ipairs({ { -560, -200 }, { 0, -100 }, { 200, -350 }, { -300, 150 }, { 300, 200 } }) do
+		local hit = Workspace:Raycast(origin + Vector3.new(p[1], 200, p[2]), Vector3.new(0, -400, 0), params)
+		if hit then ys[#ys + 1] = hit.Position.Y - origin.Y end
+	end
+	if #ys == 0 then return 0 end
+	table.sort(ys)
+	return math.floor(ys[math.ceil(#ys / 2)] * 2 + 0.5) / 2 -- auf 0,5 gerundet
+end
+
+-- Anzahl Wasser-Zellen in einem kleinen Würfel um center (nil, wenn das Auslesen nicht klappt)
+function Builder.countWater(center)
+	local ok, n = pcall(function()
+		local region = Region3.new(center - Vector3.new(16, 20, 16), center + Vector3.new(16, 8, 16)):ExpandToGrid(4)
+		local mats = Workspace.Terrain:ReadVoxels(region, 4)
+		local c = 0
+		for x = 1, #mats do
+			for y = 1, #mats[x] do
+				for z = 1, #mats[x][y] do
+					if mats[x][y][z] == Enum.Material.Water then c = c + 1 end
+				end
+			end
+		end
+		return c
+	end)
+	return ok and n or nil
+end
+
+-- Notlösung, falls das Terrain-Wasser fehlt: halbdurchsichtige blaue Platten entlang der Mittellinie (nicht schwimmbar)
+function Builder.waterFallback(pts, halfWidth, y, origin)
+	local folder = Builder.container("WasserErsatz")
+	for i = 1, #pts - 1 do
+		local dx, dz = pts[i + 1][1] - pts[i][1], pts[i + 1][2] - pts[i][2]
+		local len = math.sqrt(dx * dx + dz * dz)
+		local p = Instance.new("Part")
+		p.Name = "Wasser"
+		p.Anchored = true
+		p.CanCollide = false
+		p.Size = Vector3.new(len + 2, 0.4, halfWidth * 2)
+		p.CFrame = CFrame.new(origin + Vector3.new((pts[i][1] + pts[i + 1][1]) / 2, y, (pts[i][2] + pts[i + 1][2]) / 2)) * CFrame.Angles(0, math.atan2(-dz, dx), 0)
+		p.Color = Color3.fromRGB(63, 155, 220)
+		p.Material = Enum.Material.SmoothPlastic
+		p.Transparency = 0.35
+		p.Parent = folder
 	end
 end
 

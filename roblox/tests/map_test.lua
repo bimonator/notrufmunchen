@@ -142,24 +142,71 @@ check(decks == #Config.bridges + 2 * #Config.archBridges, "Brückendecks und Pfe
 -- ===== Terrain =====
 local ops = TerrainPlanner.plan(Config)
 print(string.format("Terrain: %d Operationen", #ops))
+local G = Config.groundTop
 local area = 0
 for _, o in ipairs(ops) do
-	if o.op == "block" and o.material == "Pavement" then area = area + o.size[1] * o.size[3] end
+	check((o.yaw or 0) == 0, "Terrain-Operation mit Drehung")
+	if o.op == "block" and o.material == "Pavement" then
+		area = area + o.size[1] * o.size[3]
+		check(math.abs(o.pos[2] + o.size[2] / 2 - G) < 1e-6, "Boden endet nicht auf groundTop")
+	end
 end
 local m = Config.map
 check(math.abs(area - (m.xmax - m.xmin) * (m.zmax - m.zmin)) < 1e-6, "Bodenkacheln decken die Karte nicht genau ab: " .. area)
-local air, water = 0, 0
+
+-- Flussform: das Ausgehobene entspricht dem Puffer (Halbbreite je Schicht) um die Mittellinie, das Wasser nur im Bett
+local function distToPolyline(x, z, pts)
+	local best = 1e9
+	for i = 1, #pts - 1 do
+		local ax, az, bx, bz = pts[i][1], pts[i][2], pts[i + 1][1], pts[i + 1][2]
+		local dx, dz = bx - ax, bz - az
+		local t = math.max(0, math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz)))
+		local px, pz = ax + t * dx - x, az + t * dz - z
+		best = math.min(best, math.sqrt(px * px + pz * pz))
+	end
+	return best
+end
+local function covered(material, x, z, y, tag)
+	for _, o in ipairs(ops) do
+		if o.material == material and o.op == "block" and (tag == nil or o.tag == tag) and math.abs(x - o.pos[1]) <= o.size[1] / 2 and math.abs(z - o.pos[3]) <= o.size[3] / 2
+			and y > o.pos[2] - o.size[2] / 2 and y < o.pos[2] + o.size[2] / 2 then return true end
+	end
+	return false
+end
+for name, rv in pairs(Config.water) do
+	local checked = 0
+	for x = -700, 1150, 30 do
+		for z = m.zmin + 12, m.zmax - 12, 30 do
+			local d = distToPolyline(x, z, rv.pts)
+			for li, ly in ipairs(rv.layers) do
+				local ymid = (ly[1] + ly[2]) / 2
+				local hw = ly[3]
+				if d < hw - 5 then
+					check(covered("Air", x, z, ymid, name), string.format("%s: Punkt %d,%d (Abstand %.0f) nicht ausgehoben, Schicht %d", name, x, z, d, li))
+					checked = checked + 1
+					if ly[1] <= rv.waterTop then check(covered("Water", x, z, ymid, name), string.format("%s: Punkt %d,%d ohne Wasser, Schicht %d", name, x, z, li)) end
+				elseif d > hw + 5 then
+					-- ausserhalb des Flusses bleibt das Terrain stehen (nur in der Tunnel-Achse darf Luft sein)
+					check(not covered("Air", x, z, ymid, name), string.format("%s: Punkt %d,%d (Abstand %.0f) zu weit ausgehoben, Schicht %d", name, x, z, d, li))
+					checked = checked + 1
+				end
+				if ly[1] > rv.waterTop then check(not covered("Water", x, z, ymid, name), name .. " Wasser über der Wasserlinie") end
+			end
+		end
+	end
+	check(checked > 200, name .. " zu wenige Messpunkte: " .. checked)
+end
 for _, o in ipairs(ops) do
-	if o.material == "Air" then air = air + 1 end
 	if o.material == "Water" then
-		water = water + 1
-		check(o.pos[2] + o.size[2] / 2 <= -4 + 1e-6, "Wasser über der Wasserlinie")
+		check(o.pos[2] + o.size[2] / 2 <= -4 + 1e-6, "Wasser über der höchsten Wasserlinie")
 		check(o.pos[2] - o.size[2] / 2 >= -14 - 1e-6, "Wasser unter dem Flussbett")
 	end
 end
--- Isar: 11 Segmente x 4 Schichten + 4 Schichten x 11 Segmente Wasser (nur Schichten unter -8: 2) ; Bach analog
-check(air == 11 * 4 + 6 * 2 + 1, "Ausheb-Operationen " .. air)
-check(water == 11 * 2 + 6 * 1, "Flut-Operationen " .. water)
+-- Hügel und Terrasse niedrig, relativ zum Boden
+for _, o in ipairs(ops) do
+	if o.op == "cylinder" then check(o.pos[2] + o.height / 2 <= G + 8 + 1e-6, "Hügel höher als 8") end
+	if o.op == "block" and o.material == "Grass" and o.pos[2] > G then check(o.pos[2] + o.size[2] / 2 <= G + 4 + 1e-6, "Terrasse höher als 4") end
+end
 
 -- ===== Mapgrenze =====
 local wall = WallPlanner.plan(Config, { seed = 1 })

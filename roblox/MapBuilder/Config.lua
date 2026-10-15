@@ -4,6 +4,10 @@
 
 local C = {}
 
+-- Oberkante des Terrains im Plan. Etwas unter 0 gewählt, damit die flachen Straßen (Oberkante 0,5) nie im Terrain versinken,
+-- egal wie Roblox die 4-Studs-Zellen ausrichtet. BuildAll misst die echte Höhe nach dem Bau und richtet alles daran aus.
+C.groundTop = -2
+
 C.map = { xmin = -745, zmin = -556, xmax = 1160, zmax = 494 }
 C.ring = { xmin = -685, zmin = -496, xmax = 1100, zmax = 434 } -- Außenkante der Ringstraße = Innenkante der Mapgrenze
 

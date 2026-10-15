@@ -94,6 +94,10 @@ local Config = (function()
 
 local C = {}
 
+-- Oberkante des Terrains im Plan. Etwas unter 0 gewählt, damit die flachen Straßen (Oberkante 0,5) nie im Terrain versinken,
+-- egal wie Roblox die 4-Studs-Zellen ausrichtet. BuildAll misst die echte Höhe nach dem Bau und richtet alles daran aus.
+C.groundTop = -2
+
 C.map = { xmin = -745, zmin = -556, xmax = 1160, zmax = 494 }
 C.ring = { xmin = -685, zmin = -496, xmax = 1100, zmax = 434 } -- Außenkante der Ringstraße = Innenkante der Mapgrenze
 
@@ -552,18 +556,29 @@ function Planner.planSpecial(spec, opts)
 	elseif f == "W" then h.ox, h.oz, h.yaw, h.width, h.depth = spec.x0, (spec.z0 + spec.z1) / 2, 90, spec.z1 - spec.z0, spec.x1 - spec.x0
 	else h.ox, h.oz, h.yaw, h.width, h.depth = spec.x1, (spec.z0 + spec.z1) / 2, 270, spec.z1 - spec.z0, spec.x1 - spec.x0 end
 	planHouse(h, o, rng, false, false)
-	if spec.canopy then -- Tankstellen-Schirm: Dach auf vier Pfeilern, 8 Zapfsäulen
+	if spec.canopy then -- Tankstellen-Schirm: weißes Dach mit rotem Band und rotem "A" als Logo, vier Pfeiler, 8 Zapfsäulen
 		local c = spec.canopy
 		local cx, cz, w, d = (c[1] + c[3]) / 2, (c[2] + c[4]) / 2, c[3] - c[1], c[4] - c[2]
-		local function w3(name, x, y, z, sx, sy, sz, color, mat)
-			h.parts[#h.parts + 1] = { name = name, kind = "trim", size = { sx, sy, sz }, pos = { round3(x), round3(y), round3(z) }, yaw = 0, pitch = 0, color = color, material = mat, collide = false, lpos = { 0, y, 0 } }
+		local WHITE, RED = { 250, 250, 250 }, { 200, 40, 40 }
+		local function w3(name, x, y, z, sx, sy, sz, color, mat, yaw)
+			h.parts[#h.parts + 1] = { name = name, kind = "trim", size = { sx, sy, sz }, pos = { round3(x), round3(y), round3(z) }, yaw = yaw or 0, pitch = 0, color = color, material = mat, collide = false, lpos = { 0, y, 0 } }
 		end
-		w3("CanopyRoof", cx, 14.5, cz, w, 1, d, { 232, 200, 60 }, "SmoothPlastic")
+		w3("CanopyRoof", cx, 14.5, cz, w, 1, d, WHITE, "SmoothPlastic")
+		w3("CanopyBand", c[1] + 0.5, 14, cz, 1, 2.4, d, RED, "SmoothPlastic")
+		w3("CanopyBand", c[3] - 0.5, 14, cz, 1, 2.4, d, RED, "SmoothPlastic")
+		w3("CanopyBand", cx, 14, c[2] + 0.5, w, 2.4, 1, RED, "SmoothPlastic")
+		w3("CanopyBand", cx, 14, c[4] - 0.5, w, 2.4, 1, RED, "SmoothPlastic")
+		-- Logo "A" flach auf dem Dach: zwei schräge Balken und ein Querbalken, Spitze nach Norden (-z)
+		local ang = math.deg(math.atan2(6, 16))
+		local barLen = math.sqrt(6 * 6 + 16 * 16)
+		w3("LogoA", cx - 3, 15.15, cz, 2.2, 0.3, barLen, RED, "SmoothPlastic", 180 - ang)
+		w3("LogoA", cx + 3, 15.15, cz, 2.2, 0.3, barLen, RED, "SmoothPlastic", 180 + ang)
+		w3("LogoA", cx, 15.15, cz + 2.5, 7.5, 0.3, 1.8, RED, "SmoothPlastic")
 		for _, px in ipairs({ c[1] + 3, c[3] - 3 }) do
-			for _, pz in ipairs({ c[2] + 3, c[4] - 3 }) do w3("CanopyPillar", px, 7.5, pz, 1.5, 14, 1.5, { 200, 200, 204 }, "Metal") end
+			for _, pz in ipairs({ c[2] + 3, c[4] - 3 }) do w3("CanopyPillar", px, 7, pz, 1.5, 14, 1.5, WHITE, "Metal") end
 		end
 		for _, px in ipairs({ cx - 6, cx + 6 }) do
-			for k = 0, 3 do w3("Pump", px, 3.5, c[2] + 10 + k * (d - 20) / 3, 1.5, 5, 1.5, { 200, 60, 50 }, "SmoothPlastic") end
+			for k = 0, 3 do w3("Pump", px, 3.5, c[2] + 10 + k * (d - 20) / 3, 1.5, 5, 1.5, RED, "SmoothPlastic") end
 		end
 	end
 	return { houses = { h } }
@@ -656,7 +671,7 @@ local Specials = (function()
 return {
 	{ name = "Isarbank", x0 = -127, z0 = -385, x1 = -55, z1 = -315, facing = "E", floors = 4, color = { 176, 120, 100 } },
 	{ name = "Parkhaus", x0 = -205, z0 = -250, x1 = -109, z1 = -140, facing = "N", floors = 4, color = { 170, 170, 176 } },
-	{ name = "Tankstellen-Shop", x0 = 112, z0 = -280, x1 = 164, z1 = -210, facing = "W", floors = 1, color = { 232, 200, 60 }, canopy = { 68, -292, 102, -196 } },
+	{ name = "Tankstellen-Shop", x0 = 112, z0 = -280, x1 = 164, z1 = -210, facing = "W", floors = 1, color = { 245, 245, 245 }, canopy = { 68, -292, 102, -196 } },
 	{ name = "Feuer-und-Rettungswache", x0 = -425, z0 = -200, x1 = -275, z1 = -100, facing = "W", floors = 3, color = { 200, 70, 55 } },
 	{ name = "Polizeiwache", x0 = 215, z0 = 310, x1 = 295, z1 = 380, facing = "S", floors = 3, color = { 70, 110, 200 } },
 	{ name = "Krankenhaus", x0 = 340, z0 = -430, x1 = 500, z1 = -310, facing = "W", floors = 5, color = { 90, 170, 150 } },
@@ -902,39 +917,49 @@ local TerrainPlanner = (function()
 -- TerrainPlanner.lua
 -- Liste von Terrain-Operationen (Grundfläche, Parks, Hügel, Terrasse, Isar, Bach, Tunnelgraben).
 -- Reine Daten, die Builder.lua mit Terrain:FillBlock / FillCylinder ausführt. Reihenfolge ist wichtig.
--- Op: { op = "block" | "cylinder", material, pos = {x,y,z}, size = {x,y,z} | height, radius, yaw }
+-- Alle Blöcke sind achsparallel (keine Drehung): so hängt das Ergebnis nicht davon ab, wie Roblox gedrehte Blöcke füllt.
+-- Op: { op = "block" | "cylinder", material, pos = {x,y,z}, size = {x,y,z} | height, radius }
 
 local Geo = Geo
 
 local TerrainPlanner = {}
 
-local function block(ops, material, x, y, z, sx, sy, sz, yaw)
-	ops[#ops + 1] = { op = "block", material = material, pos = { Geo.round3(x), Geo.round3(y), Geo.round3(z) }, size = { sx, sy, sz }, yaw = Geo.round3(yaw or 0) }
+local function block(ops, material, x, y, z, sx, sy, sz, tag)
+	ops[#ops + 1] = { op = "block", material = material, pos = { Geo.round3(x), Geo.round3(y), Geo.round3(z) }, size = { Geo.round3(sx), Geo.round3(sy), Geo.round3(sz) }, yaw = 0, tag = tag }
 end
 
--- Wasserlauf als Stapel von Schichten: Luft ausheben (Böschung), danach Wasser bis zur Wasserlinie einfüllen.
-local function river(ops, rv)
-	local pts, n = rv.pts, #rv.pts
-	local dirs = {}
-	for i = 1, n - 1 do
+-- Wasserlauf: entlang der Mittellinie in dünnen, achsparallelen Scheiben. Pro Scheibe erst die Schichten ausheben (Böschung),
+-- danach Wasser bis zur Wasserlinie einfüllen. Die Scheibenbreite folgt der Laufrichtung: Breite / |Richtungsanteil|.
+local STEP = 8
+function TerrainPlanner.riverSamples(pts)
+	local out = {}
+	for i = 1, #pts - 1 do
 		local ux, uz, l = Geo.dir(pts[i][1], pts[i][2], pts[i + 1][1], pts[i + 1][2])
-		dirs[i] = { ux, uz, l }
+		local n = math.max(1, math.ceil(l / STEP))
+		for k = 0, n - 1 do
+			local t = (k + 0.5) * l / n
+			out[#out + 1] = { x = pts[i][1] + ux * t, z = pts[i][2] + uz * t, ux = ux, uz = uz, len = l / n }
+		end
 	end
+	return out
+end
+
+local function river(ops, rv)
+	local samples = TerrainPlanner.riverSamples(rv.pts)
 	for pass = 1, 2 do -- 1 = ausheben, 2 = fluten
-		for _, ly in ipairs(rv.layers) do
+		for li, ly in ipairs(rv.layers) do
 			local top, bot, hw = ly[1], ly[2], ly[3]
-			if pass == 1 or top <= rv.waterTop then
-				for i = 1, n - 1 do
-					local function ext(j)
-						if not dirs[j] then return 0 end
-						local c = math.max(-1, math.min(1, dirs[i][1] * dirs[j][1] + dirs[i][2] * dirs[j][2]))
-						return hw * math.tan(math.acos(c) / 2)
+			if pass == 1 and li == 1 then top = 6 end -- oberste Schicht nach oben verlängern, damit keine Zellen als Deckel stehen bleiben
+			if pass == 1 or ly[1] <= rv.waterTop then
+				for _, sm in ipairs(samples) do
+					local alongZ = math.abs(sm.uz) >= math.abs(sm.ux)
+					local sx, sz
+					if alongZ then
+						sx, sz = 2 * hw / math.abs(sm.uz), STEP + 2
+					else
+						sx, sz = STEP + 2, 2 * hw / math.abs(sm.ux)
 					end
-					local eA, eB = (i > 1) and ext(i - 1) or 0, (i < n - 1) and ext(i + 1) or 0
-					local L = dirs[i][3] + eA + eB
-					local c = (dirs[i][3] + eB - eA) / 2 -- Mitte relativ zum Segmentanfang
-					local x, z = pts[i][1] + dirs[i][1] * c, pts[i][2] + dirs[i][2] * c
-					block(ops, pass == 1 and "Air" or "Water", x, (top + bot) / 2, z, L, top - bot, hw * 2, Geo.yawOf(dirs[i][1], dirs[i][2]))
+					block(ops, pass == 1 and "Air" or "Water", sm.x, (top + bot) / 2, sm.z, sx, top - bot, sz, rv.name)
 				end
 			end
 		end
@@ -943,6 +968,7 @@ end
 
 function TerrainPlanner.plan(cfg)
 	local ops = {}
+	local G = cfg.groundTop
 	local m, depth, tile = cfg.map, 20, 512
 	-- 1. Boden in Kacheln (ein riesiger Block wäre unhandlich)
 	local x = m.xmin
@@ -951,27 +977,28 @@ function TerrainPlanner.plan(cfg)
 		local z = m.zmin
 		while z < m.zmax do
 			local d = math.min(tile, m.zmax - z)
-			block(ops, "Pavement", x + w / 2, -depth / 2, z + d / 2, w, depth, d)
+			block(ops, "Pavement", x + w / 2, G - depth / 2, z + d / 2, w, depth, d)
 			z = z + d
 		end
 		x = x + w
 	end
 	-- 2. Grasflächen (oberste 4 Studs)
 	for _, p in ipairs(cfg.parks) do
-		block(ops, "Grass", (p.x0 + p.x1) / 2, -2, (p.z0 + p.z1) / 2, p.x1 - p.x0, 4, p.z1 - p.z0)
+		block(ops, "Grass", (p.x0 + p.x1) / 2, G - 2, (p.z0 + p.z1) / 2, p.x1 - p.x0, 4, p.z1 - p.z0)
 	end
-	-- 3. Hügel (gestapelte Zylinder) und Terrasse
+	-- 3. Hügel (gestapelte Zylinder) und Terrasse, Höhen relativ zum Boden
 	for _, h in ipairs(cfg.hills) do
 		for _, ly in ipairs(h.layers) do
-			ops[#ops + 1] = { op = "cylinder", material = "Grass", pos = { h.x, (ly[2] + ly[3]) / 2, h.z }, height = ly[3] - ly[2], radius = ly[1] }
+			ops[#ops + 1] = { op = "cylinder", material = "Grass", pos = { h.x, G + (ly[2] + ly[3]) / 2, h.z }, height = ly[3] - ly[2], radius = ly[1] }
 		end
 	end
 	local t = cfg.terrace
-	block(ops, "Grass", (t.x0 + t.x1) / 2, t.height / 2, (t.z0 + t.z1) / 2, t.x1 - t.x0, t.height, t.z1 - t.z0)
-	-- 4. Tunnelgraben der Siegestor-Unterführung
+	block(ops, "Grass", (t.x0 + t.x1) / 2, G + t.height / 2, (t.z0 + t.z1) / 2, t.x1 - t.x0, t.height, t.z1 - t.z0)
+	-- 4. Tunnelgraben der Siegestor-Unterführung (von -17 bis über die Oberkante)
 	local tn = cfg.tunnel
-	block(ops, "Air", 0, -8.5, (tn.z0 + tn.z1) / 2, tn.half * 2, 17, tn.z1 - tn.z0)
+	block(ops, "Air", 0, -5.5, (tn.z0 + tn.z1) / 2, tn.half * 2, 23, tn.z1 - tn.z0)
 	-- 5. Isar und Bach
+	cfg.water.isar.name, cfg.water.bach.name = "isar", "bach"
 	river(ops, cfg.water.isar)
 	river(ops, cfg.water.bach)
 	return ops
@@ -1099,7 +1126,59 @@ function Builder.applyTerrain(ops, origin)
 		else
 			terrain:FillBlock(cf, Vector3.new(op.size[1], op.size[2], op.size[3]), MATERIALS[op.material])
 		end
-		task.wait()
+		breathe(10)
+	end
+end
+
+-- Tatsächliche Höhe der Terrain-Oberkante: Strahl von oben auf mehrere ebene Stellen, Median. 0, wenn nichts getroffen wird.
+function Builder.measureGround(origin)
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = { Workspace.Terrain }
+	local ys = {}
+	for _, p in ipairs({ { -560, -200 }, { 0, -100 }, { 200, -350 }, { -300, 150 }, { 300, 200 } }) do
+		local hit = Workspace:Raycast(origin + Vector3.new(p[1], 200, p[2]), Vector3.new(0, -400, 0), params)
+		if hit then ys[#ys + 1] = hit.Position.Y - origin.Y end
+	end
+	if #ys == 0 then return 0 end
+	table.sort(ys)
+	return math.floor(ys[math.ceil(#ys / 2)] * 2 + 0.5) / 2 -- auf 0,5 gerundet
+end
+
+-- Anzahl Wasser-Zellen in einem kleinen Würfel um center (nil, wenn das Auslesen nicht klappt)
+function Builder.countWater(center)
+	local ok, n = pcall(function()
+		local region = Region3.new(center - Vector3.new(16, 20, 16), center + Vector3.new(16, 8, 16)):ExpandToGrid(4)
+		local mats = Workspace.Terrain:ReadVoxels(region, 4)
+		local c = 0
+		for x = 1, #mats do
+			for y = 1, #mats[x] do
+				for z = 1, #mats[x][y] do
+					if mats[x][y][z] == Enum.Material.Water then c = c + 1 end
+				end
+			end
+		end
+		return c
+	end)
+	return ok and n or nil
+end
+
+-- Notlösung, falls das Terrain-Wasser fehlt: halbdurchsichtige blaue Platten entlang der Mittellinie (nicht schwimmbar)
+function Builder.waterFallback(pts, halfWidth, y, origin)
+	local folder = Builder.container("WasserErsatz")
+	for i = 1, #pts - 1 do
+		local dx, dz = pts[i + 1][1] - pts[i][1], pts[i + 1][2] - pts[i][2]
+		local len = math.sqrt(dx * dx + dz * dz)
+		local p = Instance.new("Part")
+		p.Name = "Wasser"
+		p.Anchored = true
+		p.CanCollide = false
+		p.Size = Vector3.new(len + 2, 0.4, halfWidth * 2)
+		p.CFrame = CFrame.new(origin + Vector3.new((pts[i][1] + pts[i + 1][1]) / 2, y, (pts[i][2] + pts[i + 1][2]) / 2)) * CFrame.Angles(0, math.atan2(-dz, dx), 0)
+		p.Color = Color3.fromRGB(63, 155, 220)
+		p.Material = Enum.Material.SmoothPlastic
+		p.Transparency = 0.35
+		p.Parent = folder
 	end
 end
 
@@ -1198,12 +1277,40 @@ local STEPS = {
 
 BuildAll.order = { "terrain", "roads", "houses", "wall" }
 
+-- Nach dem Terrain: echte Bodenhöhe messen (alles weitere wird daran ausgerichtet) und prüfen, ob Wasser da ist.
+local function afterTerrain(base)
+	local ground = Builder.measureGround(base)
+	print(string.format("[boden] Terrain-Oberkante gemessen: %.1f, alle weiteren Teile werden daran ausgerichtet", ground))
+	local pts = Config.water.isar.pts
+	local mid = pts[8]
+	local water = Builder.countWater(base + Vector3.new(mid[1], Config.water.isar.waterTop - 2, mid[2]))
+	if water == nil then
+		print("[wasser] Auslesen nicht möglich, bitte im Studio nachsehen")
+	elseif water == 0 then
+		print("[wasser] KEIN Terrain-Wasser gefunden, setze blaue Ersatz-Platten (nicht schwimmbar)")
+		Builder.waterFallback(pts, 38, Config.water.isar.waterTop + 0.2, base + Vector3.new(0, ground, 0))
+	else
+		print(string.format("[wasser] ok (%d Wasser-Zellen am Messpunkt)", water))
+	end
+	return ground
+end
+
 function BuildAll.run(opts)
 	opts = opts or {}
-	local origin = opts.origin or Vector3.new(0, 0, 0)
-	for _, name in ipairs(opts.steps or BuildAll.order) do
+	local base = opts.origin or Vector3.new(0, 0, 0)
+	local steps = opts.steps or BuildAll.order
+	local ground = 0
+	local hasTerrain = false
+	for _, n in ipairs(steps) do hasTerrain = hasTerrain or n == "terrain" end
+	if not hasTerrain then ground = Builder.measureGround(base) end -- vorhandenes Terrain, z. B. beim zweiten Lauf
+	for _, name in ipairs(steps) do
+		local origin = base + Vector3.new(0, ground, 0)
 		local ok, result = pcall(STEPS[name], opts, origin) -- ein fehlerhafter Schritt stoppt die anderen nicht
 		print(string.format("[%s] %s", name, ok and result or ("FEHLER: " .. tostring(result))))
+		if name == "terrain" and ok then
+			local ok2, g = pcall(afterTerrain, base)
+			if ok2 then ground = g else print("[boden] FEHLER: " .. tostring(g)) end
+		end
 	end
 	pcall(function() game:GetService("ChangeHistoryService"):SetWaypoint("MapBuilder") end) -- Strg+Z
 	print("Fertig")

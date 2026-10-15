@@ -61,12 +61,40 @@ local STEPS = {
 
 BuildAll.order = { "terrain", "roads", "houses", "wall" }
 
+-- Nach dem Terrain: echte Bodenhöhe messen (alles weitere wird daran ausgerichtet) und prüfen, ob Wasser da ist.
+local function afterTerrain(base)
+	local ground = Builder.measureGround(base)
+	print(string.format("[boden] Terrain-Oberkante gemessen: %.1f, alle weiteren Teile werden daran ausgerichtet", ground))
+	local pts = Config.water.isar.pts
+	local mid = pts[8]
+	local water = Builder.countWater(base + Vector3.new(mid[1], Config.water.isar.waterTop - 2, mid[2]))
+	if water == nil then
+		print("[wasser] Auslesen nicht möglich, bitte im Studio nachsehen")
+	elseif water == 0 then
+		print("[wasser] KEIN Terrain-Wasser gefunden, setze blaue Ersatz-Platten (nicht schwimmbar)")
+		Builder.waterFallback(pts, 38, Config.water.isar.waterTop + 0.2, base + Vector3.new(0, ground, 0))
+	else
+		print(string.format("[wasser] ok (%d Wasser-Zellen am Messpunkt)", water))
+	end
+	return ground
+end
+
 function BuildAll.run(opts)
 	opts = opts or {}
-	local origin = opts.origin or Vector3.new(0, 0, 0)
-	for _, name in ipairs(opts.steps or BuildAll.order) do
+	local base = opts.origin or Vector3.new(0, 0, 0)
+	local steps = opts.steps or BuildAll.order
+	local ground = 0
+	local hasTerrain = false
+	for _, n in ipairs(steps) do hasTerrain = hasTerrain or n == "terrain" end
+	if not hasTerrain then ground = Builder.measureGround(base) end -- vorhandenes Terrain, z. B. beim zweiten Lauf
+	for _, name in ipairs(steps) do
+		local origin = base + Vector3.new(0, ground, 0)
 		local ok, result = pcall(STEPS[name], opts, origin) -- ein fehlerhafter Schritt stoppt die anderen nicht
 		print(string.format("[%s] %s", name, ok and result or ("FEHLER: " .. tostring(result))))
+		if name == "terrain" and ok then
+			local ok2, g = pcall(afterTerrain, base)
+			if ok2 then ground = g else print("[boden] FEHLER: " .. tostring(g)) end
+		end
 	end
 	pcall(function() game:GetService("ChangeHistoryService"):SetWaypoint("MapBuilder") end) -- Strg+Z
 	print("Fertig")

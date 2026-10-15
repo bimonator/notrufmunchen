@@ -25,6 +25,7 @@ Instance = { new = function(c) return newInstance(c) end }
 local V = {}
 V.__index = V
 V.__add = function(a, b) return setmetatable({ X = a.X + b.X, Y = a.Y + b.Y, Z = a.Z + b.Z }, V) end
+V.__sub = function(a, b) return setmetatable({ X = a.X - b.X, Y = a.Y - b.Y, Z = a.Z - b.Z }, V) end
 Vector3 = { new = function(x, y, z) return setmetatable({ X = x or 0, Y = y or 0, Z = z or 0 }, V) end }
 local C = {}
 C.__index = C
@@ -36,10 +37,15 @@ Enum = { Material = setmetatable({}, { __index = function(t, k) mats[k] = true; 
 task = { wait = function() end }
 terrainCalls, tagged = 0, 0
 local terrain = { Clear = function() end }
+terrain.ReadVoxels = function(self, region, res) return { { { Enum.Material.Water } } } end
+Region3 = { new = function(a, b) return { ExpandToGrid = function(self, r) return self end } end }
+RaycastParams = { new = function() return {} end }
+Enum.RaycastFilterType = { Include = "Include" }
 terrain.FillBlock = function(self, cf, size, mat) assert(cf and size and mat, "FillBlock: Argument fehlt"); terrainCalls = terrainCalls + 1 end
 terrain.FillCylinder = function(self, cf, h, r, mat) assert(cf and h and r and mat, "FillCylinder: Argument fehlt"); terrainCalls = terrainCalls + 1 end
 local services = { Workspace = newInstance("Workspace") }
 services.Workspace.Terrain = terrain
+services.Workspace.Raycast = function(self, origin, dir, params) return { Position = { Y = -2 } } end
 services.CollectionService = { AddTag = function(self, p, t) assert(p and t); tagged = tagged + 1 end }
 services.ChangeHistoryService = { SetWaypoint = function() end }
 game = { GetService = function(self, n) return services[n] end }
@@ -59,7 +65,7 @@ lua.execute(code)
 parts, models, terrain = lua.eval("count(workspace_, 'Part')"), lua.eval("count(workspace_, 'Model')"), lua.eval("terrainCalls")
 print("Attrappe: %d Models, %d Parts, %d Terrain-Aufrufe, %d Fenster-Tags" % (models, parts, terrain, lua.eval("tagged")))
 assert models > 220, "Models: %d" % models
-assert terrain == 103, "Terrain-Aufrufe: %d" % terrain
+assert terrain > 800, "Terrain-Aufrufe: %d" % terrain
 assert parts > 16000, "Parts: %d" % parts
 lua.execute(code)  # zweiter Lauf ersetzt die Ordner statt sie zu verdoppeln
 assert lua.eval("count(workspace_, 'Model')") == models and lua.eval("count(workspace_, 'Part')") == parts, "zweiter Lauf hat verdoppelt"

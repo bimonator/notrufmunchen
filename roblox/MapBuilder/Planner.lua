@@ -348,18 +348,29 @@ function Planner.planSpecial(spec, opts)
 	elseif f == "W" then h.ox, h.oz, h.yaw, h.width, h.depth = spec.x0, (spec.z0 + spec.z1) / 2, 90, spec.z1 - spec.z0, spec.x1 - spec.x0
 	else h.ox, h.oz, h.yaw, h.width, h.depth = spec.x1, (spec.z0 + spec.z1) / 2, 270, spec.z1 - spec.z0, spec.x1 - spec.x0 end
 	planHouse(h, o, rng, false, false)
-	if spec.canopy then -- Tankstellen-Schirm: Dach auf vier Pfeilern, 8 Zapfsäulen
+	if spec.canopy then -- Tankstellen-Schirm: weißes Dach mit rotem Band und rotem "A" als Logo, vier Pfeiler, 8 Zapfsäulen
 		local c = spec.canopy
 		local cx, cz, w, d = (c[1] + c[3]) / 2, (c[2] + c[4]) / 2, c[3] - c[1], c[4] - c[2]
-		local function w3(name, x, y, z, sx, sy, sz, color, mat)
-			h.parts[#h.parts + 1] = { name = name, kind = "trim", size = { sx, sy, sz }, pos = { round3(x), round3(y), round3(z) }, yaw = 0, pitch = 0, color = color, material = mat, collide = false, lpos = { 0, y, 0 } }
+		local WHITE, RED = { 250, 250, 250 }, { 200, 40, 40 }
+		local function w3(name, x, y, z, sx, sy, sz, color, mat, yaw)
+			h.parts[#h.parts + 1] = { name = name, kind = "trim", size = { sx, sy, sz }, pos = { round3(x), round3(y), round3(z) }, yaw = yaw or 0, pitch = 0, color = color, material = mat, collide = false, lpos = { 0, y, 0 } }
 		end
-		w3("CanopyRoof", cx, 14.5, cz, w, 1, d, { 232, 200, 60 }, "SmoothPlastic")
+		w3("CanopyRoof", cx, 14.5, cz, w, 1, d, WHITE, "SmoothPlastic")
+		w3("CanopyBand", c[1] + 0.5, 14, cz, 1, 2.4, d, RED, "SmoothPlastic")
+		w3("CanopyBand", c[3] - 0.5, 14, cz, 1, 2.4, d, RED, "SmoothPlastic")
+		w3("CanopyBand", cx, 14, c[2] + 0.5, w, 2.4, 1, RED, "SmoothPlastic")
+		w3("CanopyBand", cx, 14, c[4] - 0.5, w, 2.4, 1, RED, "SmoothPlastic")
+		-- Logo "A" flach auf dem Dach: zwei schräge Balken und ein Querbalken, Spitze nach Norden (-z)
+		local ang = math.deg(math.atan2(6, 16))
+		local barLen = math.sqrt(6 * 6 + 16 * 16)
+		w3("LogoA", cx - 3, 15.15, cz, 2.2, 0.3, barLen, RED, "SmoothPlastic", 180 - ang)
+		w3("LogoA", cx + 3, 15.15, cz, 2.2, 0.3, barLen, RED, "SmoothPlastic", 180 + ang)
+		w3("LogoA", cx, 15.15, cz + 2.5, 7.5, 0.3, 1.8, RED, "SmoothPlastic")
 		for _, px in ipairs({ c[1] + 3, c[3] - 3 }) do
-			for _, pz in ipairs({ c[2] + 3, c[4] - 3 }) do w3("CanopyPillar", px, 7.5, pz, 1.5, 14, 1.5, { 200, 200, 204 }, "Metal") end
+			for _, pz in ipairs({ c[2] + 3, c[4] - 3 }) do w3("CanopyPillar", px, 7, pz, 1.5, 14, 1.5, WHITE, "Metal") end
 		end
 		for _, px in ipairs({ cx - 6, cx + 6 }) do
-			for k = 0, 3 do w3("Pump", px, 3.5, c[2] + 10 + k * (d - 20) / 3, 1.5, 5, 1.5, { 200, 60, 50 }, "SmoothPlastic") end
+			for k = 0, 3 do w3("Pump", px, 3.5, c[2] + 10 + k * (d - 20) / 3, 1.5, 5, 1.5, RED, "SmoothPlastic") end
 		end
 	end
 	return { houses = { h } }
