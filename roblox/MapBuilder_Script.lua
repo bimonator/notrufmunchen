@@ -52,6 +52,29 @@ function Geo.within(px, pz, ux, uz, L, r, margin)
 	return lo, hi
 end
 
+-- Überlappen sich zwei Rechtecke (Format von Geo.rect) in der Draufsicht um mehr als 0,5 Studs? (Trennachsen-Test)
+function Geo.rectsOverlap(a, b)
+	local function corners(r)
+		local out = {}
+		for _, s in ipairs({ r.s0, r.s1 }) do
+			for _, w in ipairs({ -r.w, r.w }) do
+				out[#out + 1] = { r.ax + r.ux * s + r.nx * w, r.az + r.uz * s + r.nz * w }
+			end
+		end
+		return out
+	end
+	local ca, cb = corners(a), corners(b)
+	for _, r in ipairs({ a, b }) do
+		for _, axis in ipairs({ { r.ux, r.uz }, { r.nx, r.nz } }) do
+			local amin, amax, bmin, bmax = 1e18, -1e18, 1e18, -1e18
+			for _, c in ipairs(ca) do local d = c[1] * axis[1] + c[2] * axis[2] amin, amax = math.min(amin, d), math.max(amax, d) end
+			for _, c in ipairs(cb) do local d = c[1] * axis[1] + c[2] * axis[2] bmin, bmax = math.min(bmin, d), math.max(bmax, d) end
+			if amax < bmin + 0.5 or bmax < amin + 0.5 then return false end
+		end
+	end
+	return true
+end
+
 -- Aus den Abschnitten spans (Liste {a, b}) die Abschnitte cuts herausschneiden
 function Geo.subtract(spans, cuts)
 	local out = {}
@@ -196,9 +219,6 @@ C.parks = { -- Gras-Oberfläche (Terrain)
 C.hills = { { name = "Monopteros", x = 575, z = 75, layers = { { 44, 0, 4 }, { 30, 4, 8 } } } } -- { Radius, y0, y1 }, nur 8 hoch
 C.terrace = { name = "Friedensengel", x0 = 870, z0 = 250, x1 = 1020, z1 = 346, height = 4 }
 
--- Straßenlaternen: Abstand entlang der Gehwege, Mast steht 2 Studs hinter dem Bordstein, Ausleger zeigt über die Fahrbahn
-C.lamps = { spacing = 56, inset = 2.5, height = 13 }
-
 -- Ampeln (Standort Mast + Blickrichtung des Signalkopfes, also zum ankommenden Verkehr) und Fußgängerampeln.
 -- Rechtsverkehr: Achse Süd-Richtung fährt auf der Westseite. Maste stehen auf Gehwegen, nie auf der Fahrbahn.
 C.signals = {
@@ -325,6 +345,7 @@ end
 -- Fläche (face) "front", "+x" oder "-x"; u = Position entlang der Fläche, d = Abstand vor der Wand
 local function onFace(h, face, u, d)
 	if face == "front" then return u, -d, 0 end
+	if face == "back" then return u, h.depth + d, 180 end
 	if face == "+x" then return h.width / 2 + d, u, -90 end
 	return -h.width / 2 - d, u, 90
 end
@@ -336,13 +357,13 @@ local SHUTTERS = { { 70, 100, 80 }, { 110, 60, 50 }, { 60, 70, 100 }, { 90, 90, 
 local AWNINGS = { { 190, 60, 50 }, { 60, 100, 150 }, { 70, 130, 90 }, { 220, 170, 60 } }
 
 -- Fenster: Rahmen und Scheibe sitzen vor der Wand (kein Ausschnitt), Fensterbank darunter. shift = zusätzlicher Abstand (Erker).
-local function addWindow(h, label, face, u, yc, w, hgt, lit, shift)
+local function addWindow(h, label, face, u, yc, w, hgt, lit, shift, noSill)
 	shift = shift or 0
 	local lx, lz, ey = onFace(h, face, u, 0.2 + shift)
 	add(h, "Frame" .. label, "frame", lx, yc, lz, w + 1.6, hgt + 1.6, 0.4, FRAME, "SmoothPlastic", { yaw = ey })
 	lx, lz = onFace(h, face, u, 0.4 + shift)
 	add(h, "Glass" .. label, "glass", lx, yc, lz, w, hgt, 0.2, lit and GLASS_LIT or GLASS, "Glass", { yaw = ey, lit = lit, tag = "HouseWindow" })
-	if h.simple then return end
+	if h.simple or noSill then return end
 	lx, lz = onFace(h, face, u, 0.5 + shift)
 	add(h, "Sill" .. label, "trim", lx, yc - hgt / 2 - 1.1, lz, w + 3, 0.6, 1.0, { 200, 196, 188 }, "Concrete", { yaw = ey })
 end
@@ -463,6 +484,23 @@ local function planHouse(h, o, rng, cornerA, cornerB)
 		end
 	end
 
+	-- Rückseite zum Innenhof: Fenster in jedem Geschoss, zwei Erdgeschossfenster und eine Hintertür
+	if h.rear then
+		for k = 1, floors - 1 do
+			local yb = y0 + o.groundH + o.upperH * (k - 1)
+			for i = 1, nw do
+				addWindow(h, "R" .. k .. "_" .. i, "back", -W / 2 + (i - 0.5) * W / nw, yb + 6, 4.4, 6.4, rng.next() < o.litChance, 0, true)
+			end
+		end
+		local bx, bz = onFace(h, "back", dx, 0.25)
+		add(h, "BackDoorFrame", "frame", bx, y0 + 5, bz, 6.4, 10, 0.5, { 70, 52, 42 }, "Wood", { yaw = 180 })
+		bx, bz = onFace(h, "back", dx, 0.55)
+		add(h, "BackDoor", "door", bx, y0 + 4.5, bz, 5, 9, 0.3, { 110, 70, 45 }, "Wood", { yaw = 180 })
+		for i = 1, math.max(1, math.floor((W - 21) / 9) + 1) do
+			addWindow(h, "RG_" .. i, "back", -dx + doorSign * 9 * (i - 1), y0 + 8, 4.4, 5.4, rng.next() < o.litChance, 0, true)
+		end
+	end
+
 	-- Eckhaus: Fenster auch an der Seitenfläche zur Querstraße
 	for _, face in ipairs({ cornerA and "-x" or false, cornerB and "+x" or false }) do
 		if face and not h.simple then
@@ -503,7 +541,7 @@ local function planSides(name, sides, o, rng, plan, depth)
 					idx = idx + 1
 					local width = widths[i]
 					local h = {
-						side = side.name, index = idx, simple = o.simple,
+						side = side.name, index = idx, simple = o.simple, rear = o.rear ~= false,
 						ox = side.sx + side.ux * (t + width / 2), oz = side.sz + side.uz * (t + width / 2),
 						yaw = side.yaw, width = width, depth = depth, parts = {},
 						name = string.format("Haus_%s_%s%d", name, side.name, idx),
@@ -528,6 +566,43 @@ function Planner.aabb(p)
 	local sx, sy, sz = p.size[1], p.size[2], p.size[3]
 	if p.yaw % 180 == 90 then sx, sz = sz, sx end
 	return p.pos[1] - sx / 2, p.pos[2] - sy / 2, p.pos[3] - sz / 2, p.pos[1] + sx / 2, p.pos[2] + sy / 2, p.pos[3] + sz / 2
+end
+
+
+-- Hinterhäuser: der Innenhof wird mit niedrigen Häusern (2 bis 3 Geschosse) in einem Raster gefüllt, dazwischen 12 Studs breite Gassen,
+-- 14 Studs Abstand zu den Rückseiten der Randhäuser. Sonderflächen (reserved) und das Tankstellen-Grundstück (lot) bleiben mit 10 Studs Rand frei.
+local function planInner(plan, block, o, rng)
+	plan.inner = {}
+	if block.noInner then return end
+	local cy = plan.courtyard
+	local M, GAP, TARGET, MAXW = 14, 12, 34, 46
+	local x0, z0, x1, z1 = cy[1] + M, cy[2] + M, cy[3] - M, cy[4] - M
+	local cols, rows = math.floor((x1 - x0 + GAP) / (TARGET + GAP)), math.floor((z1 - z0 + GAP) / (TARGET + GAP))
+	if cols < 1 or rows < 1 then return end
+	local cw, cd = (x1 - x0 - (cols - 1) * GAP) / cols, (z1 - z0 - (rows - 1) * GAP) / rows
+	local w, d = math.min(cw, MAXW), math.min(cd, MAXW)
+	local avoid = {}
+	for _, r in ipairs(block.reserved or {}) do avoid[#avoid + 1] = r end
+	if block.lot then avoid[#avoid + 1] = block.lot end
+	for r = 1, rows do
+		for c = 1, cols do
+			local cx, cz = x0 + (c - 1) * (cw + GAP) + cw / 2, z0 + (r - 1) * (cd + GAP) + cd / 2
+			local blocked = false
+			for _, a in ipairs(avoid) do
+				if cx - w / 2 < a[3] + 10 and cx + w / 2 > a[1] - 10 and cz - d / 2 < a[4] + 10 and cz + d / 2 > a[2] - 10 then blocked = true end
+			end
+			if not blocked then
+				local south = r % 2 == 0 -- Reihen wechseln die Blickrichtung
+				local h = {
+					side = "I", index = #plan.inner + 1, simple = true, rear = true, forceFloors = rng.int(2, 3),
+					ox = cx, oz = south and cz + d / 2 or cz - d / 2, yaw = south and 180 or 0, width = w, depth = d, parts = {},
+					name = string.format("Hof_%s_%d", block.name, #plan.inner + 1),
+				}
+				planHouse(h, o, rng, false, false)
+				plan.inner[#plan.inner + 1] = h
+			end
+		end
+	end
 end
 
 -- block = { name, xmin, zmin, xmax, zmax, reserved = { {x0,z0,x1,z1}, ... } } (Außenkante = Straßenrand).
@@ -557,6 +632,7 @@ function Planner.planBlock(block, opts)
 		end
 		plan.houses = kept
 	end
+	planInner(plan, block, o, rng)
 	return plan
 end
 
@@ -567,7 +643,7 @@ function Planner.planSpecial(spec, opts)
 	local rng = newRng(o.seed + hash(spec.name))
 	local f = spec.facing
 	local h = {
-		side = f, index = 0, simple = false, forceFloors = spec.floors, color = spec.color, parts = {}, name = "Sonder_" .. spec.name,
+		side = f, index = 0, simple = false, rear = true, forceFloors = spec.floors, color = spec.color, parts = {}, name = "Sonder_" .. spec.name,
 	}
 	if f == "N" then h.ox, h.oz, h.yaw, h.width, h.depth = (spec.x0 + spec.x1) / 2, spec.z0, 0, spec.x1 - spec.x0, spec.z1 - spec.z0
 	elseif f == "S" then h.ox, h.oz, h.yaw, h.width, h.depth = (spec.x0 + spec.x1) / 2, spec.z1, 180, spec.x1 - spec.x0, spec.z1 - spec.z0
@@ -599,6 +675,19 @@ function Planner.planSpecial(spec, opts)
 			for k = 0, 3 do w3("Pump", px, 3.5, c[2] + 10 + k * (d - 20) / 3, 1.5, 5, 1.5, RED, "SmoothPlastic") end
 		end
 	end
+	if spec.lot then -- Tankstellen-Grundstück: Plateau (Asphalt, Oberkante 1) mit Betonkante, Zufahrt (Schneise) auf der Westseite offen
+		local l, gap = spec.lot, spec.lotGap
+		local function slab(name, x0, z0, x1, z1, y, hgt, color, mat)
+			h.parts[#h.parts + 1] = { name = name, kind = "trim", size = { round3(x1 - x0), hgt, round3(z1 - z0) }, pos = { round3((x0 + x1) / 2), round3(y), round3((z0 + z1) / 2) }, yaw = 0, pitch = 0, color = color, material = mat, collide = true, lpos = { 0, y, 0 } }
+		end
+		slab("Plateau", l[1], l[2], l[3], l[4], 0.4, 1.2, { 78, 80, 86 }, "Asphalt")
+		local KERB, K = { 190, 188, 182 }, 1.4
+		slab("Kante", l[1], l[2], l[3], l[2] + K, 1.25, 0.5, KERB, "Concrete")
+		slab("Kante", l[1], l[4] - K, l[3], l[4], 1.25, 0.5, KERB, "Concrete")
+		slab("Kante", l[3] - K, l[2] + K, l[3], l[4] - K, 1.25, 0.5, KERB, "Concrete")
+		slab("Kante", l[1], l[2] + K, l[1] + K, gap[1], 1.25, 0.5, KERB, "Concrete")
+		slab("Kante", l[1], gap[2], l[1] + K, l[4] - K, 1.25, 0.5, KERB, "Concrete")
+	end
 	return { houses = { h } }
 end
 
@@ -607,7 +696,7 @@ end
 --          specials = { { side, name, x0, x1, floors } } }
 function Planner.planWall(wall, opts)
 	local o = mergeOpts(opts)
-	o.simple, o.setback = true, 0
+	o.simple, o.setback, o.rear = true, 0, false
 	local D = math.abs(wall.outer.xmin - wall.inner.xmin)
 	local rng = newRng(o.seed + hash("Mapgrenze"))
 	local ix0, iz0, ix1, iz1 = wall.inner.xmin, wall.inner.zmin, wall.inner.xmax, wall.inner.zmax
@@ -652,11 +741,14 @@ end
 
 function Planner.stats(plan)
 	local parts, area = 0, 0
-	for _, h in ipairs(plan.houses) do
-		parts = parts + #h.parts
-		area = area + h.width * h.depth
+	local n = #plan.houses
+	for _, list in ipairs({ plan.houses, plan.inner or {} }) do
+		for _, h in ipairs(list) do
+			parts = parts + #h.parts
+			area = area + h.width * h.depth
+		end
 	end
-	return { houses = #plan.houses, parts = parts, footprint = area }
+	return { houses = n + #(plan.inner or {}), parts = parts, footprint = area }
 end
 
 return Planner
@@ -671,12 +763,12 @@ local Blocks = (function()
 
 return {
 	{ name = "A_NordWest", xmin = -637, zmin = -448, xmax = -488.5, zmax = -313.5 },
-	{ name = "B_NordMitte", xmin = -431.5, zmin = -448, xmax = -263.5, zmax = -313.5 },
+	{ name = "B_NordMitte", xmin = -431.5, zmin = -448, xmax = -263.5, zmax = -313.5, noInner = true }, -- Innenhof ist der Hinterhofpark
 	{ name = "C_LeopoldWestNord", xmin = -206.5, zmin = -448, xmax = -55, zmax = -313.5, reserved = { { -127, -385, -55, -315 } } },
 	{ name = "D_West", xmin = -637, zmin = -256.5, xmax = -488.5, zmax = 1.5 },
 	{ name = "E_Mitte", xmin = -431.5, zmin = -256.5, xmax = -263.5, zmax = 1.5, reserved = { { -425, -200, -275, -100 } } },
 	{ name = "F_LeopoldWestSued", xmin = -206.5, zmin = -256.5, xmax = -55, zmax = 1.5, reserved = { { -205, -250, -109, -140 } } },
-	{ name = "G_LeopoldOst", xmin = 55, zmin = -448, xmax = 276, zmax = 4, reserved = { { 58, -300, 168, -190 } } },
+	{ name = "G_LeopoldOst", xmin = 55, zmin = -448, xmax = 276, zmax = 4, reserved = { { 57, -262, 86, -226 } }, lot = { 85, -300, 205, -190 } }, -- Lücke = Zufahrt (Schneise) zur Tankstelle, lot = ihr Grundstück
 }
 
 end)()
@@ -689,7 +781,7 @@ local Specials = (function()
 return {
 	{ name = "Isarbank", x0 = -127, z0 = -385, x1 = -55, z1 = -315, facing = "E", floors = 4, color = { 176, 120, 100 } },
 	{ name = "Parkhaus", x0 = -205, z0 = -250, x1 = -109, z1 = -140, facing = "N", floors = 4, color = { 170, 170, 176 } },
-	{ name = "Tankstellen-Shop", x0 = 112, z0 = -280, x1 = 164, z1 = -210, facing = "W", floors = 1, color = { 245, 245, 245 }, canopy = { 68, -292, 102, -196 } },
+	{ name = "Tankstellen-Shop", x0 = 150, z0 = -280, x1 = 202, z1 = -210, facing = "W", floors = 1, color = { 245, 245, 245 }, canopy = { 98, -292, 132, -196 }, lot = { 85, -300, 205, -190 }, lotGap = { -262, -226 } },
 	{ name = "Feuer-und-Rettungswache", x0 = -425, z0 = -200, x1 = -275, z1 = -100, facing = "W", floors = 3, color = { 200, 70, 55 } },
 	{ name = "Polizeiwache", x0 = 215, z0 = 310, x1 = 295, z1 = 380, facing = "S", floors = 3, color = { 70, 110, 200 } },
 	{ name = "Krankenhaus", x0 = 340, z0 = -430, x1 = 500, z1 = -310, facing = "W", floors = 5, color = { 90, 170, 150 } },
@@ -716,8 +808,10 @@ local COLOR = {
 	road = { 84, 90, 96 }, walk = { 168, 172, 174 }, plaza = { 214, 208, 196 }, median = { 118, 150, 98 },
 	dash = { 236, 236, 230 }, deck = { 140, 140, 146 }, rail = { 70, 70, 76 }, tunnel = { 110, 110, 116 },
 }
-local MATERIAL = { road = "Asphalt", walk = "Concrete", plaza = "Pavement", median = "Grass" }
+local MATERIAL = { road = "Asphalt", walk = "Concrete", plaza = "Concrete", median = "Grass" }
 local TOP = { road = 0.5, walk = 1.0, plaza = 0.5, median = 0.8 }
+-- Markierungen stehen 0,1 bis 0,2 Studs über der Fahrbahn (Fahrbahn-Oberkante 0,5 bis 0,62)
+local DASH_Y, DASH_H = 0.6, 0.2
 local THICK = { road = 1, walk = 2, plaza = 1, median = 1.8 }
 
 local function part(parts, name, kind, x, y, z, sx, sy, sz, yaw, color, material, extra)
@@ -728,6 +822,25 @@ local function part(parts, name, kind, x, y, z, sx, sy, sz, yaw, color, material
 		yaw = Geo.round3(yaw), pitch = extra.pitch or 0, color = color, material = material,
 		collide = extra.collide ~= false, seg = extra.seg,
 	}
+end
+
+-- Große Fliesen wie am Marienplatz: Fugen alle TILE Studs quer und längs auf eine Platzfläche (Mitte cx, cz; Länge len entlang u, Breite w quer)
+local TILE, JOINT, JOINT_COLOR = 6, 0.18, { 150, 144, 136 }
+local function tileJoints(parts, cx, cz, ux, uz, len, w, top, yaw, seg)
+	local nx, nz = -uz, ux
+	local y = top + 0.03
+	local k = 1
+	while k * TILE < len do -- Fugen quer zur Länge
+		local t = -len / 2 + k * TILE
+		part(parts, "Fuge", "joint", cx + ux * t, y, cz + uz * t, JOINT, 0.06, w, yaw, JOINT_COLOR, "SmoothPlastic", { collide = false, seg = seg })
+		k = k + 1
+	end
+	k = 1
+	while k * TILE < w do -- Fugen in Längsrichtung
+		local v = -w / 2 + k * TILE
+		part(parts, "Fuge", "joint", cx + nx * v, y, cz + nz * v, len, 0.06, JOINT, yaw, JOINT_COLOR, "SmoothPlastic", { collide = false, seg = seg })
+		k = k + 1
+	end
 end
 
 -- Segmente aller Straßen mit Verlängerung an Knicken (hw * tan(Knickwinkel / 2)), damit außen keine Lücke bleibt
@@ -763,6 +876,24 @@ local function buildSegments(cfg)
 	return segs
 end
 
+-- Fahrbahnen, die sich überlappen (Kreuzungen, Ecken der Ringstraße), liegen sonst auf exakt gleicher Höhe und flackern (Z-Fighting).
+-- Darum bekommt jede Straße eine Stufe (greedy-Färbung); Stufe k hebt die Fahrbahn um k * 0,04 Studs.
+local LEVEL_STEP = 0.04
+local PLAZA_LIFT = 0.2 -- Plätze liegen über allen Fahrbahnen
+local function roadLevels(segs)
+	local level = {}
+	for _, s in ipairs(segs) do
+		local used = {}
+		for _, o in ipairs(segs) do
+			if level[o.id] and Geo.rectsOverlap(s.rect, o.rect) then used[level[o.id]] = true end
+		end
+		local k = 0
+		while used[k] do k = k + 1 end
+		level[s.id] = k
+	end
+	return level
+end
+
 function RoadsPlanner.segments(cfg)
 	return buildSegments(cfg)
 end
@@ -784,6 +915,7 @@ function RoadsPlanner.plan(cfg)
 	local segs = buildSegments(cfg)
 	local tun = cfg.tunnel
 	local stats = { bays = 0, dashes = 0 }
+	local level = roadLevels(segs)
 
 	for _, seg in ipairs(segs) do
 		local yaw = Geo.yawOf(seg.ux, seg.uz)
@@ -811,6 +943,7 @@ function RoadsPlanner.plan(cfg)
 			local mid, w, kind = (st[1] + st[2]) / 2, st[2] - st[1], st[3]
 			local sx, sz = p0x + nx * mid, p0z + nz * mid
 			local cuts = {}
+			local lift = (kind == "road") and LEVEL_STEP * level[seg.id] or (kind == "plaza" and PLAZA_LIFT or 0)
 			if kind == "walk" then cuts = crossCuts(segs, seg, sx, sz, L, 0.05) end
 			if st[4] and tunnelCut then cuts[#cuts + 1] = tunnelCut end
 			for _, bc in ipairs(bridgeCuts) do cuts[#cuts + 1] = bc end
@@ -818,8 +951,9 @@ function RoadsPlanner.plan(cfg)
 				local len = sp[2] - sp[1]
 				if len > 0.5 then
 					local c = (sp[1] + sp[2]) / 2
-					part(parts, string.format("%s_%d_%s", seg.road.name, seg.id, kind), kind, sx + seg.ux * c, TOP[kind] - THICK[kind] / 2, sz + seg.uz * c,
+					part(parts, string.format("%s_%d_%s", seg.road.name, seg.id, kind), kind, sx + seg.ux * c, TOP[kind] + lift - THICK[kind] / 2, sz + seg.uz * c,
 						len, THICK[kind], w, yaw, COLOR[kind], MATERIAL[kind], { seg = seg.id })
+					if kind == "plaza" then tileJoints(parts, sx + seg.ux * c, sz + seg.uz * c, seg.ux, seg.uz, len, w, TOP.plaza + lift, yaw, seg.id) end
 				end
 			end
 		end
@@ -833,7 +967,7 @@ function RoadsPlanner.plan(cfg)
 				local t = sp[1] + 1
 				while t + 6 <= sp[2] - 1 do
 					local c = t + 3
-					part(parts, "Dash", "dash", sx + seg.ux * c, 0.53, sz + seg.uz * c, 6, 0.06, 0.4, yaw, COLOR.dash, "SmoothPlastic", { collide = false, seg = seg.id })
+					part(parts, "Dash", "dash", sx + seg.ux * c, DASH_Y, sz + seg.uz * c, 6, DASH_H, 0.4, yaw, COLOR.dash, "SmoothPlastic", { collide = false, seg = seg.id })
 					stats.dashes = stats.dashes + 1
 					t = t + 12
 				end
@@ -849,13 +983,14 @@ function RoadsPlanner.plan(cfg)
 		for k = 0, n do
 			local x, z = x0 + ux * cfg.bay.length * k, z0 + uz * cfg.bay.length * k
 			local sx, sz = (math.abs(ux) > 0.5) and 0.3 or cfg.bay.width, (math.abs(ux) > 0.5) and cfg.bay.width or 0.3
-			part(parts, "BayLine", "dash", x, 0.53, z, sx, 0.06, sz, 0, COLOR.dash, "SmoothPlastic", { collide = false })
+			part(parts, "BayLine", "dash", x, DASH_Y, z, sx, DASH_H, sz, 0, COLOR.dash, "SmoothPlastic", { collide = false })
 		end
 		stats.bays = stats.bays + n
 	end
 
 	for _, pl in ipairs(cfg.plazas) do
-		part(parts, "Plaza_" .. pl.name, "plaza", (pl.x0 + pl.x1) / 2, -0.05, (pl.z0 + pl.z1) / 2, pl.x1 - pl.x0, 1, pl.z1 - pl.z0, 0, COLOR.plaza, MATERIAL.plaza, {})
+		part(parts, "Plaza_" .. pl.name, "plaza", (pl.x0 + pl.x1) / 2, TOP.plaza + PLAZA_LIFT - THICK.plaza / 2, (pl.z0 + pl.z1) / 2, pl.x1 - pl.x0, 1, pl.z1 - pl.z0, 0, COLOR.plaza, MATERIAL.plaza, {})
+		tileJoints(parts, (pl.x0 + pl.x1) / 2, (pl.z0 + pl.z1) / 2, 1, 0, pl.x1 - pl.x0, pl.z1 - pl.z0, TOP.plaza + PLAZA_LIFT, 0)
 	end
 
 	-- Brücken: Deck unter dem Asphalt (Oberkante -0.5), Geländer an beiden Kanten
@@ -933,14 +1068,13 @@ end)()
 
 local LightsPlanner = (function()
 -- LightsPlanner.lua
--- Straßenlaternen entlang der Gehwege, Ampeln und Fußgängerampeln als Teileliste (reine Geometrie, keine Roblox-Funktionen).
--- Braucht die Straßenpläne (Gehwegteile), damit kein Mast auf der Fahrbahn, in einer Kreuzung oder über dem Tunnel steht.
+-- Ampeln und Fußgängerampeln als Teileliste (reine Geometrie, keine Roblox-Funktionen). Gesteuert werden sie von Ampel.lua über Tags und Attribute.
 
 local Geo = Geo
 
 local LightsPlanner = {}
 
-local DARK, WARM = { 58, 60, 64 }, { 255, 226, 150 }
+local DARK = { 58, 60, 64 }
 local RED, YELLOW, GREEN = { 235, 40, 40 }, { 255, 190, 30 }, { 60, 220, 90 }
 local DIM = { RED = { 90, 20, 20 }, YELLOW = { 100, 74, 12 }, GREEN = { 20, 80, 36 } }
 local WALK_TOP = 1.0
@@ -953,21 +1087,6 @@ local function part(parts, name, kind, x, y, z, sx, sy, sz, yaw, color, material
 	}
 end
 
-local function onWalk(walks, x, z)
-	for _, w in ipairs(walks) do
-		if Geo.inPart(x, z, w, 1.2) then return true end
-	end
-	return false
-end
-
--- Laterne: Mast, Ausleger über die Fahrbahn, Leuchtkopf (Neon, Tag "StreetLamp" für das spätere Tag-Nacht-Skript)
-local function lamp(parts, x, z, tx, tz, h)
-	local yawArm = Geo.yawOf(tx, tz)
-	part(parts, "LaternenMast", "lamp", x, WALK_TOP + h / 2, z, 0.7, h, 0.7, 0, DARK, "Metal", { collide = true })
-	part(parts, "LaternenArm", "lamp", x + tx * 2.4, WALK_TOP + h - 0.3, z + tz * 2.4, 4.8, 0.45, 0.45, yawArm, DARK, "Metal")
-	part(parts, "LaternenLicht", "lamp", x + tx * 4.6, WALK_TOP + h - 0.7, z + tz * 4.6, 2.4, 0.5, 1.2, yawArm, WARM, "Neon", { tag = "StreetLamp", attrs = { Lit = true } })
-end
-
 -- Signalkopf mit n Lampen (3: rot/gelb/grün, 2: rot/grün) vor dem Mast, Front zeigt in Richtung (fx, fz)
 local function head(parts, s, y0, lamps, tag)
 	local yaw = Geo.yawOf(s.fx, s.fz)
@@ -977,39 +1096,13 @@ local function head(parts, s, y0, lamps, tag)
 	for i, l in ipairs(lamps) do
 		local lit = i == 1 -- Standard: rot an, bis das Ampel-Skript schaltet
 		part(parts, "AmpelLampe", "signal", s.x + s.fx * 1.35, y0 + hgt / 2 - 0.3 - 1.2 * (i - 0.5) + 0.0, s.z + s.fz * 1.35, 0.3, 0.9, 0.9, yaw,
-			lit and l.on or l.dim, lit and "Neon" or "SmoothPlastic", { tag = tag, attrs = { Lamp = l.name, Group = s.name, Lit = lit } })
+			lit and l.on or l.dim, lit and "Neon" or "SmoothPlastic", { tag = tag, attrs = { Lamp = l.name, Group = s.name, Axis = (s.fz ~= 0) and "NS" or "EW", Lit = lit } })
 	end
 end
 
-function LightsPlanner.plan(cfg, roadPlan)
+function LightsPlanner.plan(cfg)
 	local parts = {}
-	local walks = {}
-	for _, p in ipairs(roadPlan.parts) do
-		if p.kind == "walk" and p.seg then walks[#walks + 1] = p end
-	end
-	local stats = { lamps = 0, signals = 0, ped = 0 }
-	local L = cfg.lamps
-	for _, seg in ipairs(roadPlan.segments) do
-		local roadHalf
-		for _, st in ipairs(seg.prof.strips) do
-			if st[3] == "road" then roadHalf = math.max(roadHalf or 0, math.abs(st[1]), math.abs(st[2])) end
-		end
-		if roadHalf then -- nur Straßen mit Gehweg (Kreisel und Plätze haben keinen)
-			local nx, nz = -seg.uz, seg.ux
-			for _, side in ipairs({ -1, 1 }) do
-				local off = side * (roadHalf + L.inset)
-				local t = L.spacing / 2
-				while t < seg.len do
-					local x, z = seg.ax + seg.ux * t + nx * off, seg.az + seg.uz * t + nz * off
-					if onWalk(walks, x, z) then
-						lamp(parts, x, z, -nx * side, -nz * side, L.height)
-						stats.lamps = stats.lamps + 1
-					end
-					t = t + L.spacing
-				end
-			end
-		end
-	end
+	local stats = { signals = 0, ped = 0 }
 
 	local lamps3 = { { name = "Red", on = RED, dim = DIM.RED }, { name = "Yellow", on = YELLOW, dim = DIM.YELLOW }, { name = "Green", on = GREEN, dim = DIM.GREEN } }
 	local lamps2 = { { name = "Red", on = RED, dim = DIM.RED }, { name = "Green", on = GREEN, dim = DIM.GREEN } }
@@ -1027,6 +1120,118 @@ function LightsPlanner.plan(cfg, roadPlan)
 end
 
 return LightsPlanner
+
+end)()
+
+local Ampel = (function()
+-- Ampel.lua
+-- Schaltet alle Ampeln der Karte (Tag "TrafficLight", Attribute Group/Axis/Lamp) und die Fußgängerampeln (Tag "PedLight").
+-- Kreuzungen: Achse NS grün, gelb, Räumzeit, dann Querstraße grün, gelb, Räumzeit. Jede Kreuzung startet versetzt.
+-- Feuerwache (Gruppen "Wache_*"): grün für den Verkehr, bis workspace:SetAttribute("WacheAlarm", true) gesetzt wird.
+-- Dann gelb, rot und der Verkehr steht; mit SetAttribute("WacheAlarm", false) wieder grün.
+-- Als eigenes Script in ServerScriptService (das Plugin legt es an) oder direkt per Ampel.start() im Test-Script.
+
+local Ampel = {}
+
+Ampel.config = {
+	green = 30, -- Sekunden grün je Richtung
+	yellow = 3,
+	clear = 2, -- alle rot, bevor die andere Richtung grün bekommt
+	pedGreen = 12,
+	pedRed = 28,
+}
+
+local ON = { Red = { 235, 40, 40 }, Yellow = { 255, 190, 30 }, Green = { 60, 220, 90 } }
+local DIM = { Red = { 90, 20, 20 }, Yellow = { 100, 74, 12 }, Green = { 20, 80, 36 } }
+
+-- Zustand einer Kreuzung zur Zeit t (Sekunden) -> Farbe für NS und EW
+function Ampel.junction(c, t)
+	local phases = {
+		{ c.green, "Green", "Red" }, { c.yellow, "Yellow", "Red" }, { c.clear, "Red", "Red" },
+		{ c.green, "Red", "Green" }, { c.yellow, "Red", "Yellow" }, { c.clear, "Red", "Red" },
+	}
+	local cycle = 0
+	for _, p in ipairs(phases) do cycle = cycle + p[1] end
+	t = t % cycle
+	for _, p in ipairs(phases) do
+		if t < p[1] then return p[2], p[3] end
+		t = t - p[1]
+	end
+	return "Red", "Red"
+end
+
+-- Feuerwache: state = { mode = "Green" | "Yellow" | "Red", since = t }. Gibt die Farbe zurück (ändert state).
+function Ampel.wache(c, state, alarm, t)
+	if alarm and state.mode == "Green" then state.mode, state.since = "Yellow", t end
+	if state.mode == "Yellow" and t - state.since >= c.yellow then state.mode, state.since = "Red", t end
+	if not alarm and state.mode ~= "Green" and t - state.since >= 1 then state.mode, state.since = "Green", t end
+	return state.mode
+end
+
+function Ampel.ped(c, t)
+	return (t % (c.pedGreen + c.pedRed)) < c.pedGreen and "Green" or "Red"
+end
+
+local function setLamp(part, on, name)
+	if part:GetAttribute("Lit") == on then return end
+	part:SetAttribute("Lit", on)
+	part.Material = on and Enum.Material.Neon or Enum.Material.SmoothPlastic
+	local col = (on and ON or DIM)[name]
+	part.Color = Color3.fromRGB(col[1], col[2], col[3])
+end
+
+function Ampel.start()
+	local CollectionService = game:GetService("CollectionService")
+	local Workspace = game:GetService("Workspace")
+	local groups = {} -- name -> { lamps = { NS = { Red = {parts} ...}, EW = ... }, wache = state | nil, offset }
+	local n = 0
+	local function collect(tag)
+		for _, part in ipairs(CollectionService:GetTagged(tag)) do
+			local name, axis, lamp = part:GetAttribute("Group"), part:GetAttribute("Axis"), part:GetAttribute("Lamp")
+			if name and axis and lamp then
+				local g = groups[name]
+				if not g then
+					n = n + 1
+					g = { lamps = { NS = {}, EW = {} }, ped = tag == "PedLight", wache = string.sub(name, 1, 6) == "Wache_" and { mode = "Green", since = 0 } or nil, offset = n * 7 }
+					groups[name] = g
+				end
+				local list = g.lamps[axis][lamp] or {}
+				g.lamps[axis][lamp] = list
+				list[#list + 1] = part
+			end
+		end
+	end
+	collect("TrafficLight")
+	collect("PedLight")
+	local function show(g, axis, color)
+		for name, list in pairs(g.lamps[axis]) do
+			for _, part in ipairs(list) do setLamp(part, name == color, name) end
+		end
+	end
+	task.spawn(function()
+		while true do
+			local t = os.clock()
+			local alarm = Workspace:GetAttribute("WacheAlarm") == true
+			for _, g in pairs(groups) do
+				if g.ped then
+					local c = Ampel.ped(Ampel.config, t)
+					show(g, "EW", c)
+				elseif g.wache then
+					local c = Ampel.wache(Ampel.config, g.wache, alarm, t)
+					show(g, "NS", c)
+					show(g, "EW", "Red")
+				else
+					local ns, ew = Ampel.junction(Ampel.config, t + g.offset)
+					show(g, "NS", ns)
+					show(g, "EW", ew)
+				end
+			end
+			task.wait(0.25)
+		end
+	end)
+end
+
+return Ampel
 
 end)()
 
@@ -1220,20 +1425,22 @@ function Builder.buildParts(parts, parent, origin)
 	end
 end
 
--- Häuser: je Haus ein Model (PrimaryPart = Body)
+-- Häuser: je Haus ein Model (PrimaryPart = Body); plan.houses und die Hinterhäuser plan.inner
 function Builder.build(plan, parent, origin)
-	for _, h in ipairs(plan.houses) do
-		local model = Instance.new("Model")
-		model.Name = h.name
-		model:SetAttribute("Floors", h.floors)
-		model:SetAttribute("Side", h.side)
-		for _, spec in ipairs(h.parts) do
-			local part = buildPart(spec, origin)
-			part.Parent = model
-			if spec.name == "Body" then model.PrimaryPart = part end
+	for _, list in ipairs({ plan.houses, plan.inner or {} }) do
+		for _, h in ipairs(list) do
+			local model = Instance.new("Model")
+			model.Name = h.name
+			model:SetAttribute("Floors", h.floors)
+			model:SetAttribute("Side", h.side)
+			for _, spec in ipairs(h.parts) do
+				local part = buildPart(spec, origin)
+				part.Parent = model
+				if spec.name == "Body" then model.PrimaryPart = part end
+			end
+			model.Parent = parent -- erst am Ende, spart Replikation
+			breathe(8)
 		end
-		model.Parent = parent -- erst am Ende, spart Replikation
-		breathe(8)
 	end
 end
 
@@ -1307,6 +1514,17 @@ function Builder.clearTerrain()
 end
 
 -- Ordner Workspace.Map.<path...>; ein vorhandener letzter Ordner wird ersetzt (Neu-Bauen möglich).
+-- Legt das Ampel-Skript in ServerScriptService an (Plugin darf Source setzen), ersetzt ein vorhandenes
+function Builder.installController(source)
+	local sss = game:GetService("ServerScriptService")
+	local old = sss:FindFirstChild("AmpelSteuerung")
+	if old then old:Destroy() end
+	local script = Instance.new("Script")
+	script.Name = "AmpelSteuerung"
+	script.Source = source
+	script.Parent = sss
+end
+
 function Builder.container(...)
 	local function folder(parent, name, replace)
 		local f = parent:FindFirstChild(name)
@@ -1365,9 +1583,9 @@ local STEPS = {
 		return string.format("%d Teile, %d Parkbuchten", #plan.parts, plan.stats.bays)
 	end,
 	lights = function(opts, origin)
-		local plan = LightsPlanner.plan(Config, RoadsPlanner.plan(Config))
+		local plan = LightsPlanner.plan(Config)
 		Builder.buildParts(plan.parts, Builder.container("Strassenmobiliar"), origin)
-		return string.format("%d Laternen, %d Ampeln, %d Fußgängerampeln, %d Teile", plan.stats.lamps, plan.stats.signals, plan.stats.ped, #plan.parts)
+		return string.format("%d Ampelmasten, %d Fußgängerampeln, %d Teile", plan.stats.signals, plan.stats.ped, #plan.parts)
 	end,
 	houses = function(opts, origin)
 		local only, houses, parts = {}, 0, 0
@@ -1438,6 +1656,11 @@ function BuildAll.run(opts)
 			if ok2 then ground = g else print("[boden] FEHLER: " .. tostring(g)) end
 		end
 	end
+	if opts.controllerSource then -- Plugin: Ampel-Skript dauerhaft anlegen
+		local ok, err = pcall(Builder.installController, opts.controllerSource)
+		print(ok and "[ampel] Script AmpelSteuerung in ServerScriptService angelegt" or ("[ampel] FEHLER: " .. tostring(err)))
+	end
+	if opts.afterBuild then opts.afterBuild() print("[ampel] läuft (nur bis zum Stoppen)") end -- Test-Script
 	pcall(function() game:GetService("ChangeHistoryService"):SetWaypoint("MapBuilder") end) -- Strg+Z
 	print("Fertig")
 end
@@ -1446,4 +1669,4 @@ return BuildAll
 
 end)()
 
-BuildAll.run({ steps = STEPS, only = ONLY, origin = ORIGIN })
+BuildAll.run({ steps = STEPS, only = ONLY, origin = ORIGIN, afterBuild = Ampel.start })

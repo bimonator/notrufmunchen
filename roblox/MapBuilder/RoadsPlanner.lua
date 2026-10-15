@@ -10,8 +10,10 @@ local COLOR = {
 	road = { 84, 90, 96 }, walk = { 168, 172, 174 }, plaza = { 214, 208, 196 }, median = { 118, 150, 98 },
 	dash = { 236, 236, 230 }, deck = { 140, 140, 146 }, rail = { 70, 70, 76 }, tunnel = { 110, 110, 116 },
 }
-local MATERIAL = { road = "Asphalt", walk = "Concrete", plaza = "Pavement", median = "Grass" }
+local MATERIAL = { road = "Asphalt", walk = "Concrete", plaza = "Concrete", median = "Grass" }
 local TOP = { road = 0.5, walk = 1.0, plaza = 0.5, median = 0.8 }
+-- Markierungen stehen 0,1 bis 0,2 Studs über der Fahrbahn (Fahrbahn-Oberkante 0,5 bis 0,62)
+local DASH_Y, DASH_H = 0.6, 0.2
 local THICK = { road = 1, walk = 2, plaza = 1, median = 1.8 }
 
 local function part(parts, name, kind, x, y, z, sx, sy, sz, yaw, color, material, extra)
@@ -22,6 +24,25 @@ local function part(parts, name, kind, x, y, z, sx, sy, sz, yaw, color, material
 		yaw = Geo.round3(yaw), pitch = extra.pitch or 0, color = color, material = material,
 		collide = extra.collide ~= false, seg = extra.seg,
 	}
+end
+
+-- Große Fliesen wie am Marienplatz: Fugen alle TILE Studs quer und längs auf eine Platzfläche (Mitte cx, cz; Länge len entlang u, Breite w quer)
+local TILE, JOINT, JOINT_COLOR = 6, 0.18, { 150, 144, 136 }
+local function tileJoints(parts, cx, cz, ux, uz, len, w, top, yaw, seg)
+	local nx, nz = -uz, ux
+	local y = top + 0.03
+	local k = 1
+	while k * TILE < len do -- Fugen quer zur Länge
+		local t = -len / 2 + k * TILE
+		part(parts, "Fuge", "joint", cx + ux * t, y, cz + uz * t, JOINT, 0.06, w, yaw, JOINT_COLOR, "SmoothPlastic", { collide = false, seg = seg })
+		k = k + 1
+	end
+	k = 1
+	while k * TILE < w do -- Fugen in Längsrichtung
+		local v = -w / 2 + k * TILE
+		part(parts, "Fuge", "joint", cx + nx * v, y, cz + nz * v, len, 0.06, JOINT, yaw, JOINT_COLOR, "SmoothPlastic", { collide = false, seg = seg })
+		k = k + 1
+	end
 end
 
 -- Segmente aller Straßen mit Verlängerung an Knicken (hw * tan(Knickwinkel / 2)), damit außen keine Lücke bleibt
@@ -57,6 +78,24 @@ local function buildSegments(cfg)
 	return segs
 end
 
+-- Fahrbahnen, die sich überlappen (Kreuzungen, Ecken der Ringstraße), liegen sonst auf exakt gleicher Höhe und flackern (Z-Fighting).
+-- Darum bekommt jede Straße eine Stufe (greedy-Färbung); Stufe k hebt die Fahrbahn um k * 0,04 Studs.
+local LEVEL_STEP = 0.04
+local PLAZA_LIFT = 0.2 -- Plätze liegen über allen Fahrbahnen
+local function roadLevels(segs)
+	local level = {}
+	for _, s in ipairs(segs) do
+		local used = {}
+		for _, o in ipairs(segs) do
+			if level[o.id] and Geo.rectsOverlap(s.rect, o.rect) then used[level[o.id]] = true end
+		end
+		local k = 0
+		while used[k] do k = k + 1 end
+		level[s.id] = k
+	end
+	return level
+end
+
 function RoadsPlanner.segments(cfg)
 	return buildSegments(cfg)
 end
@@ -78,6 +117,7 @@ function RoadsPlanner.plan(cfg)
 	local segs = buildSegments(cfg)
 	local tun = cfg.tunnel
 	local stats = { bays = 0, dashes = 0 }
+	local level = roadLevels(segs)
 
 	for _, seg in ipairs(segs) do
 		local yaw = Geo.yawOf(seg.ux, seg.uz)
@@ -105,6 +145,7 @@ function RoadsPlanner.plan(cfg)
 			local mid, w, kind = (st[1] + st[2]) / 2, st[2] - st[1], st[3]
 			local sx, sz = p0x + nx * mid, p0z + nz * mid
 			local cuts = {}
+			local lift = (kind == "road") and LEVEL_STEP * level[seg.id] or (kind == "plaza" and PLAZA_LIFT or 0)
 			if kind == "walk" then cuts = crossCuts(segs, seg, sx, sz, L, 0.05) end
 			if st[4] and tunnelCut then cuts[#cuts + 1] = tunnelCut end
 			for _, bc in ipairs(bridgeCuts) do cuts[#cuts + 1] = bc end
@@ -112,8 +153,9 @@ function RoadsPlanner.plan(cfg)
 				local len = sp[2] - sp[1]
 				if len > 0.5 then
 					local c = (sp[1] + sp[2]) / 2
-					part(parts, string.format("%s_%d_%s", seg.road.name, seg.id, kind), kind, sx + seg.ux * c, TOP[kind] - THICK[kind] / 2, sz + seg.uz * c,
+					part(parts, string.format("%s_%d_%s", seg.road.name, seg.id, kind), kind, sx + seg.ux * c, TOP[kind] + lift - THICK[kind] / 2, sz + seg.uz * c,
 						len, THICK[kind], w, yaw, COLOR[kind], MATERIAL[kind], { seg = seg.id })
+					if kind == "plaza" then tileJoints(parts, sx + seg.ux * c, sz + seg.uz * c, seg.ux, seg.uz, len, w, TOP.plaza + lift, yaw, seg.id) end
 				end
 			end
 		end
@@ -127,7 +169,7 @@ function RoadsPlanner.plan(cfg)
 				local t = sp[1] + 1
 				while t + 6 <= sp[2] - 1 do
 					local c = t + 3
-					part(parts, "Dash", "dash", sx + seg.ux * c, 0.53, sz + seg.uz * c, 6, 0.06, 0.4, yaw, COLOR.dash, "SmoothPlastic", { collide = false, seg = seg.id })
+					part(parts, "Dash", "dash", sx + seg.ux * c, DASH_Y, sz + seg.uz * c, 6, DASH_H, 0.4, yaw, COLOR.dash, "SmoothPlastic", { collide = false, seg = seg.id })
 					stats.dashes = stats.dashes + 1
 					t = t + 12
 				end
@@ -143,13 +185,14 @@ function RoadsPlanner.plan(cfg)
 		for k = 0, n do
 			local x, z = x0 + ux * cfg.bay.length * k, z0 + uz * cfg.bay.length * k
 			local sx, sz = (math.abs(ux) > 0.5) and 0.3 or cfg.bay.width, (math.abs(ux) > 0.5) and cfg.bay.width or 0.3
-			part(parts, "BayLine", "dash", x, 0.53, z, sx, 0.06, sz, 0, COLOR.dash, "SmoothPlastic", { collide = false })
+			part(parts, "BayLine", "dash", x, DASH_Y, z, sx, DASH_H, sz, 0, COLOR.dash, "SmoothPlastic", { collide = false })
 		end
 		stats.bays = stats.bays + n
 	end
 
 	for _, pl in ipairs(cfg.plazas) do
-		part(parts, "Plaza_" .. pl.name, "plaza", (pl.x0 + pl.x1) / 2, -0.05, (pl.z0 + pl.z1) / 2, pl.x1 - pl.x0, 1, pl.z1 - pl.z0, 0, COLOR.plaza, MATERIAL.plaza, {})
+		part(parts, "Plaza_" .. pl.name, "plaza", (pl.x0 + pl.x1) / 2, TOP.plaza + PLAZA_LIFT - THICK.plaza / 2, (pl.z0 + pl.z1) / 2, pl.x1 - pl.x0, 1, pl.z1 - pl.z0, 0, COLOR.plaza, MATERIAL.plaza, {})
+		tileJoints(parts, (pl.x0 + pl.x1) / 2, (pl.z0 + pl.z1) / 2, 1, 0, pl.x1 - pl.x0, pl.z1 - pl.z0, TOP.plaza + PLAZA_LIFT, 0)
 	end
 
 	-- Brücken: Deck unter dem Asphalt (Oberkante -0.5), Geländer an beiden Kanten

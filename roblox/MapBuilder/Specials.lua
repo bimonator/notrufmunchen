@@ -5,7 +5,7 @@
 return {
 	{ name = "Isarbank", x0 = -127, z0 = -385, x1 = -55, z1 = -315, facing = "E", floors = 4, color = { 176, 120, 100 } },
 	{ name = "Parkhaus", x0 = -205, z0 = -250, x1 = -109, z1 = -140, facing = "N", floors = 4, color = { 170, 170, 176 } },
-	{ name = "Tankstellen-Shop", x0 = 112, z0 = -280, x1 = 164, z1 = -210, facing = "W", floors = 1, color = { 245, 245, 245 }, canopy = { 68, -292, 102, -196 } },
+	{ name = "Tankstellen-Shop", x0 = 150, z0 = -280, x1 = 202, z1 = -210, facing = "W", floors = 1, color = { 245, 245, 245 }, canopy = { 98, -292, 132, -196 }, lot = { 85, -300, 205, -190 }, lotGap = { -262, -226 } },
 	{ name = "Feuer-und-Rettungswache", x0 = -425, z0 = -200, x1 = -275, z1 = -100, facing = "W", floors = 3, color = { 200, 70, 55 } },
 	{ name = "Polizeiwache", x0 = 215, z0 = 310, x1 = 295, z1 = 380, facing = "S", floors = 3, color = { 70, 110, 200 } },
 	{ name = "Krankenhaus", x0 = 340, z0 = -430, x1 = 500, z1 = -310, facing = "W", floors = 5, color = { 90, 170, 150 } },

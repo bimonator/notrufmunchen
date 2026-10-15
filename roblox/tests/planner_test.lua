@@ -133,6 +133,47 @@ for _, block in ipairs(Blocks) do
 	end
 	check(differs, tag .. "Seed hat keine Wirkung")
 
+	-- 7. Hinterhäuser im Innenhof: im Hof, 2-3 Geschosse, Gasse >= 10 zu Randhäusern, Sonderflächen und Grundstück bleiben frei
+	check(block.noInner == nil or #plan.inner == 0, tag .. "Hinterhäuser trotz noInner")
+	for i, h in ipairs(plan.inner) do
+		local b = bodyOf(h)
+		local x0, _, z0, x1, _, z1 = Planner.aabb(b)
+		check(x0 >= cy[1] - EPS and x1 <= cy[3] + EPS and z0 >= cy[2] - EPS and z1 <= cy[4] + EPS, tag .. h.name .. " liegt nicht im Innenhof")
+		check(h.floors >= 2 and h.floors <= 3, tag .. h.name .. " Geschosse " .. h.floors)
+		for _, o in ipairs(plan.houses) do
+			local ox0, _, oz0, ox1, _, oz1 = Planner.aabb(bodyOf(o))
+			local gx, gz = math.max(ox0 - x1, x0 - ox1), math.max(oz0 - z1, z0 - oz1)
+			check(math.max(gx, gz) >= 10, tag .. h.name .. " zu dicht an " .. o.name)
+		end
+		for j = i + 1, #plan.inner do
+			local ox0, _, oz0, ox1, _, oz1 = Planner.aabb(bodyOf(plan.inner[j]))
+			check(math.max(ox0 - x1, x0 - ox1, oz0 - z1, z0 - oz1) >= 10, tag .. h.name .. " zu dicht an " .. plan.inner[j].name)
+		end
+		local avoid = {}
+		for _, r in ipairs(block.reserved or {}) do avoid[#avoid + 1] = r end
+		if block.lot then avoid[#avoid + 1] = block.lot end
+		for _, r in ipairs(avoid) do
+			check(not (x0 < r[3] + 9 and x1 > r[1] - 9 and z0 < r[4] + 9 and z1 > r[2] - 9), tag .. h.name .. " steht auf Sonderfläche/Grundstück")
+		end
+	end
+	if block.name == "G_LeopoldOst" then
+		check(#plan.inner >= 10, tag .. "zu wenige Hinterhäuser: " .. #plan.inner)
+		local lane = block.reserved[1] -- Zufahrt zur Tankstelle bleibt frei
+		for _, h in ipairs(plan.houses) do
+			local x0, _, z0, x1, _, z1 = Planner.aabb(bodyOf(h))
+			check(not (x0 < lane[3] and x1 > lane[1] and z0 < lane[4] and z1 > lane[2]), tag .. h.name .. " versperrt die Tankstellen-Zufahrt")
+		end
+	end
+	-- 8. Rückseiten haben Fenster und eine Hintertür
+	for _, h in ipairs(plan.houses) do
+		local back, door = 0, false
+		for _, p in ipairs(h.parts) do
+			if string.find(p.name, "GlassR", 1, true) == 1 then back = back + 1 end
+			if p.name == "BackDoor" then door = true end
+		end
+		check(back >= h.floors and door, tag .. h.name .. " ohne Rückfenster/Hintertür")
+	end
+
 	print(string.format("%-12s %2d Häuser, %4d Teile, Grundfläche %6.0f, Innenhof %.0f x %.0f", block.name, st.houses, st.parts, st.footprint, cy[3] - cy[1], cy[4] - cy[2]))
 end
 
@@ -146,6 +187,15 @@ do
 		check(math.abs(x0 - sp.x0) < 0.01 and math.abs(x1 - sp.x1) < 0.01 and math.abs(z0 - sp.z0) < 0.01 and math.abs(z1 - sp.z1) < 0.01,
 			sp.name .. " hat nicht die geplante Grundfläche: " .. x0 .. "," .. z0 .. "," .. x1 .. "," .. z1)
 		plans[#plans + 1] = { sp = sp, b = b }
+	end
+	for _, pl in ipairs(plans) do -- Tankstelle: Schirm und Shop liegen auf dem Grundstück, die Zufahrt trifft es auf Höhe der Schirmmitte
+		local sp = pl.sp
+		if sp.lot then
+			local c = sp.canopy
+			check(c[1] >= sp.lot[1] and c[3] <= sp.lot[3] and c[2] >= sp.lot[2] and c[4] <= sp.lot[4], "Schirm außerhalb des Grundstücks")
+			check(sp.x0 >= sp.lot[1] and sp.x1 <= sp.lot[3] and sp.z0 >= sp.lot[2] and sp.z1 <= sp.lot[4], "Shop außerhalb des Grundstücks")
+			check(sp.lotGap[1] >= sp.lot[2] and sp.lotGap[2] <= sp.lot[4] and (sp.lotGap[1] + sp.lotGap[2]) / 2 == (c[2] + c[4]) / 2, "Zufahrt nicht mittig zum Schirm")
+		end
 	end
 	for i = 1, #plans do
 		for j = i + 1, #plans do

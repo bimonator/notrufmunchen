@@ -53,20 +53,22 @@ function Builder.buildParts(parts, parent, origin)
 	end
 end
 
--- Häuser: je Haus ein Model (PrimaryPart = Body)
+-- Häuser: je Haus ein Model (PrimaryPart = Body); plan.houses und die Hinterhäuser plan.inner
 function Builder.build(plan, parent, origin)
-	for _, h in ipairs(plan.houses) do
-		local model = Instance.new("Model")
-		model.Name = h.name
-		model:SetAttribute("Floors", h.floors)
-		model:SetAttribute("Side", h.side)
-		for _, spec in ipairs(h.parts) do
-			local part = buildPart(spec, origin)
-			part.Parent = model
-			if spec.name == "Body" then model.PrimaryPart = part end
+	for _, list in ipairs({ plan.houses, plan.inner or {} }) do
+		for _, h in ipairs(list) do
+			local model = Instance.new("Model")
+			model.Name = h.name
+			model:SetAttribute("Floors", h.floors)
+			model:SetAttribute("Side", h.side)
+			for _, spec in ipairs(h.parts) do
+				local part = buildPart(spec, origin)
+				part.Parent = model
+				if spec.name == "Body" then model.PrimaryPart = part end
+			end
+			model.Parent = parent -- erst am Ende, spart Replikation
+			breathe(8)
 		end
-		model.Parent = parent -- erst am Ende, spart Replikation
-		breathe(8)
 	end
 end
 
@@ -140,6 +142,17 @@ function Builder.clearTerrain()
 end
 
 -- Ordner Workspace.Map.<path...>; ein vorhandener letzter Ordner wird ersetzt (Neu-Bauen möglich).
+-- Legt das Ampel-Skript in ServerScriptService an (Plugin darf Source setzen), ersetzt ein vorhandenes
+function Builder.installController(source)
+	local sss = game:GetService("ServerScriptService")
+	local old = sss:FindFirstChild("AmpelSteuerung")
+	if old then old:Destroy() end
+	local script = Instance.new("Script")
+	script.Name = "AmpelSteuerung"
+	script.Source = source
+	script.Parent = sss
+end
+
 function Builder.container(...)
 	local function folder(parent, name, replace)
 		local f = parent:FindFirstChild(name)

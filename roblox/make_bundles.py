@@ -6,7 +6,7 @@ import os
 import re
 
 here = os.path.dirname(os.path.abspath(__file__))
-ORDER = ["Geo", "Config", "Planner", "Blocks", "Specials", "RoadsPlanner", "LightsPlanner", "TerrainPlanner", "WallPlanner", "Builder", "BuildAll"]
+ORDER = ["Geo", "Config", "Planner", "Blocks", "Specials", "RoadsPlanner", "LightsPlanner", "Ampel", "TerrainPlanner", "WallPlanner", "Builder", "BuildAll"]
 
 
 def read(name):
@@ -27,7 +27,7 @@ local STEPS = { "terrain", "roads", "lights", "houses", "wall" } -- Teilmenge m�
 local ONLY = nil -- nur bestimmte Häuserblöcke, z. B. { "B_NordMitte" }; nil = alle
 local ORIGIN = Vector3.new(0, 0, 0) -- Position des Siegestors
 
-""" + modules() + "BuildAll.run({ steps = STEPS, only = ONLY, origin = ORIGIN })\n"
+""" + modules() + "BuildAll.run({ steps = STEPS, only = ONLY, origin = ORIGIN, afterBuild = Ampel.start })\n"
 
 plugin = """-- MapBuilder_Plugin.lua  (automatisch erzeugt mit make_bundles.py, nicht von Hand ändern)
 -- Dauerhaft bauen: in Workspace ein Script anlegen, alles einfügen, Rechtsklick auf das Script >
@@ -35,10 +35,17 @@ plugin = """-- MapBuilder_Plugin.lua  (automatisch erzeugt mit make_bundles.py, 
 -- Der Knopf baut im Edit-Modus, die Objekte bleiben im Projekt erhalten (Strg+Z macht es rückgängig).
 local ORIGIN = Vector3.new(0, 0, 0) -- Position des Siegestors
 
-""" + modules() + """local toolbar = plugin:CreateToolbar("Notruf München")
+""" + modules() + """local AMPEL_SOURCE = [==[
+local Ampel = (function()
+""" + read("Ampel") + """
+end)()
+Ampel.start()
+]==]
+
+local toolbar = plugin:CreateToolbar("Notruf München")
 local button = toolbar:CreateButton("Karte bauen", "Terrain, Straßen, Ampeln, Laternen, Häuser und Mapgrenze bauen", "")
 button.Click:Connect(function()
-	BuildAll.run({ origin = ORIGIN })
+	BuildAll.run({ origin = ORIGIN, controllerSource = AMPEL_SOURCE })
 end)
 """
 

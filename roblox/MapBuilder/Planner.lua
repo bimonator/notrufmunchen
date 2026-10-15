@@ -99,6 +99,7 @@ end
 -- Fläche (face) "front", "+x" oder "-x"; u = Position entlang der Fläche, d = Abstand vor der Wand
 local function onFace(h, face, u, d)
 	if face == "front" then return u, -d, 0 end
+	if face == "back" then return u, h.depth + d, 180 end
 	if face == "+x" then return h.width / 2 + d, u, -90 end
 	return -h.width / 2 - d, u, 90
 end
@@ -110,13 +111,13 @@ local SHUTTERS = { { 70, 100, 80 }, { 110, 60, 50 }, { 60, 70, 100 }, { 90, 90, 
 local AWNINGS = { { 190, 60, 50 }, { 60, 100, 150 }, { 70, 130, 90 }, { 220, 170, 60 } }
 
 -- Fenster: Rahmen und Scheibe sitzen vor der Wand (kein Ausschnitt), Fensterbank darunter. shift = zusätzlicher Abstand (Erker).
-local function addWindow(h, label, face, u, yc, w, hgt, lit, shift)
+local function addWindow(h, label, face, u, yc, w, hgt, lit, shift, noSill)
 	shift = shift or 0
 	local lx, lz, ey = onFace(h, face, u, 0.2 + shift)
 	add(h, "Frame" .. label, "frame", lx, yc, lz, w + 1.6, hgt + 1.6, 0.4, FRAME, "SmoothPlastic", { yaw = ey })
 	lx, lz = onFace(h, face, u, 0.4 + shift)
 	add(h, "Glass" .. label, "glass", lx, yc, lz, w, hgt, 0.2, lit and GLASS_LIT or GLASS, "Glass", { yaw = ey, lit = lit, tag = "HouseWindow" })
-	if h.simple then return end
+	if h.simple or noSill then return end
 	lx, lz = onFace(h, face, u, 0.5 + shift)
 	add(h, "Sill" .. label, "trim", lx, yc - hgt / 2 - 1.1, lz, w + 3, 0.6, 1.0, { 200, 196, 188 }, "Concrete", { yaw = ey })
 end
@@ -237,6 +238,23 @@ local function planHouse(h, o, rng, cornerA, cornerB)
 		end
 	end
 
+	-- Rückseite zum Innenhof: Fenster in jedem Geschoss, zwei Erdgeschossfenster und eine Hintertür
+	if h.rear then
+		for k = 1, floors - 1 do
+			local yb = y0 + o.groundH + o.upperH * (k - 1)
+			for i = 1, nw do
+				addWindow(h, "R" .. k .. "_" .. i, "back", -W / 2 + (i - 0.5) * W / nw, yb + 6, 4.4, 6.4, rng.next() < o.litChance, 0, true)
+			end
+		end
+		local bx, bz = onFace(h, "back", dx, 0.25)
+		add(h, "BackDoorFrame", "frame", bx, y0 + 5, bz, 6.4, 10, 0.5, { 70, 52, 42 }, "Wood", { yaw = 180 })
+		bx, bz = onFace(h, "back", dx, 0.55)
+		add(h, "BackDoor", "door", bx, y0 + 4.5, bz, 5, 9, 0.3, { 110, 70, 45 }, "Wood", { yaw = 180 })
+		for i = 1, math.max(1, math.floor((W - 21) / 9) + 1) do
+			addWindow(h, "RG_" .. i, "back", -dx + doorSign * 9 * (i - 1), y0 + 8, 4.4, 5.4, rng.next() < o.litChance, 0, true)
+		end
+	end
+
 	-- Eckhaus: Fenster auch an der Seitenfläche zur Querstraße
 	for _, face in ipairs({ cornerA and "-x" or false, cornerB and "+x" or false }) do
 		if face and not h.simple then
@@ -277,7 +295,7 @@ local function planSides(name, sides, o, rng, plan, depth)
 					idx = idx + 1
 					local width = widths[i]
 					local h = {
-						side = side.name, index = idx, simple = o.simple,
+						side = side.name, index = idx, simple = o.simple, rear = o.rear ~= false,
 						ox = side.sx + side.ux * (t + width / 2), oz = side.sz + side.uz * (t + width / 2),
 						yaw = side.yaw, width = width, depth = depth, parts = {},
 						name = string.format("Haus_%s_%s%d", name, side.name, idx),
@@ -302,6 +320,43 @@ function Planner.aabb(p)
 	local sx, sy, sz = p.size[1], p.size[2], p.size[3]
 	if p.yaw % 180 == 90 then sx, sz = sz, sx end
 	return p.pos[1] - sx / 2, p.pos[2] - sy / 2, p.pos[3] - sz / 2, p.pos[1] + sx / 2, p.pos[2] + sy / 2, p.pos[3] + sz / 2
+end
+
+
+-- Hinterhäuser: der Innenhof wird mit niedrigen Häusern (2 bis 3 Geschosse) in einem Raster gefüllt, dazwischen 12 Studs breite Gassen,
+-- 14 Studs Abstand zu den Rückseiten der Randhäuser. Sonderflächen (reserved) und das Tankstellen-Grundstück (lot) bleiben mit 10 Studs Rand frei.
+local function planInner(plan, block, o, rng)
+	plan.inner = {}
+	if block.noInner then return end
+	local cy = plan.courtyard
+	local M, GAP, TARGET, MAXW = 14, 12, 34, 46
+	local x0, z0, x1, z1 = cy[1] + M, cy[2] + M, cy[3] - M, cy[4] - M
+	local cols, rows = math.floor((x1 - x0 + GAP) / (TARGET + GAP)), math.floor((z1 - z0 + GAP) / (TARGET + GAP))
+	if cols < 1 or rows < 1 then return end
+	local cw, cd = (x1 - x0 - (cols - 1) * GAP) / cols, (z1 - z0 - (rows - 1) * GAP) / rows
+	local w, d = math.min(cw, MAXW), math.min(cd, MAXW)
+	local avoid = {}
+	for _, r in ipairs(block.reserved or {}) do avoid[#avoid + 1] = r end
+	if block.lot then avoid[#avoid + 1] = block.lot end
+	for r = 1, rows do
+		for c = 1, cols do
+			local cx, cz = x0 + (c - 1) * (cw + GAP) + cw / 2, z0 + (r - 1) * (cd + GAP) + cd / 2
+			local blocked = false
+			for _, a in ipairs(avoid) do
+				if cx - w / 2 < a[3] + 10 and cx + w / 2 > a[1] - 10 and cz - d / 2 < a[4] + 10 and cz + d / 2 > a[2] - 10 then blocked = true end
+			end
+			if not blocked then
+				local south = r % 2 == 0 -- Reihen wechseln die Blickrichtung
+				local h = {
+					side = "I", index = #plan.inner + 1, simple = true, rear = true, forceFloors = rng.int(2, 3),
+					ox = cx, oz = south and cz + d / 2 or cz - d / 2, yaw = south and 180 or 0, width = w, depth = d, parts = {},
+					name = string.format("Hof_%s_%d", block.name, #plan.inner + 1),
+				}
+				planHouse(h, o, rng, false, false)
+				plan.inner[#plan.inner + 1] = h
+			end
+		end
+	end
 end
 
 -- block = { name, xmin, zmin, xmax, zmax, reserved = { {x0,z0,x1,z1}, ... } } (Außenkante = Straßenrand).
@@ -331,6 +386,7 @@ function Planner.planBlock(block, opts)
 		end
 		plan.houses = kept
 	end
+	planInner(plan, block, o, rng)
 	return plan
 end
 
@@ -341,7 +397,7 @@ function Planner.planSpecial(spec, opts)
 	local rng = newRng(o.seed + hash(spec.name))
 	local f = spec.facing
 	local h = {
-		side = f, index = 0, simple = false, forceFloors = spec.floors, color = spec.color, parts = {}, name = "Sonder_" .. spec.name,
+		side = f, index = 0, simple = false, rear = true, forceFloors = spec.floors, color = spec.color, parts = {}, name = "Sonder_" .. spec.name,
 	}
 	if f == "N" then h.ox, h.oz, h.yaw, h.width, h.depth = (spec.x0 + spec.x1) / 2, spec.z0, 0, spec.x1 - spec.x0, spec.z1 - spec.z0
 	elseif f == "S" then h.ox, h.oz, h.yaw, h.width, h.depth = (spec.x0 + spec.x1) / 2, spec.z1, 180, spec.x1 - spec.x0, spec.z1 - spec.z0
@@ -373,6 +429,19 @@ function Planner.planSpecial(spec, opts)
 			for k = 0, 3 do w3("Pump", px, 3.5, c[2] + 10 + k * (d - 20) / 3, 1.5, 5, 1.5, RED, "SmoothPlastic") end
 		end
 	end
+	if spec.lot then -- Tankstellen-Grundstück: Plateau (Asphalt, Oberkante 1) mit Betonkante, Zufahrt (Schneise) auf der Westseite offen
+		local l, gap = spec.lot, spec.lotGap
+		local function slab(name, x0, z0, x1, z1, y, hgt, color, mat)
+			h.parts[#h.parts + 1] = { name = name, kind = "trim", size = { round3(x1 - x0), hgt, round3(z1 - z0) }, pos = { round3((x0 + x1) / 2), round3(y), round3((z0 + z1) / 2) }, yaw = 0, pitch = 0, color = color, material = mat, collide = true, lpos = { 0, y, 0 } }
+		end
+		slab("Plateau", l[1], l[2], l[3], l[4], 0.4, 1.2, { 78, 80, 86 }, "Asphalt")
+		local KERB, K = { 190, 188, 182 }, 1.4
+		slab("Kante", l[1], l[2], l[3], l[2] + K, 1.25, 0.5, KERB, "Concrete")
+		slab("Kante", l[1], l[4] - K, l[3], l[4], 1.25, 0.5, KERB, "Concrete")
+		slab("Kante", l[3] - K, l[2] + K, l[3], l[4] - K, 1.25, 0.5, KERB, "Concrete")
+		slab("Kante", l[1], l[2] + K, l[1] + K, gap[1], 1.25, 0.5, KERB, "Concrete")
+		slab("Kante", l[1], gap[2], l[1] + K, l[4] - K, 1.25, 0.5, KERB, "Concrete")
+	end
 	return { houses = { h } }
 end
 
@@ -381,7 +450,7 @@ end
 --          specials = { { side, name, x0, x1, floors } } }
 function Planner.planWall(wall, opts)
 	local o = mergeOpts(opts)
-	o.simple, o.setback = true, 0
+	o.simple, o.setback, o.rear = true, 0, false
 	local D = math.abs(wall.outer.xmin - wall.inner.xmin)
 	local rng = newRng(o.seed + hash("Mapgrenze"))
 	local ix0, iz0, ix1, iz1 = wall.inner.xmin, wall.inner.zmin, wall.inner.xmax, wall.inner.zmax
@@ -426,11 +495,14 @@ end
 
 function Planner.stats(plan)
 	local parts, area = 0, 0
-	for _, h in ipairs(plan.houses) do
-		parts = parts + #h.parts
-		area = area + h.width * h.depth
+	local n = #plan.houses
+	for _, list in ipairs({ plan.houses, plan.inner or {} }) do
+		for _, h in ipairs(list) do
+			parts = parts + #h.parts
+			area = area + h.width * h.depth
+		end
 	end
-	return { houses = #plan.houses, parts = parts, footprint = area }
+	return { houses = n + #(plan.inner or {}), parts = parts, footprint = area }
 end
 
 return Planner

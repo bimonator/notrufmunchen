@@ -58,6 +58,30 @@ end
 check(walks > 40, "zu wenige Gehwege: " .. walks)
 check(bad == 0, bad .. " Gehwegteile liegen in anderen Straßen")
 
+-- Kein Z-Fighting: wo sich zwei Fahrbahn- oder Platzteile überlappen, liegen ihre Oberkanten mindestens 0,03 auseinander
+do
+	local flat = {}
+	for _, p in ipairs(parts) do
+		if (p.kind == "road" or p.kind == "plaza" or p.kind == "median") and p.pos[2] > -3 and p.pitch == 0 then flat[#flat + 1] = p end
+	end
+	local same = 0
+	for i, a in ipairs(flat) do
+		local ta = a.pos[2] + a.size[2] / 2
+		local r = math.rad(a.yaw)
+		local ux, uz = math.cos(r), -math.sin(r)
+		for _, fx in ipairs({ -0.35, 0, 0.35 }) do
+			for _, fz in ipairs({ -0.3, 0.3 }) do
+				local px = a.pos[1] + ux * a.size[1] * fx + uz * a.size[3] * fz
+				local pz = a.pos[3] + uz * a.size[1] * fx - ux * a.size[3] * fz
+				for j, b in ipairs(flat) do
+					if j ~= i and Geo.inPart(px, pz, b, 0.2) and math.abs(ta - (b.pos[2] + b.size[2] / 2)) < 0.03 then same = same + 1 end
+				end
+			end
+		end
+	end
+	check(same == 0, same .. " Überlappungen mit gleicher Oberkante (Flackern)")
+end
+
 -- Jede Straßen-Mittellinie ist asphaltiert (außer im Tunnelbereich der Achse)
 local tun = Config.tunnel
 local uncovered = 0
@@ -244,71 +268,99 @@ end
 check(special == 2, "Querriegel und Feldherrnhalle erwartet")
 check(#wall.parts == 4, "Brückenhäuser und Gitter erwartet")
 
--- ===== Laternen und Ampeln =====
-local lights = LightsPlanner.plan(Config, road)
-print(string.format("Beleuchtung: %d Laternen, %d Ampeln, %d Fußgängerampeln, %d Teile", lights.stats.lamps, lights.stats.signals, lights.stats.ped, #lights.parts))
-check(lights.stats.lamps > 250, "zu wenige Laternen: " .. lights.stats.lamps)
+-- ===== Ampeln =====
+local lights = LightsPlanner.plan(Config)
+print(string.format("Ampeln: %d Masten, %d Fußgängerampeln, %d Teile", lights.stats.signals, lights.stats.ped, #lights.parts))
 check(lights.stats.signals == #Config.signals and lights.stats.ped == 2, "Ampeln unvollständig")
--- Nummerierung der Ampelgruppen laut Plan: Ring Nord, H1, Odeonsplatz, 2 Wachen-Ausfahrten
-local groups = {}
-for _, s in ipairs(Config.signals) do groups[s.name] = true end
-local ng = 0
-for _ in pairs(groups) do ng = ng + 1 end
+local groups, ng = {}, 0
+for _, s in ipairs(Config.signals) do
+	if not groups[s.name] then groups[s.name] = true ng = ng + 1 end
+end
 check(ng == 5, "Ampelanlagen " .. ng .. " statt 5")
--- Jeder Mast (Laterne, Ampel) steht auf einem Gehweg und in keiner Fahrbahn einer Straße
-local carriage = {}
-for _, p in ipairs(parts) do
-	if p.kind == "road" or p.kind == "median" or p.kind == "tunnel" then carriage[#carriage + 1] = p end
-end
-local masts, onRoad, offWalk = 0, 0, 0
+-- Jeder Mast steht auf einem Gehweg und in keiner Fahrbahn
+local masts = 0
 for _, p in ipairs(lights.parts) do
-	if p.name == "LaternenMast" or p.name == "AmpelMast" or p.name == "FussgaengerMast" then
+	if p.name == "AmpelMast" or p.name == "FussgaengerMast" then
 		masts = masts + 1
-		local onWalkPart = false
+		local onWalkPart, onAsphalt = false, false
 		for _, w in ipairs(parts) do
-			if (w.kind == "walk" or w.kind == "plaza") and Geo.inPart(p.pos[1], p.pos[3], w, 0) then onWalkPart = true break end
+			if w.kind == "walk" and Geo.inPart(p.pos[1], p.pos[3], w, 0) then onWalkPart = true end
+			if (w.kind == "road" or w.kind == "median") and w.pos[2] > -3 and Geo.inPart(p.pos[1], p.pos[3], w, 0) then onAsphalt = true end
 		end
-		local onAsphalt = false
-		for _, c in ipairs(carriage) do
-			if c.pos[2] > -3 and Geo.inPart(p.pos[1], p.pos[3], c, 0) then onAsphalt = true break end
-		end
-		if not onWalkPart then offWalk = offWalk + 1 print("  Mast ohne Gehweg: " .. p.name .. " bei " .. p.pos[1] .. "," .. p.pos[3]) end
-		if onAsphalt then onRoad = onRoad + 1 print("  Mast auf Fahrbahn: " .. p.name .. " bei " .. p.pos[1] .. "," .. p.pos[3]) end
+		check(onWalkPart, "Mast ohne Gehweg: " .. p.name .. " bei " .. p.pos[1] .. "," .. p.pos[3])
+		check(not onAsphalt, "Mast auf Fahrbahn: " .. p.name .. " bei " .. p.pos[1] .. "," .. p.pos[3])
 	end
 end
-check(masts == lights.stats.lamps + lights.stats.signals + lights.stats.ped, "Mastanzahl " .. masts)
-check(onRoad == 0, onRoad .. " Masten auf der Fahrbahn")
-check(offWalk == 0, offWalk .. " Masten außerhalb von Gehwegen")
--- Laternen stehen nicht dichter als der halbe Abstand (keine doppelten)
-local lampPos = {}
-for _, p in ipairs(lights.parts) do
-	if p.name == "LaternenMast" then lampPos[#lampPos + 1] = p end
-end
-local close = 0
-for i = 1, #lampPos do
-	for j = i + 1, #lampPos do
-		local dx, dz = lampPos[i].pos[1] - lampPos[j].pos[1], lampPos[i].pos[3] - lampPos[j].pos[3]
-		if dx * dx + dz * dz < 10 * 10 then close = close + 1 end
-	end
-end
-check(close == 0, close .. " Laternenpaare enger als 10 Studs")
--- Leopoldstraße (Achse, nördlich des Tunnels) hat Laternen auf beiden Seiten
-local west, east = 0, 0
-for _, p in ipairs(lampPos) do
-	if math.abs(p.pos[1]) > 40 and math.abs(p.pos[1]) < 60 and p.pos[3] < -150 then
-		if p.pos[1] < 0 then west = west + 1 else east = east + 1 end
-	end
-end
-check(west > 3 and east > 3, "Achse: Laternen West " .. west .. ", Ost " .. east)
--- Signalkopf: pro Ampelmast 3 Lampen, genau eine (rot) an
-local lampsOn, signalLamps = 0, 0
+check(masts == #Config.signals + #Config.pedSignals, "Mastanzahl " .. masts)
+-- Signalkopf: pro Mast 3 Lampen, genau eine (rot) an; jede Lampe kennt Gruppe, Achse und Farbe für Ampel.lua
+local on, total = 0, 0
 for _, p in ipairs(lights.parts) do
 	if p.tag == "TrafficLight" then
-		signalLamps = signalLamps + 1
-		if p.attrs.Lit then lampsOn = lampsOn + 1 end
+		total = total + 1
+		if p.attrs.Lit then on = on + 1 end
+		check(p.attrs.Group and (p.attrs.Axis == "NS" or p.attrs.Axis == "EW") and p.attrs.Lamp, "Ampellampe ohne Attribute")
 	end
 end
-check(signalLamps == 3 * #Config.signals and lampsOn == #Config.signals, "Ampellampen " .. signalLamps .. "/" .. lampsOn)
+check(total == 3 * #Config.signals and on == #Config.signals, "Ampellampen " .. total .. "/" .. on)
+
+-- Schaltlogik (Ampel.lua)
+local Ampel = require("Ampel")
+local ac = Ampel.config
+local cycle = 2 * (ac.green + ac.yellow + ac.clear)
+local seen, conflict = {}, 0
+for t = 0, cycle * 2, 0.5 do
+	local ns, ew = Ampel.junction(ac, t)
+	seen[ns .. "/" .. ew] = true
+	if ns ~= "Red" and ew ~= "Red" then conflict = conflict + 1 end
+end
+check(conflict == 0, "beide Richtungen gleichzeitig nicht rot: " .. conflict)
+check(seen["Green/Red"] and seen["Yellow/Red"] and seen["Red/Green"] and seen["Red/Yellow"] and seen["Red/Red"], "Phasen unvollständig")
+local g0, e0 = Ampel.junction(ac, 0)
+local g1, e1 = Ampel.junction(ac, cycle)
+check(g0 == g1 and e0 == e1, "Zyklus wiederholt sich nicht")
+check(select(1, Ampel.junction(ac, ac.green + 0.1)) == "Yellow" and select(2, Ampel.junction(ac, ac.green + ac.yellow + ac.clear + 0.1)) == "Green", "Phasenfolge")
+-- Feuerwache: grün, bei Alarm gelb dann rot, nach Entwarnung wieder grün
+local st = { mode = "Green", since = 0 }
+check(Ampel.wache(ac, st, false, 5) == "Green", "Wache ohne Alarm nicht grün")
+check(Ampel.wache(ac, st, true, 10) == "Yellow", "Wache bei Alarm nicht gelb")
+check(Ampel.wache(ac, st, true, 10 + ac.yellow + 0.1) == "Red", "Wache bei Alarm nicht rot")
+check(Ampel.wache(ac, st, true, 100) == "Red", "Wache bleibt bei Alarm nicht rot")
+check(Ampel.wache(ac, st, false, 101.5) == "Green", "Wache nach Entwarnung nicht grün")
+check(Ampel.ped(ac, 1) == "Green" and Ampel.ped(ac, ac.pedGreen + 1) == "Red", "Fußgängerampel")
+
+-- Ampel.start gegen Attrappen: Wache-Lampen folgen dem Attribut WacheAlarm
+do
+	local function newLamp(group, axis, lamp)
+		local a = { Group = group, Axis = axis, Lamp = lamp, Lit = false }
+		return { GetAttribute = function(_, k) return a[k] end, SetAttribute = function(_, k, v) a[k] = v end, attrs = a }
+	end
+	local lamps = { newLamp("Wache_V1", "NS", "Red"), newLamp("Wache_V1", "NS", "Yellow"), newLamp("Wache_V1", "NS", "Green"), newLamp("Achse_X", "NS", "Green"), newLamp("Achse_X", "EW", "Red") }
+	local wsAttr = { WacheAlarm = false }
+	local now = 0
+	local steps
+	local services = {
+		CollectionService = { GetTagged = function(_, tag) return tag == "TrafficLight" and lamps or {} end },
+		Workspace = { GetAttribute = function(_, k) return wsAttr[k] end },
+	}
+	game = { GetService = function(_, n) return services[n] end }
+	Enum = { Material = { Neon = "Neon", SmoothPlastic = "SmoothPlastic" } }
+	Color3 = { fromRGB = function(r, g, b) return { r, g, b } end }
+	os.clock = function() return now end
+	task = { spawn = function(f) steps = coroutine.wrap(f) end, wait = function() coroutine.yield() end }
+	Ampel.start()
+	steps()
+	check(lamps[3].attrs.Lit and not lamps[1].attrs.Lit, "Wache ohne Alarm: grün erwartet")
+	wsAttr.WacheAlarm = true
+	now = 20
+	steps() steps()
+	now = 20 + ac.yellow + 0.5
+	steps()
+	check(lamps[1].attrs.Lit and not lamps[3].attrs.Lit, "Wache bei Alarm: rot erwartet")
+	wsAttr.WacheAlarm = false
+	now = 40
+	steps() now = 42 steps()
+	check(lamps[3].attrs.Lit and not lamps[1].attrs.Lit, "Wache nach Alarm: wieder grün erwartet")
+end
 
 print(string.format("Wand: Höhe %d bis %d", minH, maxH))
 if failures > 0 then

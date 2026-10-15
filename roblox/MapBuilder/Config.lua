@@ -105,9 +105,6 @@ C.parks = { -- Gras-Oberfläche (Terrain)
 C.hills = { { name = "Monopteros", x = 575, z = 75, layers = { { 44, 0, 4 }, { 30, 4, 8 } } } } -- { Radius, y0, y1 }, nur 8 hoch
 C.terrace = { name = "Friedensengel", x0 = 870, z0 = 250, x1 = 1020, z1 = 346, height = 4 }
 
--- Straßenlaternen: Abstand entlang der Gehwege, Mast steht 2 Studs hinter dem Bordstein, Ausleger zeigt über die Fahrbahn
-C.lamps = { spacing = 56, inset = 2.5, height = 13 }
-
 -- Ampeln (Standort Mast + Blickrichtung des Signalkopfes, also zum ankommenden Verkehr) und Fußgängerampeln.
 -- Rechtsverkehr: Achse Süd-Richtung fährt auf der Westseite. Maste stehen auf Gehwegen, nie auf der Fahrbahn.
 C.signals = {

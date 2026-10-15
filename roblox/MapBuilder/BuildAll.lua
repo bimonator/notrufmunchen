@@ -29,9 +29,9 @@ local STEPS = {
 		return string.format("%d Teile, %d Parkbuchten", #plan.parts, plan.stats.bays)
 	end,
 	lights = function(opts, origin)
-		local plan = LightsPlanner.plan(Config, RoadsPlanner.plan(Config))
+		local plan = LightsPlanner.plan(Config)
 		Builder.buildParts(plan.parts, Builder.container("Strassenmobiliar"), origin)
-		return string.format("%d Laternen, %d Ampeln, %d Fußgängerampeln, %d Teile", plan.stats.lamps, plan.stats.signals, plan.stats.ped, #plan.parts)
+		return string.format("%d Ampelmasten, %d Fußgängerampeln, %d Teile", plan.stats.signals, plan.stats.ped, #plan.parts)
 	end,
 	houses = function(opts, origin)
 		local only, houses, parts = {}, 0, 0
@@ -102,6 +102,11 @@ function BuildAll.run(opts)
 			if ok2 then ground = g else print("[boden] FEHLER: " .. tostring(g)) end
 		end
 	end
+	if opts.controllerSource then -- Plugin: Ampel-Skript dauerhaft anlegen
+		local ok, err = pcall(Builder.installController, opts.controllerSource)
+		print(ok and "[ampel] Script AmpelSteuerung in ServerScriptService angelegt" or ("[ampel] FEHLER: " .. tostring(err)))
+	end
+	if opts.afterBuild then opts.afterBuild() print("[ampel] läuft (nur bis zum Stoppen)") end -- Test-Script
 	pcall(function() game:GetService("ChangeHistoryService"):SetWaypoint("MapBuilder") end) -- Strg+Z
 	print("Fertig")
 end

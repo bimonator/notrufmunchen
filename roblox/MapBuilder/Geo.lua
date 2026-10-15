@@ -44,6 +44,29 @@ function Geo.within(px, pz, ux, uz, L, r, margin)
 	return lo, hi
 end
 
+-- Überlappen sich zwei Rechtecke (Format von Geo.rect) in der Draufsicht um mehr als 0,5 Studs? (Trennachsen-Test)
+function Geo.rectsOverlap(a, b)
+	local function corners(r)
+		local out = {}
+		for _, s in ipairs({ r.s0, r.s1 }) do
+			for _, w in ipairs({ -r.w, r.w }) do
+				out[#out + 1] = { r.ax + r.ux * s + r.nx * w, r.az + r.uz * s + r.nz * w }
+			end
+		end
+		return out
+	end
+	local ca, cb = corners(a), corners(b)
+	for _, r in ipairs({ a, b }) do
+		for _, axis in ipairs({ { r.ux, r.uz }, { r.nx, r.nz } }) do
+			local amin, amax, bmin, bmax = 1e18, -1e18, 1e18, -1e18
+			for _, c in ipairs(ca) do local d = c[1] * axis[1] + c[2] * axis[2] amin, amax = math.min(amin, d), math.max(amax, d) end
+			for _, c in ipairs(cb) do local d = c[1] * axis[1] + c[2] * axis[2] bmin, bmax = math.min(bmin, d), math.max(bmax, d) end
+			if amax < bmin + 0.5 or bmax < amin + 0.5 then return false end
+		end
+	end
+	return true
+end
+
 -- Aus den Abschnitten spans (Liste {a, b}) die Abschnitte cuts herausschneiden
 function Geo.subtract(spans, cuts)
 	local out = {}

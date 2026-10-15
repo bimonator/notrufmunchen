@@ -14,9 +14,10 @@ Baut die Karte aus `docs/MAP_PLAN.md` und `docs/phase1_bauplan.html` per Code: T
 [terrain] 1171 Terrain-Operationen
 [boden] Terrain-Oberkante gemessen: -2.0, alle weiteren Teile werden daran ausgerichtet
 [wasser] ok (... Wasser-Zellen am Messpunkt)
-[roads] 1321 Teile, 157 Parkbuchten
-[lights] 319 Laternen, 13 Ampeln, 2 Fußgängerampeln, 1030 Teile
-[houses] 129 Häuser, 8147 Teile
+[roads] 1475 Teile, 157 Parkbuchten
+[lights] 13 Ampelmasten, 2 Fußgängerampeln, 73 Teile
+[houses] 154 Häuser, 12928 Teile
+[ampel] Script AmpelSteuerung in ServerScriptService angelegt
 [wall] 128 Gebäude, 8743 Teile
 Fertig
 ```
@@ -82,3 +83,13 @@ Ampeln, Schilder und Straßennamen, Straßenlampen und Bäume, Innenräume und D
 ## Übergabe an eine neue Claude-Session
 
 Ordner `roblox/` zeigen und sagen: „Baue die Karte im Studio mit `MapBuilder_Plugin.lua` (Anleitung in `roblox/README.md`), prüfe das Ergebnis und korrigiere `Builder.lua`. Die Geometrie nur ändern, wenn `tests/run_with_lupa.py` danach weiter besteht, und danach `python3 make_bundles.py` ausführen."
+
+## Ampelsteuerung
+
+Das Plugin legt beim Bauen ein Script `AmpelSteuerung` in ServerScriptService an (beim zweiten Bauen wird es ersetzt). Es schaltet beim Play/Run:
+
+- **Kreuzungen** (Achse × Ring Nord, H1, Odeonsplatz): Achse 30 s grün, 3 s gelb, 2 s alle rot, dann Querstraße 30 s grün usw. Jede Kreuzung startet versetzt. Zeiten oben in `Ampel.lua` (`Ampel.config`), im Script `AmpelSteuerung` ganz oben im Block `Ampel.config`.
+- **Feuerwache** (Gruppen `Wache_V1`, `Wache_V2`): grün für den Verkehr. `workspace:SetAttribute("WacheAlarm", true)` schaltet gelb, dann rot; `false` schaltet wieder grün. Test: im Run-Modus in der Command Bar `workspace:SetAttribute("WacheAlarm", true)`.
+- **Fußgängerampeln** am Siegestor: 12 s grün, 28 s rot.
+
+Das Test-Script `MapBuilder_Script.lua` startet die Steuerung direkt nach dem Bauen.

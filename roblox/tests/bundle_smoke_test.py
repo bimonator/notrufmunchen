@@ -34,7 +34,7 @@ CFrame = { new = function(v) return setmetatable({ v = v }, C) end, Angles = fun
 Color3 = { fromRGB = function(r, g, b) assert(r and g and b); return { r, g, b } end }
 local mats = {}
 Enum = { Material = setmetatable({}, { __index = function(t, k) mats[k] = true; return k end }) }
-task = { wait = function() end }
+task = { wait = function() end, spawn = function() end }
 terrainCalls, tagged = 0, 0
 local terrain = { Clear = function() end }
 terrain.ReadVoxels = function(self, region, res) return { { { Enum.Material.Water } } } end
@@ -46,7 +46,8 @@ terrain.FillCylinder = function(self, cf, h, r, mat) assert(cf and h and r and m
 local services = { Workspace = newInstance("Workspace") }
 services.Workspace.Terrain = terrain
 services.Workspace.Raycast = function(self, origin, dir, params) return { Position = { Y = -2 } } end
-services.CollectionService = { AddTag = function(self, p, t) assert(p and t); tagged = tagged + 1 end }
+services.ServerScriptService = newInstance('ServerScriptService')
+services.CollectionService = { GetTagged = function() return {} end, AddTag = function(self, p, t) assert(p and t); tagged = tagged + 1 end }
 services.ChangeHistoryService = { SetWaypoint = function() end }
 game = { GetService = function(self, n) return services[n] end }
 function count(i, class)
@@ -70,3 +71,19 @@ assert parts > 16000, "Parts: %d" % parts
 lua.execute(code)  # zweiter Lauf ersetzt die Ordner statt sie zu verdoppeln
 assert lua.eval("count(workspace_, 'Model')") == models and lua.eval("count(workspace_, 'Part')") == parts, "zweiter Lauf hat verdoppelt"
 print("Smoke-Test bestanden (auch der zweite Lauf)")
+
+# Plugin-Bundle: Knopf bauen und prüfen, dass das Ampel-Skript angelegt wird
+lua = lua51.LuaRuntime()
+lua.execute(STUB)
+lua.execute("""
+clicked = nil
+plugin = { CreateToolbar = function() return { CreateButton = function() return { Click = { Connect = function(_, f) clicked = f end } } end } end }
+""")
+with open(os.path.join(here, "..", "MapBuilder_Plugin.lua"), encoding="utf-8") as f:
+    lua.execute(f.read())
+lua.execute("clicked()")
+assert lua.eval("game:GetService('ServerScriptService'):FindFirstChild('AmpelSteuerung') ~= nil"), "Plugin legt kein Ampel-Skript an"
+assert "Ampel.start()" in lua.eval("game:GetService('ServerScriptService'):FindFirstChild('AmpelSteuerung').Source")
+lua.execute("clicked()")
+assert lua.eval("count(game:GetService('ServerScriptService'), 'Script')") == 1, "Ampel-Skript doppelt"
+print("Plugin-Test bestanden (Knopf, Ampel-Skript einmalig)")
