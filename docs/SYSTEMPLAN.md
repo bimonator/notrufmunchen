@@ -58,9 +58,19 @@ Einsatzarten: Verkehrsunfall, Herzstillstand, Sturz an der Eisbachwelle, **Verle
 | danach | Flucht, Fahrzeugwechsel im Parkhaus, Beute am Abgabepunkt waschen | beide |
 | nach Ende | Bank **10 min** gesperrt | – |
 
-**Polizei-Anfahrt:** Wache ca. 900–1100 Studs vom Tresor entfernt, dann kommt die Polizei nach ca. 20–25 s an (Durchschnittstempo ca. 40 Studs/s mit Ampeln und Kurven, Annahme). Das ist knapp vor dem Aufgehen des Tresors: Tension statt „sofort vorbei".
+**Polizei-Anfahrt:** Wache (Südosten, Innenhof mit Schranke) ca. 780 Studs vom Tresor entfernt, dann kommt die Polizei nach ca. 19 s an (Durchschnittstempo ca. 40 Studs/s mit Ampeln und Kurven, Annahme). Das ist knapp vor dem Aufgehen des Tresors: Tension statt „sofort vorbei".
 
 **Kiosk:** 1–2 Spieler, 20 s ohne Sprengung (Kasse aufbrechen), Cooldown 5 min.
+
+## 3a. Wachen und Krankenhaus
+
+Standorte, Grundrisse und Maße stehen in `docs/phase1_bauplan.html` (Abschnitt „Wachen und Krankenhaus").
+
+- **Polizeiwache** (klein, modern): Empfang mit Job-Terminal, Umkleide mit Spind, Rollenspiel-Räume, Zellen, Innenhof mit 8 Spawnplätzen und Schranke zum Ring.
+- **Feuerwache mit Rettungsdienst:** 5 Tore auf die Leopoldstraße, Job-Terminal, Spinde, Aufenthalt, Einsatzleitung.
+- **Krankenhaus** (nur Rollenspiel): Notaufnahme, Schockraum, OP, 4 Krankenzimmer mit Betten.
+- **Rettungseinsatz:** Standard ist Wiederbelebung vor Ort (ca. 10–15 s). Der Transport ins Krankenhaus ist freiwillig (Rollenspiel) und gibt einen kleinen Bonus.
+- **Job-Ablauf:** Wache betreten, am Job-Terminal bewerben, am Spind Uniform und Ausrüstung holen, Fahrzeug spawnen.
 
 ## 4. Schmuggelware und Schwarzmarkt
 
@@ -157,7 +167,7 @@ Balance-Gedanke: Die Polizei hat ca. 10 % mehr Spitze, Fluchtautos der Kriminell
 
 ## 10. Offene Punkte
 
-1. Standort Polizeiwache, Rettungswache, Krankenhaus.
+1. Wachen und Krankenhaus sind platziert (siehe 3a). Bitte prüfen, ob die Standorte passen.
 2. Welche Toolbox-Fahrzeuge (2–3 pro Klasse)? Schick mir die Namen, dann prüfe ich die Ziele.
 3. Dein X-Logo: soll es für alle Fahrzeuge gleich sein oder gibt es Varianten pro Klasse?
 4. Loot-Spots erweitern: Juwelier, Club-Kasse, Geldtransporter ja oder nein?
