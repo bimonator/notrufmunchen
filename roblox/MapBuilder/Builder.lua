@@ -10,7 +10,8 @@ local Builder = {}
 local MATERIALS = {
 	SmoothPlastic = Enum.Material.SmoothPlastic, Concrete = Enum.Material.Concrete, Brick = Enum.Material.Brick,
 	Glass = Enum.Material.Glass, Wood = Enum.Material.Wood, Metal = Enum.Material.Metal, Asphalt = Enum.Material.Asphalt,
-	Pavement = Enum.Material.Pavement, Grass = Enum.Material.Grass, Water = Enum.Material.Water, Neon = Enum.Material.Neon, Air = Enum.Material.Air,
+	Pavement = Enum.Material.Pavement, Grass = Enum.Material.Grass, Water = Enum.Material.Water, Neon = Enum.Material.Neon, Sand = Enum.Material.Sand, Rock = Enum.Material.Rock,
+	Marble = Enum.Material.Marble, Fabric = Enum.Material.Fabric, Ground = Enum.Material.Ground, Air = Enum.Material.Air,
 }
 
 local function buildPart(spec, origin)
@@ -20,7 +21,7 @@ local function buildPart(spec, origin)
 	p.Size = Vector3.new(spec.size[1], spec.size[2], spec.size[3])
 	p.CFrame = CFrame.new(origin + Vector3.new(spec.pos[1], spec.pos[2], spec.pos[3]))
 		* CFrame.Angles(0, math.rad(spec.yaw), 0) * CFrame.Angles(math.rad(spec.pitch or 0), 0, math.rad(spec.roll or 0))
-	if spec.shape == "Cylinder" then p.Shape = Enum.PartType.Cylinder end -- Achse läuft entlang x, mit roll = 90 steht sie senkrecht
+	if spec.shape == "Cylinder" then p.Shape = Enum.PartType.Cylinder elseif spec.shape == "Ball" then p.Shape = Enum.PartType.Ball end -- Achse läuft entlang x, mit roll = 90 steht sie senkrecht
 	if spec.transparency then p.Transparency = spec.transparency end
 	p.Color = Color3.fromRGB(spec.color[1], spec.color[2], spec.color[3])
 	p.Material = MATERIALS[spec.material] or Enum.Material.SmoothPlastic

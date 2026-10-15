@@ -6,7 +6,7 @@ import os
 import re
 
 here = os.path.dirname(os.path.abspath(__file__))
-ORDER = ["Geo", "Config", "Planner", "Blocks", "Specials", "RoadsPlanner", "LightsPlanner", "Landmarks", "Ampel", "TerrainPlanner", "WallPlanner", "Builder", "BuildAll"]
+ORDER = ["Geo", "Config", "Planner", "Blocks", "Specials", "RoadsPlanner", "LightsPlanner", "Landmarks", "Ampel", "TerrainPlanner", "Garden", "WallPlanner", "Builder", "BuildAll"]
 
 
 def read(name):
@@ -23,7 +23,7 @@ def modules():
 script = """-- MapBuilder_Script.lua  (automatisch erzeugt mit make_bundles.py, nicht von Hand ändern)
 -- Test: in ServerScriptService ein Script anlegen, alles einfügen, oben im Studio auf RUN (nicht Play) klicken.
 -- Die Karte entsteht nur zur Laufzeit und ist nach dem Stoppen weg. Für dauerhaftes Bauen: MapBuilder_Plugin.lua.
-local STEPS = { "terrain", "roads", "lights", "landmarks", "houses", "wall" } -- Teilmenge möglich, z. B. { "roads" }
+local STEPS = { "terrain", "roads", "lights", "landmarks", "gardens", "houses", "wall" } -- Teilmenge möglich, z. B. { "roads" }
 local ONLY = nil -- nur bestimmte Häuserblöcke, z. B. { "B_NordMitte" }; nil = alle
 local ORIGIN = Vector3.new(0, 0, 0) -- Position des Siegestors
 

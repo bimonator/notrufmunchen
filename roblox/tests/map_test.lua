@@ -74,7 +74,7 @@ do
 				local px = a.pos[1] + ux * a.size[1] * fx + uz * a.size[3] * fz
 				local pz = a.pos[3] + uz * a.size[1] * fx - ux * a.size[3] * fz
 				for j, b in ipairs(flat) do
-					if j ~= i and Geo.inPart(px, pz, b, 0.2) and math.abs(ta - (b.pos[2] + b.size[2] / 2)) < 0.03 then same = same + 1 end
+					if j ~= i and Geo.inPart(px, pz, b, 0.2) and math.abs(ta - (b.pos[2] + b.size[2] / 2)) < 0.03 then same = same + 1 print("  Flackern: " .. a.name .. " und " .. b.name .. " bei " .. px .. "," .. pz) end
 				end
 			end
 		end
@@ -130,39 +130,41 @@ for _, p in ipairs(parts) do
 end
 check(clear >= 13.5, "lichte Höhe " .. clear)
 
--- Gewölbte Isar-Brücken: Scheitel, Enden auf Straßenniveau, zwei Pfeiler, darunter keine flache Straße mehr
-for _, b in ipairs(Config.archBridges) do
+-- Isar-Brücken: flach auf Straßenhöhe, länger als die Uferböschung, Pfeiler im Wasser und auf der Kiesbank, darunter keine Straße mehr
+local hwBank = Config.water.isar.layers[1][3]
+for _, b in ipairs(Config.isarBridges) do
 	local r = math.rad(b.yaw)
 	local ux, uz = math.cos(r), -math.sin(r)
-	local topMax, topEnd, n, piers, flat = -1e9, 1e9, 0, 0, 0
+	local deck, piers, columns, flat, capY = nil, 0, 0, 0, nil
 	for _, p in ipairs(parts) do
 		local along = (p.pos[1] - b.x) * ux + (p.pos[3] - b.z) * uz
 		local across = -(p.pos[1] - b.x) * uz + (p.pos[3] - b.z) * ux
-		if p.name == "BrueckeFahrbahn" and math.abs(across) < 2 and math.abs(along) < b.len / 2 + 1 then
-			n = n + 1
-			local top = p.pos[2] + 2 -- Platte 4 dick, Oberkante etwa Mitte + 2
-			topMax = math.max(topMax, top)
-			if math.abs(along) > b.len / 2 - b.len / 16 then topEnd = math.min(topEnd, top) end
-		end
-		if p.name == "BrueckePfeiler" and math.abs(across) < 2 and math.abs(along) < b.len / 2 then
-			piers = piers + 1
-			check(math.abs((p.pos[2] - p.size[2] / 2) - (-14)) < 0.01, b.name .. " Pfeiler steht nicht auf dem Flussbett")
+		if p.name == "BrueckeFahrbahn" and math.abs(across) < 1 and math.abs(along) < 1 then deck = p end
+		if p.name == "BrueckePfeilerBalken" and math.abs(across) < 1 then piers = piers + 1 end
+		if p.name == "BrueckeSaeule" and math.abs(across + 21) < 0.5 then
+			columns = columns + 1
+			local bottom = p.pos[2] - p.size[1] / 2
+			check(p.shape == "Cylinder" and p.roll == 90, b.name .. " Säule nicht senkrecht")
+			check(math.abs(bottom + 1 - (p.pos[2] - p.size[1] / 2 + 1)) < 1e-6 and bottom <= -8, b.name .. " Säule steht nicht im Wasser/auf der Kiesbank: " .. bottom)
 		end
 		if p.seg and (p.kind == "road" or p.kind == "walk" or p.kind == "median") and math.abs(across) < 24 and math.abs(along) < b.len / 2 - 3 then flat = flat + 1 end
 	end
-	check(n == 16, b.name .. " Fahrbahnplatten " .. n)
-	check(math.abs(topMax - (0.5 + b.peak)) < 0.8, b.name .. " Scheitelhöhe " .. topMax .. " statt " .. (0.5 + b.peak))
-	check(topEnd < 0.5 + 2.5, b.name .. " Brückenenden zu hoch: " .. topEnd)
-	check(piers == 2, b.name .. " Pfeiler " .. piers)
+	check(deck ~= nil, b.name .. " ohne Fahrbahn")
+	if deck then
+		check(math.abs(deck.pos[2] + deck.size[2] / 2 - 0.5) < 1e-6, b.name .. " Fahrbahn nicht auf Straßenhöhe")
+		check(deck.size[1] >= 2 * hwBank + 20, b.name .. " Brücke kürzer als die Böschung: " .. deck.size[1])
+	end
+	check(piers >= 3, b.name .. " Pfeilerreihen " .. piers)
+	check(columns == piers, b.name .. " Säulen " .. columns .. " zu Pfeilern " .. piers)
 	check(flat == 0, b.name .. ": " .. flat .. " flache Straßenteile unter der Brücke")
 end
 
 -- Brücken
 local decks = 0
 for _, p in ipairs(parts) do
-	if p.kind == "deck" then decks = decks + 1 end
+	if p.kind == "deck" and string.find(p.name, "Deck_", 1, true) == 1 then decks = decks + 1 end
 end
-check(decks == #Config.bridges + 2 * #Config.archBridges, "Brückendecks und Pfeiler " .. decks)
+check(decks == #Config.bridges, "Brückendecks " .. decks)
 
 -- ===== Terrain =====
 local ops = TerrainPlanner.plan(Config)
@@ -421,6 +423,70 @@ do
 		check(yb < 130, "Friedensengel zu hoch")
 	end
 	check(column >= 60 and gold >= 6, "Friedensengel: Säule " .. column .. ", Goldteile " .. gold)
+end
+
+-- Sonderbauten liegen außerhalb der Isar-Böschung (und der Ring-Außenkante bleibt frei)
+for _, sp in ipairs(require("Specials")) do
+	for _, cx in ipairs({ sp.x0, sp.x1 }) do
+		for _, cz in ipairs({ sp.z0, sp.z1 }) do
+			check(Geo.polyDist(cx, cz, Config.water.isar.pts) > Config.water.isar.layers[1][3], sp.name .. " liegt in der Isar-Böschung")
+		end
+	end
+end
+for _, rd in ipairs(Config.roads) do -- Straßenpunkte (außer Brückenstraßen) liegen nicht in der Böschung
+	if rd.name == "Ring" or rd.name == "Diagonale" or rd.name == "V3" then
+		for _, pt in ipairs(rd.pts) do check(Geo.polyDist(pt[1], pt[2], Config.water.isar.pts) > Config.water.isar.layers[1][3] - 1, rd.name .. " Eckpunkt in der Böschung") end
+	end
+end
+
+-- ===== Grünanlagen =====
+local Garden = require("Garden")
+local Specials = require("Specials")
+local gp = Garden.plan(Config, road, Specials)
+local g = gp.parts
+print(string.format("Grünanlagen: %d Teile, %d Bäume (Hofgarten %d, Englischer Garten %d), Ufer: %d Wegplatten, %d Bänke, %d Büsche, %d Findlinge",
+	#g, gp.stats.hofTrees + gp.stats.egTrees, gp.stats.hofTrees, gp.stats.egTrees, gp.stats.bank.slabs, gp.stats.bank.benches, gp.stats.bank.bushes, gp.stats.bank.rocks))
+check(gp.stats.hofTrees >= 40 and gp.stats.egTrees >= 60, "zu wenige Bäume")
+check(gp.stats.bank.slabs >= 60 and gp.stats.bank.benches >= 6 and gp.stats.bank.rocks >= 10 and gp.stats.bank.bushes >= 20, "Ufer zu kahl")
+do
+	local isar, bach = Config.water.isar, Config.water.bach
+	local hwBank = isar.layers[1][3]
+	local trunks, onRoad, inWater, hill, columns, umbrellas, sign, benchSeats = 0, 0, 0, 0, 0, 0, false, 0
+	local h = Config.hills[1]
+	for _, p in ipairs(g) do
+		check(p.pos[2] > -14 and p.pos[2] < 120, p.name .. " Höhe " .. p.pos[2])
+		if p.name == "Stamm" then
+			trunks = trunks + 1
+			for _, s in ipairs(segs) do
+				local r = s.rect
+				local dx, dz = p.pos[1] - r.ax, p.pos[3] - r.az
+				local a, b = dx * r.ux + dz * r.uz, dx * r.nx + dz * r.nz
+				if a > r.s0 - 4 and a < r.s1 + 4 and math.abs(b) < r.w + 4 then onRoad = onRoad + 1 end
+			end
+			if Geo.polyDist(p.pos[1], p.pos[3], isar.pts) < hwBank or Geo.polyDist(p.pos[1], p.pos[3], bach.pts) < 18 then inWater = inWater + 1 end
+			if math.sqrt((p.pos[1] - h.x) ^ 2 + (p.pos[3] - h.z) ^ 2) < 20 then hill = hill + 1 end
+		end
+		if p.name == "Saeule" and math.sqrt((p.pos[1] - h.x) ^ 2 + (p.pos[3] - h.z) ^ 2) < 13 then columns = columns + 1 check(p.pos[2] - p.size[2] / 2 >= 10, "Monopteros-Säule zu tief") end
+		if p.name == "Schirm" then umbrellas = umbrellas + 1 end
+		if p.name == "Schrift" and p.text and p.text.s == "PRINZ EINS" then sign = true end
+		if p.name == "BankSitz" then benchSeats = benchSeats + 1 end
+		if p.name == "Uferweg" then check(math.abs(p.pos[2] + 3.9) < 1e-6, "Uferweg nicht auf der Uferstufe") end
+	end
+	check(onRoad == 0 and inWater == 0 and hill == 0, "Bäume auf Straße/im Wasser/auf dem Hügelplateau: " .. onRoad .. "/" .. inWater .. "/" .. hill)
+	check(columns == 9, "Monopteros: Säulen " .. columns)
+	check(umbrellas == 8 and sign, "Prinz Eins: Schirme " .. umbrellas)
+	check(benchSeats >= 20, "zu wenige Bänke " .. benchSeats)
+	-- Uferwege laufen nicht unter den Brücken durch
+	for _, p in ipairs(g) do
+		if p.name == "Uferweg" then
+			for _, b in ipairs(Config.isarBridges) do
+				local r = math.rad(b.yaw)
+				local ux, uz = math.cos(r), -math.sin(r)
+				local dx, dz = p.pos[1] - b.x, p.pos[3] - b.z
+				check(not (math.abs(dx * ux + dz * uz) < b.len / 2 - 2 and math.abs(-dx * uz + dz * ux) < b.wid / 2 + b.walk), "Uferweg unter Brücke " .. b.name)
+			end
+		end
+	end
 end
 
 print(string.format("Wand: Höhe %d bis %d", minH, maxH))

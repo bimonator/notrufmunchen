@@ -22,7 +22,7 @@ local function part(parts, name, kind, x, y, z, sx, sy, sz, yaw, color, material
 		name = name, kind = kind, size = { sx, sy, sz },
 		pos = { Geo.round3(x), Geo.round3(y), Geo.round3(z) },
 		yaw = Geo.round3(yaw), pitch = extra.pitch or 0, color = color, material = material,
-		collide = extra.collide ~= false, seg = extra.seg,
+		collide = extra.collide ~= false, seg = extra.seg, shape = extra.shape, roll = extra.roll,
 	}
 end
 
@@ -132,7 +132,7 @@ function RoadsPlanner.plan(cfg)
 			tunnelCut = { t0, t1 }
 		end
 		local bridgeCuts = {}
-		for _, b in ipairs(cfg.archBridges) do
+		for _, b in ipairs(cfg.isarBridges) do
 			local br = math.rad(b.yaw)
 			local bx, bz = math.cos(br), -math.sin(br)
 			local dx, dz = b.x - p0x, b.z - p0z
@@ -207,41 +207,48 @@ function RoadsPlanner.plan(cfg)
 		end
 	end
 
-	-- Gewölbte Isar-Brücken: Fahrbahn und Gehwege als geneigte Platten entlang einer Parabel, Brüstungen, Pfeiler im Fluss
+	-- Isar-Brücken: flach auf Straßenhöhe (Oberkante 0,5), Gehwege und Brüstungen aus Stein; getragen von Pfeilerreihen (Querbalken auf vier Säulen)
+	-- im Flussbett und auf der Kiesbank. Auf den Uferstufen liegt die Brücke frei darüber, an den Enden greift sie ins Gelände.
 	local STONE = { 196, 188, 172 }
-	for _, b in ipairs(cfg.archBridges) do
+	local function floorAt(x, z) -- Oberkante des Geländes im Flussprofil
+		local y = 0
+		local d = Geo.polyDist(x, z, cfg.water.isar.pts)
+		for _, ly in ipairs(cfg.water.isar.layers) do
+			if d < ly[3] then y = ly[2] end
+		end
+		if Geo.polyDist(x, z, cfg.water.bach.pts) < 16 then y = math.min(y, -7) end
+		return y
+	end
+	for _, b in ipairs(cfg.isarBridges) do
 		local r = math.rad(b.yaw)
 		local ux, uz = math.cos(r), -math.sin(r) -- Richtung der Brücke
 		local nx2, nz2 = -uz, ux -- quer
-		local yawZ = b.yaw + 90 -- lokale z-Achse der Platten läuft entlang der Brücke
-		local N = 16
-		local function top(s) -- Oberkante der Fahrbahn bei s (Mitte = 0)
-			local q = 2 * s / b.len
-			return 0.5 + b.peak * (1 - q * q)
+		local total = b.wid + 2 * b.walk
+		part(parts, "BrueckeFahrbahn", "road", b.x, -1.5, b.z, b.len, 4, b.wid, b.yaw, COLOR.road, "Asphalt", {})
+		for _, side in ipairs({ -1, 1 }) do
+			local lat = side * (b.wid / 2 + b.walk / 2)
+			part(parts, "BrueckeGehweg", "walk", b.x + nx2 * lat, -1, b.z + nz2 * lat, b.len, 4, b.walk, b.yaw, STONE, "Concrete", {})
+			lat = side * (b.wid / 2 + b.walk - 0.4)
+			part(parts, "BrueckeBruestung", "rail", b.x + nx2 * lat, 1.7, b.z + nz2 * lat, b.len, 1.4, 0.8, b.yaw, STONE, "Concrete", {})
 		end
-		for i = 0, N - 1 do
-			local s0, s1 = -b.len / 2 + b.len * i / N, -b.len / 2 + b.len * (i + 1) / N
-			local sm = (s0 + s1) / 2
-			local y0, y1 = top(s0), top(s1)
-			local ym = (y0 + y1) / 2
-			local L = math.sqrt((s1 - s0) ^ 2 + (y1 - y0) ^ 2) + 0.2
-			local pitch = -math.deg(math.atan2(y1 - y0, s1 - s0)) -- steigt mit s: negativer Pitch
-			local cx, cz = b.x + ux * sm, b.z + uz * sm
-			local function slab(name, kind, lat, w, thick, up, color, mat)
-				part(parts, name, kind, cx + nx2 * lat, ym + up - thick / 2, cz + nz2 * lat, w, thick, L, yawZ, color, mat, { pitch = pitch })
+		local k = 0
+		while k * b.pier <= b.len / 2 - 8 do
+			for _, sgn in ipairs(k == 0 and { 1 } or { -1, 1 }) do
+				local s = sgn * k * b.pier
+				local px, pz = b.x + ux * s, b.z + uz * s
+				local floor = floorAt(px, pz)
+				if floor <= -8 then -- nur im Wasser und auf der Kiesbank
+					part(parts, "BrueckePfeilerBalken", "deck", px, -5, pz, 6, 3, total - 6, b.yaw, STONE, "Concrete", {})
+					for _, lat in ipairs({ -21, -7, 7, 21 }) do
+						local h = -6.5 - (floor - 1)
+						part(parts, "BrueckeSaeule", "deck", px + nx2 * lat, (floor - 1 - 6.5) / 2, pz + nz2 * lat, h, 4.5, 4.5, 0, STONE, "Concrete", { shape = "Cylinder", roll = 90 })
+					end
+					stats.piers = (stats.piers or 0) + 1
+				end
 			end
-			slab("BrueckeFahrbahn", "road", 0, b.wid, 4, 0, COLOR.road, "Asphalt")
-			for _, side in ipairs({ -1, 1 }) do
-				slab("BrueckeGehweg", "walk", side * (b.wid / 2 + b.walk / 2), b.walk, 4, 0.5, STONE, "Concrete")
-				slab("BrueckeBruestung", "rail", side * (b.wid / 2 + b.walk + 0.6), 1.2, 4.5, 4, STONE, "Concrete")
-			end
+			k = k + 1
 		end
-		for _, side in ipairs({ -1, 1 }) do -- zwei Pfeiler im Fluss, vom Flussbett (-14) bis unter die Fahrbahn
-			local s = side * b.len * 0.2
-			local deckBottom = top(s) - 4
-			part(parts, "BrueckePfeiler", "deck", b.x + ux * s, (deckBottom - 14) / 2, b.z + uz * s, 6, deckBottom + 14, b.wid + 2 * b.walk - 4, b.yaw, STONE, "Concrete", {})
-		end
-		stats.archBridges = (stats.archBridges or 0) + 1
+		stats.isarBridges = (stats.isarBridges or 0) + 1
 	end
 
 	-- Unterführung: Rampen (geneigt), Boden, Decke unter der Querstraße, Seitenwände des Tunnelkastens

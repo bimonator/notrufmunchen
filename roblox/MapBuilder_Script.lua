@@ -1,7 +1,7 @@
 -- MapBuilder_Script.lua  (automatisch erzeugt mit make_bundles.py, nicht von Hand ändern)
 -- Test: in ServerScriptService ein Script anlegen, alles einfügen, oben im Studio auf RUN (nicht Play) klicken.
 -- Die Karte entsteht nur zur Laufzeit und ist nach dem Stoppen weg. Für dauerhaftes Bauen: MapBuilder_Plugin.lua.
-local STEPS = { "terrain", "roads", "lights", "landmarks", "houses", "wall" } -- Teilmenge möglich, z. B. { "roads" }
+local STEPS = { "terrain", "roads", "lights", "landmarks", "gardens", "houses", "wall" } -- Teilmenge möglich, z. B. { "roads" }
 local ONLY = nil -- nur bestimmte Häuserblöcke, z. B. { "B_NordMitte" }; nil = alle
 local ORIGIN = Vector3.new(0, 0, 0) -- Position des Siegestors
 
@@ -50,6 +50,19 @@ function Geo.within(px, pz, ux, uz, L, r, margin)
 	if not clip(dx * r.nx + dz * r.nz, ux * r.nx + uz * r.nz, -r.w + margin, r.w - margin) then return nil end
 	if hi - lo < 1e-6 then return nil end
 	return lo, hi
+end
+
+-- Abstand des Punkts (x, z) zu einem Linienzug pts = { {x, z}, ... }
+function Geo.polyDist(x, z, pts)
+	local best = 1e9
+	for i = 1, #pts - 1 do
+		local ax, az, bx, bz = pts[i][1], pts[i][2], pts[i + 1][1], pts[i + 1][2]
+		local dx, dz = bx - ax, bz - az
+		local t = math.max(0, math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz)))
+		local px, pz = ax + t * dx - x, az + t * dz - z
+		best = math.min(best, math.sqrt(px * px + pz * pz))
+	end
+	return best
 end
 
 -- Überlappen sich zwei Rechtecke (Format von Geo.rect) in der Draufsicht um mehr als 0,5 Studs? (Trennachsen-Test)
@@ -159,7 +172,7 @@ C.roads = {
 	{ name = "H1", profile = "raster57", pts = { { -661, -285 }, { 0, -285 } } },
 	{ name = "H2", profile = "raster57", pts = { { -661, 30 }, { 0, 30 } } },
 	{ name = "Diagonale", profile = "std48", pts = { { 0, 30 }, { 290, 36 }, { 455, -77 }, { 605, -212 }, { 770, -347 }, { 790, -472 } } },
-	{ name = "Isarspange", profile = "std48", pts = { { 455, -77 }, { 700, -60 }, { 780, -40 }, { 990, 0 }, { 1030, 70 }, { 1076, 210 } } },
+	{ name = "Isarspange", profile = "std48", pts = { { 455, -77 }, { 700, -60 }, { 780, -40 }, { 1012, 3 }, { 1030, 70 }, { 1076, 210 } } },
 	{ name = "V3", profile = "std48", pts = { { 300, -472 }, { 300, 32 } } },
 	{ name = "KreiselNord", profile = "std48", pts = { { -550, 30 }, { -550, 196 } } },
 	{ name = "KreiselWest", profile = "std48", pts = { { -661, 254 }, { -612, 254 } } },
@@ -189,12 +202,12 @@ C.bridges = {
 	{ name = "B5", x = 672, z = 120, len = 44, wid = 10, yaw = 0, pedestrian = true },
 }
 
--- Isar-Brücken: gewölbte Steinbrücken (Fahrbahn steigt zur Mitte um peak), breiter als die Straße, mit Pfeilern im Fluss.
--- len = Gesamtlänge entlang der Straße, wid = Breite der Fahrbahn, walk = Breite jedes Gehwegs, yaw = Richtung der Straße
-C.archBridges = {
-	{ name = "B2", x = 890, z = -19, len = 170, wid = 28, walk = 14, yaw = 349.4, peak = 10 },
-	{ name = "B3", x = 687.5, z = 410, len = 220, wid = 28, walk = 14, yaw = 0, peak = 12 }, -- Luitpoldbrücke über Bach und Isar
-	{ name = "B4", x = 985, z = -472, len = 170, wid = 28, walk = 14, yaw = 0, peak = 8 },
+-- Isar-Brücken: flache Brücken auf Straßenhöhe (Oberkante 0,5), bleiben oben und tragen auf Säulen im Flussbett und auf den Uferstufen.
+-- len = Gesamtlänge entlang der Straße (länger als die Uferböschung, 2 x 90), wid = Fahrbahn, walk = Gehweg je Seite, pier = Abstand der Pfeilerreihen
+C.isarBridges = {
+	{ name = "B2", x = 887, z = -19, len = 214, wid = 28, walk = 14, yaw = 349.4, pier = 36 },
+	{ name = "B3", x = 692, z = 410, len = 252, wid = 28, walk = 14, yaw = 0, pier = 36 }, -- Luitpoldbrücke über Bach und Isar
+	{ name = "B4", x = 945, z = -472, len = 214, wid = 28, walk = 14, yaw = 0, pier = 36 },
 }
 
 -- Siegestor-Unterführung: die vier Fahrspuren der Achse tauchen unter der Querstraße H2/D ab
@@ -202,8 +215,10 @@ C.tunnel = { road = "Achse", half = 34, z0 = -144, rampN = { -144, -8 }, box = {
 
 C.water = {
 	isar = {
-		pts = { { 985, -556 }, { 985, -472 }, { 960, -330 }, { 930, -200 }, { 895, -90 }, { 885, 0 }, { 850, 100 }, { 800, 200 }, { 750, 300 }, { 705, 390 }, { 695, 410 }, { 670, 494 } },
-		layers = { { 0, -4, 62.5 }, { -4, -8, 47.5 }, { -8, -12, 36 }, { -12, -14, 30 } }, waterTop = -8,
+		pts = { { 945, -556 }, { 945, -472 }, { 930, -330 }, { 915, -200 }, { 895, -90 }, { 885, 0 }, { 850, 100 }, { 800, 200 }, { 750, 300 }, { 705, 390 }, { 695, 410 }, { 670, 494 } },
+		-- Böschung in drei Stufen: Uferweg (Oberkante -4, Breite 30), Kiesbank auf Wasserhöhe (-8, Breite 24), dann Wasser bis -14.
+		layers = { { 0, -4, 90 }, { -4, -8, 60 }, { -8, -12, 36 }, { -12, -14, 30 } }, waterTop = -8,
+		fills = { { -12, -8, 60, "Sand" }, { -8, -4, 90, "Grass" } }, -- Material der beiden Uferstufen (vor dem Ausheben eingefüllt)
 	},
 	bach = {
 		pts = { { 640, -257 }, { 642, -226 }, { 665, -31 }, { 672, 194 }, { 650, 330 }, { 620, 410 }, { 612, 494 } },
@@ -244,9 +259,9 @@ C.landmarks = {
 }
 
 C.wall = {
-	gates = { N = { { -60, 60 }, { 915, 1055 } }, S = { { -40, 40 }, { 590, 745 } } },
+	gates = { N = { { -60, 60 }, { 835, 1055 } }, S = { { -40, 40 }, { 560, 780 } } },
 	specials = { { side = "N", name = "Querriegel", x0 = -60, x1 = 60, floors = 10 }, { side = "S", name = "Feldherrnhalle", x0 = -40, x1 = 40, floors = 2 } },
-	riverGates = { { side = "N", x0 = 915, x1 = 1055 }, { side = "S", x0 = 590, x1 = 745 } }, -- Brückenhaus: Gebäude über dem Fluss
+	riverGates = { { side = "N", x0 = 835, x1 = 1055 }, { side = "S", x0 = 560, x1 = 780 } }, -- Brückenhaus: Gebäude über dem Fluss
 }
 
 return C
@@ -1070,7 +1085,7 @@ return {
 	{ name = "Uni-Fassade", x0 = -160, z0 = 130, x1 = -60, z1 = 220, facing = "E", floors = 4, color = { 214, 204, 176 } },
 	{ name = "Casino-Odeon", x0 = -200, z0 = 316, x1 = -144, z1 = 360, facing = "E", floors = 2, color = { 70, 56, 84 } },
 	{ name = "Kaffeehaus", x0 = 144, z0 = 300, x1 = 194, z1 = 340, facing = "W", floors = 2, color = { 100, 150, 100 } },
-	{ name = "Prinz-Eins", x0 = 560, z0 = 330, x1 = 616, z1 = 370, facing = "S", floors = 2, color = { 52, 44, 76 } },
+	{ name = "Prinz-Eins", x0 = 546, z0 = 330, x1 = 602, z1 = 370, facing = "S", floors = 2, color = { 52, 44, 76 } },
 }
 
 end)()
@@ -1100,7 +1115,7 @@ local function part(parts, name, kind, x, y, z, sx, sy, sz, yaw, color, material
 		name = name, kind = kind, size = { sx, sy, sz },
 		pos = { Geo.round3(x), Geo.round3(y), Geo.round3(z) },
 		yaw = Geo.round3(yaw), pitch = extra.pitch or 0, color = color, material = material,
-		collide = extra.collide ~= false, seg = extra.seg,
+		collide = extra.collide ~= false, seg = extra.seg, shape = extra.shape, roll = extra.roll,
 	}
 end
 
@@ -1210,7 +1225,7 @@ function RoadsPlanner.plan(cfg)
 			tunnelCut = { t0, t1 }
 		end
 		local bridgeCuts = {}
-		for _, b in ipairs(cfg.archBridges) do
+		for _, b in ipairs(cfg.isarBridges) do
 			local br = math.rad(b.yaw)
 			local bx, bz = math.cos(br), -math.sin(br)
 			local dx, dz = b.x - p0x, b.z - p0z
@@ -1285,41 +1300,48 @@ function RoadsPlanner.plan(cfg)
 		end
 	end
 
-	-- Gewölbte Isar-Brücken: Fahrbahn und Gehwege als geneigte Platten entlang einer Parabel, Brüstungen, Pfeiler im Fluss
+	-- Isar-Brücken: flach auf Straßenhöhe (Oberkante 0,5), Gehwege und Brüstungen aus Stein; getragen von Pfeilerreihen (Querbalken auf vier Säulen)
+	-- im Flussbett und auf der Kiesbank. Auf den Uferstufen liegt die Brücke frei darüber, an den Enden greift sie ins Gelände.
 	local STONE = { 196, 188, 172 }
-	for _, b in ipairs(cfg.archBridges) do
+	local function floorAt(x, z) -- Oberkante des Geländes im Flussprofil
+		local y = 0
+		local d = Geo.polyDist(x, z, cfg.water.isar.pts)
+		for _, ly in ipairs(cfg.water.isar.layers) do
+			if d < ly[3] then y = ly[2] end
+		end
+		if Geo.polyDist(x, z, cfg.water.bach.pts) < 16 then y = math.min(y, -7) end
+		return y
+	end
+	for _, b in ipairs(cfg.isarBridges) do
 		local r = math.rad(b.yaw)
 		local ux, uz = math.cos(r), -math.sin(r) -- Richtung der Brücke
 		local nx2, nz2 = -uz, ux -- quer
-		local yawZ = b.yaw + 90 -- lokale z-Achse der Platten läuft entlang der Brücke
-		local N = 16
-		local function top(s) -- Oberkante der Fahrbahn bei s (Mitte = 0)
-			local q = 2 * s / b.len
-			return 0.5 + b.peak * (1 - q * q)
+		local total = b.wid + 2 * b.walk
+		part(parts, "BrueckeFahrbahn", "road", b.x, -1.5, b.z, b.len, 4, b.wid, b.yaw, COLOR.road, "Asphalt", {})
+		for _, side in ipairs({ -1, 1 }) do
+			local lat = side * (b.wid / 2 + b.walk / 2)
+			part(parts, "BrueckeGehweg", "walk", b.x + nx2 * lat, -1, b.z + nz2 * lat, b.len, 4, b.walk, b.yaw, STONE, "Concrete", {})
+			lat = side * (b.wid / 2 + b.walk - 0.4)
+			part(parts, "BrueckeBruestung", "rail", b.x + nx2 * lat, 1.7, b.z + nz2 * lat, b.len, 1.4, 0.8, b.yaw, STONE, "Concrete", {})
 		end
-		for i = 0, N - 1 do
-			local s0, s1 = -b.len / 2 + b.len * i / N, -b.len / 2 + b.len * (i + 1) / N
-			local sm = (s0 + s1) / 2
-			local y0, y1 = top(s0), top(s1)
-			local ym = (y0 + y1) / 2
-			local L = math.sqrt((s1 - s0) ^ 2 + (y1 - y0) ^ 2) + 0.2
-			local pitch = -math.deg(math.atan2(y1 - y0, s1 - s0)) -- steigt mit s: negativer Pitch
-			local cx, cz = b.x + ux * sm, b.z + uz * sm
-			local function slab(name, kind, lat, w, thick, up, color, mat)
-				part(parts, name, kind, cx + nx2 * lat, ym + up - thick / 2, cz + nz2 * lat, w, thick, L, yawZ, color, mat, { pitch = pitch })
+		local k = 0
+		while k * b.pier <= b.len / 2 - 8 do
+			for _, sgn in ipairs(k == 0 and { 1 } or { -1, 1 }) do
+				local s = sgn * k * b.pier
+				local px, pz = b.x + ux * s, b.z + uz * s
+				local floor = floorAt(px, pz)
+				if floor <= -8 then -- nur im Wasser und auf der Kiesbank
+					part(parts, "BrueckePfeilerBalken", "deck", px, -5, pz, 6, 3, total - 6, b.yaw, STONE, "Concrete", {})
+					for _, lat in ipairs({ -21, -7, 7, 21 }) do
+						local h = -6.5 - (floor - 1)
+						part(parts, "BrueckeSaeule", "deck", px + nx2 * lat, (floor - 1 - 6.5) / 2, pz + nz2 * lat, h, 4.5, 4.5, 0, STONE, "Concrete", { shape = "Cylinder", roll = 90 })
+					end
+					stats.piers = (stats.piers or 0) + 1
+				end
 			end
-			slab("BrueckeFahrbahn", "road", 0, b.wid, 4, 0, COLOR.road, "Asphalt")
-			for _, side in ipairs({ -1, 1 }) do
-				slab("BrueckeGehweg", "walk", side * (b.wid / 2 + b.walk / 2), b.walk, 4, 0.5, STONE, "Concrete")
-				slab("BrueckeBruestung", "rail", side * (b.wid / 2 + b.walk + 0.6), 1.2, 4.5, 4, STONE, "Concrete")
-			end
+			k = k + 1
 		end
-		for _, side in ipairs({ -1, 1 }) do -- zwei Pfeiler im Fluss, vom Flussbett (-14) bis unter die Fahrbahn
-			local s = side * b.len * 0.2
-			local deckBottom = top(s) - 4
-			part(parts, "BrueckePfeiler", "deck", b.x + ux * s, (deckBottom - 14) / 2, b.z + uz * s, 6, deckBottom + 14, b.wid + 2 * b.walk - 4, b.yaw, STONE, "Concrete", {})
-		end
-		stats.archBridges = (stats.archBridges or 0) + 1
+		stats.isarBridges = (stats.isarBridges or 0) + 1
 	end
 
 	-- Unterführung: Rampen (geneigt), Boden, Decke unter der Querstraße, Seitenwände des Tunnelkastens
@@ -1730,6 +1752,15 @@ end
 
 local function river(ops, rv)
 	local samples = TerrainPlanner.riverSamples(rv.pts)
+	-- Uferstufen vorab mit Sand/Gras füllen; das Ausheben unten lässt davon nur den Ring zwischen den Stufenkanten stehen
+	for _, f in ipairs(rv.fills or {}) do
+		for _, sm in ipairs(samples) do
+			local alongZ = math.abs(sm.uz) >= math.abs(sm.ux)
+			local sx, sz
+			if alongZ then sx, sz = 2 * f[3] / math.abs(sm.uz), STEP + 2 else sx, sz = STEP + 2, 2 * f[3] / math.abs(sm.ux) end
+			block(ops, f[4], sm.x, (f[1] + f[2]) / 2, sm.z, sx, f[2] - f[1], sz, rv.name .. "_fill")
+		end
+	end
 	for pass = 1, 2 do -- 1 = ausheben, 2 = fluten
 		for li, ly in ipairs(rv.layers) do
 			local top, bot, hw = ly[1], ly[2], ly[3]
@@ -1792,6 +1823,370 @@ return TerrainPlanner
 
 end)()
 
+local Garden = (function()
+-- Garden.lua
+-- Grünanlagen und Ausschmückung als Teileliste (reine Geometrie): Hofgarten (Wege, Dianatempel, Brunnen, Beete, Hecken, Arkaden),
+-- Englischer Garten (Bäume, Wege, Bachweg), Monopteros-Tempel, Uferwege/Kiesbänke/Büsche an der Isar und der Vorplatz von Prinz Eins.
+-- Teilefelder wie in den anderen Planern (name, kind, size, pos, yaw, pitch, roll, color, material, collide, shape, text, transparency, tag, attrs).
+
+local Geo = Geo
+local TerrainPlanner = TerrainPlanner
+
+local Garden = {}
+
+local GRAVEL, STONE, SAND = { 206, 196, 172 }, { 206, 200, 186 }, { 214, 200, 168 }
+local BARK = { 96, 70, 48 }
+local GREENS = { { 70, 120, 60 }, { 88, 140, 70 }, { 56, 100, 56 }, { 104, 150, 76 }, { 64, 112, 80 } }
+local HEDGE = { 46, 92, 52 }
+
+local function newRng(seed)
+	local s = seed % 2147483647
+	if s <= 0 then s = s + 2147483646 end
+	return function()
+		s = (s * 48271) % 2147483647
+		return s / 2147483647
+	end
+end
+
+local function emitter(parts)
+	return function(name, kind, x, y, z, sx, sy, sz, color, material, extra)
+		extra = extra or {}
+		parts[#parts + 1] = {
+			name = name, kind = kind, size = { Geo.round3(sx), Geo.round3(sy), Geo.round3(sz) }, pos = { Geo.round3(x), Geo.round3(y), Geo.round3(z) },
+			yaw = Geo.round3(extra.yaw or 0), pitch = extra.pitch or 0, roll = extra.roll, color = color, material = material, collide = extra.collide == true,
+			shape = extra.shape, text = extra.text, transparency = extra.transparency, tag = extra.tag, attrs = extra.attrs,
+		}
+	end
+end
+
+-- Oberkante des Geländes am Punkt (Hügel, Terrasse, Uferstufen der Isar)
+local function groundY(cfg, x, z)
+	for _, h in ipairs(cfg.hills) do
+		local d, y = math.sqrt((x - h.x) ^ 2 + (z - h.z) ^ 2), 0
+		for _, ly in ipairs(h.layers) do
+			if d < ly[1] then y = ly[3] end
+		end
+		if y > 0 then return y end
+	end
+	local t = cfg.terrace
+	if x >= t.x0 and x <= t.x1 and z >= t.z0 and z <= t.z1 then return t.height end
+	local d, y = Geo.polyDist(x, z, cfg.water.isar.pts), 0
+	for _, ly in ipairs(cfg.water.isar.layers) do
+		if d < ly[3] then y = ly[2] end
+	end
+	return y
+end
+
+local function inRoad(segs, x, z, m)
+	for _, s in ipairs(segs) do
+		local r = s.rect
+		local dx, dz = x - r.ax, z - r.az
+		local a, b = dx * r.ux + dz * r.uz, dx * r.nx + dz * r.nz
+		if a > r.s0 - m and a < r.s1 + m and math.abs(b) < r.w + m then return true end
+	end
+	return false
+end
+
+-- Baum: Stamm, ein bis zwei Kugelkronen
+local function tree(add, rng, x, y, z, scale)
+	local h = (6 + 5 * rng()) * scale
+	local cw = (9 + 6 * rng()) * scale
+	local g = GREENS[math.floor(rng() * #GREENS) + 1]
+	add("Stamm", "tree", x, y + h / 2, z, 1.4, h, 1.4, BARK, "Wood", { collide = true })
+	add("Krone", "tree", x, y + h + cw * 0.35, z, cw, cw, cw, g, "Grass", { shape = "Ball" })
+	if rng() < 0.6 then
+		add("Krone", "tree", x + (rng() - 0.5) * 4, y + h + cw * 0.15, z + (rng() - 0.5) * 4, cw * 0.75, cw * 0.75, cw * 0.75, GREENS[math.floor(rng() * #GREENS) + 1], "Grass", { shape = "Ball" })
+	end
+end
+
+-- Bank: Sitzfläche, Lehne, zwei Beine; yaw = Blickrichtung wie bei Teilen (lokale x-Achse läuft entlang der Bank)
+local function bench(add, x, y, z, yaw)
+	local r = math.rad(yaw)
+	local nx, nz = math.sin(r), math.cos(r) -- lokale z-Richtung
+	add("BankSitz", "bench", x, y + 1.3, z, 4.4, 0.4, 1.5, { 130, 90, 60 }, "Wood", { yaw = yaw, collide = true })
+	add("BankLehne", "bench", x + nx * 0.7, y + 2.3, z + nz * 0.7, 4.4, 1.2, 0.3, { 130, 90, 60 }, "Wood", { yaw = yaw })
+	for _, sd in ipairs({ -1.8, 1.8 }) do
+		add("BankBein", "bench", x + math.cos(r) * sd, y + 0.65, z - math.sin(r) * sd, 0.4, 1.3, 1.2, { 60, 62, 66 }, "Metal", { yaw = yaw })
+	end
+end
+
+local function strip(add, name, x0, z0, x1, z1, w, base, lift, color, material)
+	local ux, uz, len = Geo.dir(x0, z0, x1, z1)
+	add(name, "path", (x0 + x1) / 2, base + 0.15 + lift - 0.25, (z0 + z1) / 2, len, 0.5, w, color, material or "Pavement", { yaw = Geo.yawOf(ux, uz) })
+end
+
+local function disc(add, name, x, y, z, dia, h, color, material, extra)
+	extra = extra or {}
+	extra.shape, extra.roll = "Cylinder", 90
+	add(name, "decor", x, y, z, h, dia, dia, color, material, extra)
+end
+
+-- Rundpavillon: Stufen, Säulen auf einem Kreis, Gebälkring, Dach
+local function pavilion(add, x, base, z, columns, radius, colHeight, dome)
+	disc(add, "TempelSockel", x, base - 1, z, radius * 2 + 9, 3, STONE, "Concrete", { collide = true }) -- Fundament gegen Lücken zum Gelände
+	disc(add, "TempelStufe", x, base + 0.5, z, radius * 2 + 9, 1, STONE, "Concrete", { collide = true })
+	disc(add, "TempelStufe", x, base + 1.5, z, radius * 2 + 4, 1, STONE, "Concrete", { collide = true })
+	disc(add, "TempelBoden", x, base + 2.3, z, radius * 2 + 1, 0.6, { 226, 220, 206 }, "Marble", { collide = true })
+	local y0 = base + 2.6
+	for i = 1, columns do
+		local a = 2 * math.pi * (i - 1) / columns
+		local cx, cz = x + radius * math.cos(a), z + radius * math.sin(a)
+		add("Saeule", "decor", cx, y0 + colHeight / 2, cz, 1.9, colHeight, 1.9, { 232, 226, 212 }, "Concrete", { collide = true })
+		add("SaeuleKapitell", "decor", cx, y0 + colHeight + 0.4, cz, 3, 0.8, 3, { 214, 206, 190 }, "Concrete")
+	end
+	disc(add, "Gebaelk", x, y0 + colHeight + 1.6, z, radius * 2 + 4, 1.6, STONE, "Concrete", { collide = true })
+	disc(add, "TempelDach", x, y0 + colHeight + 2.8, z, radius * 2 + 6, 0.8, { 150, 160, 150 }, "Metal", { collide = true })
+	if dome then add("Kuppel", "decor", x, y0 + colHeight + 3.2, z, dome, dome, dome, { 150, 160, 150 }, "Metal", { shape = "Ball", collide = true }) end
+end
+
+-- Springbrunnen: Becken, Wasser, Mittelsäule, Strahl
+local function fountain(add, x, z, r)
+	disc(add, "Brunnenbecken", x, 0.7, z, r * 2, 1.4, STONE, "Concrete", { collide = true })
+	disc(add, "Brunnenwasser", x, 1.15, z, r * 2 - 3, 0.4, { 120, 170, 210 }, "SmoothPlastic", { transparency = 0.45 })
+	disc(add, "Brunnenschale", x, 2.4, z, 2.4, 4.8, STONE, "Concrete", { collide = true })
+	add("Brunnenstrahl", "decor", x, 6.2, z, 0.9, 7, 0.9, { 240, 248, 255 }, "SmoothPlastic", { transparency = 0.5 })
+end
+
+local function hofgarten(cfg, add, rng, free)
+	local p
+	for _, q in ipairs(cfg.parks) do if q.name == "Hofgarten" then p = q end end
+	local cx, cz = (p.x0 + p.x1) / 2, (p.z0 + p.z1) / 2
+	-- Wege: Hauptachsen, Randwege, Platz in der Mitte
+	strip(add, "WegHof", p.x0 + 6, cz, p.x1 - 6, cz, 8, 0, 0, GRAVEL)
+	strip(add, "WegHof", cx, p.z0 + 8, cx, p.z1 - 6, 8, 0, 0.04, GRAVEL)
+	strip(add, "WegHof", p.x0 + 8, p.z0 + 16, p.x0 + 8, p.z1 - 16, 5, 0, 0.02, GRAVEL)
+	strip(add, "WegHof", p.x1 - 8, p.z0 + 16, p.x1 - 8, p.z1 - 16, 5, 0, 0.02, GRAVEL)
+	disc(add, "Hofplatz", cx, 0.1, cz, 44, 0.5, SAND, "Pavement")
+	pavilion(add, cx, 0.35, cz, 8, 9, 10, 17)
+	local fx = { p.x0 + (cx - p.x0) / 2, cx + (p.x1 - cx) / 2 }
+	for _, x in ipairs(fx) do
+		disc(add, "Brunnenplatz", x, 0.1, cz, 26, 0.5, SAND, "Pavement")
+		fountain(add, x, cz, 10)
+	end
+	-- Blumenbeete in den vier Vierteln (rot, gelb, lila, weiß im Wechsel)
+	local colors = { { 200, 60, 70 }, { 240, 200, 60 }, { 150, 80, 170 }, { 240, 240, 236 } }
+	local k = 0
+	for _, qx in ipairs({ -1, 1 }) do
+		for _, qz in ipairs({ -1, 1 }) do
+			for i = 0, 2 do
+				for j = 0, 1 do
+					k = k + 1
+					add("Beet", "decor", cx + qx * (40 + i * 20), 0.3, cz + qz * (26 + j * 14), 16, 0.6, 10, colors[(k % 4) + 1], "Grass")
+				end
+			end
+		end
+	end
+	-- Hecken entlang der Hauptachse, Lücken an Brunnen und Platz
+	for x = p.x0 + 24, p.x1 - 24, 16 do
+		if math.abs(x - cx) > 30 and math.abs(x - fx[1]) > 18 and math.abs(x - fx[2]) > 18 then
+			for _, sd in ipairs({ -1, 1 }) do add("Hecke", "decor", x, 1.2, cz + sd * 7.5, 14, 2.4, 1.6, HEDGE, "Grass", { collide = true }) end
+		end
+	end
+	-- Arkaden an der Nordkante: Rückwand, Säulen, Dach
+	add("ArkadenWand", "decor", cx, 4.5, p.z0 - 0.5, p.x1 - p.x0 - 20, 9, 1, { 214, 196, 160 }, "Concrete", { collide = true })
+	for x = p.x0 + 10, p.x1 - 10, 10 do add("ArkadenSaeule", "decor", x, 4.5, p.z0 + 3, 1.8, 9, 1.8, { 226, 214, 184 }, "Concrete", { collide = true }) end
+	add("ArkadenDach", "decor", cx, 9.4, p.z0 + 1.5, p.x1 - p.x0 - 20, 0.8, 7, { 170, 90, 70 }, "Concrete", { collide = true })
+	-- Bänke an den Hauptwegen
+	for x = p.x0 + 36, p.x1 - 36, 44 do
+		if math.abs(x - cx) > 34 and math.abs(x - fx[1]) > 20 and math.abs(x - fx[2]) > 20 then
+			bench(add, x, 0, cz - 6, 180)
+			bench(add, x, 0, cz + 6, 0)
+		end
+	end
+	-- Bäume in lockerem Raster, nicht auf Wegen, Beeten, Hecken, Plätzen
+	local n = 0
+	for x = p.x0 + 14, p.x1 - 14, 26 do
+		for z = p.z0 + 18, p.z1 - 12, 26 do
+			local tx, tz = x + (rng() - 0.5) * 10, z + (rng() - 0.5) * 10
+			local nearAxis = math.abs(tz - cz) < 14 or math.abs(tx - cx) < 12
+			local nearFountain = math.abs(tz - cz) < 20 and (math.abs(tx - fx[1]) < 18 or math.abs(tx - fx[2]) < 18)
+			local nearBed = (math.abs(tx - cx) > 28 and math.abs(tx - cx) < 106 and math.abs(tz - cz) > 14 and math.abs(tz - cz) < 56)
+			local nearEdge = tx < p.x0 + 14 or tx > p.x1 - 14
+			if not nearAxis and not nearFountain and not nearBed and not nearEdge and rng() < 0.55 and free(tx, tz) then
+				tree(add, rng, tx, 0, tz, 1)
+				n = n + 1
+			end
+		end
+	end
+	-- Baumreihen an den Randwegen
+	for z = p.z0 + 24, p.z1 - 24, 20 do
+		for _, x in ipairs({ p.x0 + 16, p.x1 - 16 }) do
+			if free(x, z) then tree(add, rng, x, 0, z, 0.9) n = n + 1 end
+		end
+	end
+	return n
+end
+
+local function monopteros(cfg, add)
+	local h = cfg.hills[1]
+	pavilion(add, h.x, 8, h.z, 9, 11, 12, nil)
+	-- Aufgang von Westen: breite Stufen über beide Terrassen des Hügels
+	strip(add, "WegMonopteros", h.x - 70, h.z, h.x - 44, h.z, 7, 0, 0.06, GRAVEL)
+	strip(add, "WegMonopteros", h.x - 44, h.z, h.x - 30, h.z, 7, 4, 0.06, GRAVEL)
+	strip(add, "WegMonopteros", h.x - 30, h.z, h.x - 17, h.z, 7, 8, 0.06, GRAVEL)
+	for i = 0, 3 do add("AufgangStufe", "decor", h.x - 44 + i * 0.8, 0.5 + i, h.z, 1, 1, 10, STONE, "Concrete", { collide = true }) end -- Treppe zur oberen Terrasse
+	for i = 0, 2 do add("AufgangStufe", "decor", h.x - 30 + i * 0.8, 4.5 + i, h.z, 1, 1, 10, STONE, "Concrete", { collide = true }) end
+end
+
+local function englischerGarten(cfg, add, rng, free)
+	local p
+	for _, q in ipairs(cfg.parks) do if q.name == "EnglischerGarten" then p = q end end
+	local h = cfg.hills[1]
+	strip(add, "WegEG", 520, p.z0 + 10, 520, p.z1 - 10, 8, 0, 0, GRAVEL)
+	strip(add, "WegEG", p.x0 + 8, h.z, h.x - 70, h.z, 6, 0, 0.02, GRAVEL)
+	strip(add, "WegEG", 520, 270, p.x1 - 60, 270, 6, 0, 0.02, GRAVEL)
+	-- Weg am Bach entlang (Westufer, 20 Studs Abstand)
+	local bs = TerrainPlanner.riverSamples(cfg.water.bach.pts)
+	for i = 1, #bs, 2 do
+		local s = bs[i]
+		if s.z > p.z0 + 8 and s.z < p.z1 - 8 then
+			local nx, nz = -s.uz, s.ux
+			local x, z = s.x + nx * 20, s.z + nz * 20
+			if free(x, z) then add("WegBach", "path", x, 0.1, z, 17, 0.5, 4, SAND, "Pavement", { yaw = Geo.yawOf(s.ux, s.uz) }) end
+		end
+	end
+	-- Bänke am Hügel und am Hauptweg
+	for _, z in ipairs({ p.z0 + 60, 140, 200, 300 }) do
+		bench(add, 513, 0, z, 270)
+		bench(add, 527, 0, z, 90)
+	end
+	-- Bäume: dicht im Westen am Bach, lichter um den Monopteros-Hügel und zum Fluss hin
+	local n = 0
+	for x = p.x0 + 8, p.x1 - 8, 17 do
+		for z = p.z0 + 8, p.z1 - 8, 17 do
+			local tx, tz = x + (rng() - 0.5) * 10, z + (rng() - 0.5) * 10
+			local dh = math.sqrt((tx - h.x) ^ 2 + (tz - h.z) ^ 2)
+			local dr = Geo.polyDist(tx, tz, cfg.water.isar.pts)
+			local pr = 0.55
+			if dh < 80 then pr = 0.08 elseif dr < 130 then pr = 0.3 end
+			local onPath = math.abs(tx - 520) < 9 or (math.abs(tz - h.z) < 8 and tx < h.x - 40) or (math.abs(tz - 270) < 8 and tx > 520 and tx < p.x1 - 55)
+			if not onPath and dr > 100 and Geo.polyDist(tx, tz, cfg.water.bach.pts) > 24 and rng() < pr and free(tx, tz) then
+				tree(add, rng, tx, groundY(cfg, tx, tz), tz, 1 + rng() * 0.3)
+				n = n + 1
+			end
+		end
+	end
+	return n
+end
+
+-- Uferwege, Bänke, Büsche und Findlinge an beiden Ufern der Isar
+local function isarBank(cfg, add, rng, bridges)
+	local rv = cfg.water.isar
+	local samples = TerrainPlanner.riverSamples(rv.pts)
+	local ledge = rv.layers[1][3] - 15 -- Mitte der Uferstufe
+	local shelf = (rv.layers[2][3] + rv.layers[3][3]) / 2
+	local n = { slabs = 0, benches = 0, bushes = 0, rocks = 0 }
+	local function underBridge(x, z)
+		for _, b in ipairs(bridges) do
+			local r = math.rad(b.yaw)
+			local ux, uz = math.cos(r), -math.sin(r)
+			local dx, dz = x - b.x, z - b.z
+			if math.abs(dx * ux + dz * uz) < b.len / 2 and math.abs(-dx * uz + dz * ux) < b.wid / 2 + b.walk + 8 then return true end
+		end
+		return false
+	end
+	for i, sm in ipairs(samples) do
+		if sm.z > -440 and sm.z < 470 then
+			for _, side in ipairs({ 1, -1 }) do
+				local nx, nz = -sm.uz * side, sm.ux * side
+				local lx, lz = sm.x + nx * ledge, sm.z + nz * ledge
+				if not underBridge(lx, lz) then
+					if i % 2 == 0 then
+						add("Uferweg", "path", lx, -3.9, lz, 17.5, 0.4, 6, GRAVEL, "Pavement", { yaw = Geo.yawOf(sm.ux, sm.uz) })
+						n.slabs = n.slabs + 1
+					end
+					if i % 11 == 0 then
+						bench(add, lx + nx * 4, -4, lz + nz * 4, math.deg(math.atan2(nx, nz)))
+						n.benches = n.benches + 1
+					end
+					if i % 2 == 1 and rng() < 0.5 then
+						local d = 5 + rng() * 2
+						add("Busch", "bush", sm.x + nx * (ledge + 12), -4 + d / 2 - 0.4, sm.z + nz * (ledge + 12), d, d, d, GREENS[math.floor(rng() * #GREENS) + 1], "Grass", { shape = "Ball" })
+						n.bushes = n.bushes + 1
+					end
+				end
+				if rng() < 0.2 and not underBridge(sm.x + nx * shelf, sm.z + nz * shelf) then
+					local sx, sy, sz = 3 + rng() * 4, 1.5 + rng() * 1.5, 3 + rng() * 3
+					add("Findling", "rock", sm.x + nx * (shelf + (rng() - 0.5) * 12), -8 + sy / 2 - 0.3, sm.z + nz * (shelf + (rng() - 0.5) * 12), sx, sy, sz, { 120 + rng() * 40, 118 + rng() * 36, 110 + rng() * 30 }, "Rock", { yaw = rng() * 360, collide = true })
+					n.rocks = n.rocks + 1
+				end
+			end
+		end
+	end
+	return n
+end
+
+-- Prinz Eins: gepflasterter Vorplatz, roter Teppich mit Absperrpfosten, Vordach, Leuchtschild, Terrassentische mit Schirmen
+local function club(cfg, add, spec)
+	local x0, x1, z1 = spec.x0, spec.x1, spec.z1
+	local cx = (x0 + x1) / 2
+	local GOLD = { 214, 176, 70 }
+	add("Vorplatz", "plaza", cx, 0.4, (z1 + 386) / 2, x1 - x0 + 24, 1.2, 386 - z1, { 196, 190, 182 }, "Concrete", { collide = true })
+	add("Teppich", "decor", cx, 1.08, (z1 + 386) / 2, 7, 0.16, 386 - z1, { 150, 20, 40 }, "Fabric")
+	for k = 0, 5 do
+		for _, sd in ipairs({ -5, 5 }) do
+			add("Absperrpfosten", "decor", cx + sd, 2.5, z1 + 2 + k * 2.6, 0.5, 3, 0.5, GOLD, "Metal", { collide = true })
+		end
+	end
+	for _, sd in ipairs({ -5, 5 }) do add("Absperrseil", "decor", cx + sd, 3.1, z1 + 2 + 6.5, 0.2, 0.2, 13, { 120, 20, 40 }, "Fabric") end
+	-- Vordach auf zwei Stützen, Leuchtschild darüber
+	add("Vordach", "decor", cx, 12.6, z1 + 6, 18, 0.6, 12, { 40, 32, 60 }, "Metal")
+	for _, sd in ipairs({ -8.4, 8.4 }) do add("VordachStuetze", "decor", cx + sd, 6.5, z1 + 11.4, 0.6, 12, 0.6, GOLD, "Metal", { collide = true }) end
+	add("TuerRahmen", "decor", cx, 6, z1 + 0.2, 10, 11, 0.5, GOLD, "Metal")
+	add("Tuer", "glass", cx, 5.6, z1 + 0.5, 8.4, 10, 0.3, { 30, 36, 48 }, "Glass")
+	add("Leuchtschild", "decor", cx, 18.5, z1 + 0.3, 26, 5.4, 0.6, { 26, 18, 44 }, "SmoothPlastic")
+	for _, dy in ipairs({ -2.8, 2.8 }) do add("Neonleiste", "decor", cx, 18.5 + dy, z1 + 0.7, 26, 0.3, 0.3, { 255, 60, 180 }, "Neon") end
+	add("Schrift", "text", cx, 18.5, z1 + 0.65, 22, 3.6, 0.2, { 255, 255, 255 }, "SmoothPlastic", { yaw = 180, text = { s = "PRINZ EINS", color = { 255, 255, 255 } } })
+	-- Terrassentische mit Schirmen links und rechts
+	local umb = { { 120, 60, 170 }, { 240, 240, 236 } }
+	local t = 0
+	for _, gx in ipairs({ x0 - 2, x1 - 18 }) do
+		for _, dx in ipairs({ 0, 11 }) do
+			for _, dz in ipairs({ 5, 13 }) do
+				t = t + 1
+				local x, z = gx + dx + 2, z1 + dz
+				add("TischFuss", "decor", x, 2.2, z, 0.5, 2.4, 0.5, { 60, 62, 66 }, "Metal")
+				disc(add, "Tischplatte", x, 3.5, z, 3.4, 0.3, { 230, 226, 216 }, "SmoothPlastic", { collide = true })
+				add("SchirmStange", "decor", x, 5, z, 0.3, 8, 0.3, { 200, 200, 204 }, "Metal")
+				disc(add, "Schirm", x, 9, z, 8, 0.3, umb[(t % 2) + 1], "Fabric")
+			end
+		end
+	end
+	for _, sd in ipairs({ x0 - 8, x1 + 8 }) do -- Pflanzkübel an den Ecken
+		add("Kuebel", "decor", sd, 1.9, z1 + 3, 3, 1.8, 3, { 70, 66, 62 }, "Concrete", { collide = true })
+		add("KuebelBusch", "bush", sd, 4.3, z1 + 3, 4.5, 4.5, 4.5, HEDGE, "Grass", { shape = "Ball" })
+	end
+end
+
+function Garden.plan(cfg, roadPlan, specials)
+	local parts = {}
+	local add = emitter(parts)
+	local rng = newRng(7)
+	local function free(x, z) -- nicht auf Straßen, nicht im Bach, nicht in der Isar-Böschung, nicht auf Hügelkuppe/Terrasse
+		if inRoad(roadPlan.segments, x, z, 8) then return false end
+		if Geo.polyDist(x, z, cfg.water.bach.pts) < 22 then return false end
+		if Geo.polyDist(x, z, cfg.water.isar.pts) < cfg.water.isar.layers[1][3] + 6 then return false end
+		local h = cfg.hills[1]
+		if math.sqrt((x - h.x) ^ 2 + (z - h.z) ^ 2) < 24 then return false end
+		local t = cfg.terrace
+		if x > t.x0 - 6 and x < t.x1 + 6 and z > t.z0 - 6 and z < t.z1 + 6 then return false end
+		return true
+	end
+	local stats = {}
+	stats.hofTrees = hofgarten(cfg, add, rng, free)
+	monopteros(cfg, add)
+	stats.egTrees = englischerGarten(cfg, add, rng, free)
+	stats.bank = isarBank(cfg, add, rng, cfg.isarBridges)
+	for _, sp in ipairs(specials or {}) do
+		if sp.name == "Prinz-Eins" then club(cfg, add, sp) end
+	end
+	return { parts = parts, stats = stats }
+end
+
+return Garden
+
+end)()
+
 local WallPlanner = (function()
 -- WallPlanner.lua
 -- Mapgrenze: durchgehendes Häuserband (60 tief, ca. 74-110 hoch) rund um die Ringstraße, Fassade zur Straße.
@@ -1844,7 +2239,8 @@ local Builder = {}
 local MATERIALS = {
 	SmoothPlastic = Enum.Material.SmoothPlastic, Concrete = Enum.Material.Concrete, Brick = Enum.Material.Brick,
 	Glass = Enum.Material.Glass, Wood = Enum.Material.Wood, Metal = Enum.Material.Metal, Asphalt = Enum.Material.Asphalt,
-	Pavement = Enum.Material.Pavement, Grass = Enum.Material.Grass, Water = Enum.Material.Water, Neon = Enum.Material.Neon, Air = Enum.Material.Air,
+	Pavement = Enum.Material.Pavement, Grass = Enum.Material.Grass, Water = Enum.Material.Water, Neon = Enum.Material.Neon, Sand = Enum.Material.Sand, Rock = Enum.Material.Rock,
+	Marble = Enum.Material.Marble, Fabric = Enum.Material.Fabric, Ground = Enum.Material.Ground, Air = Enum.Material.Air,
 }
 
 local function buildPart(spec, origin)
@@ -1854,7 +2250,7 @@ local function buildPart(spec, origin)
 	p.Size = Vector3.new(spec.size[1], spec.size[2], spec.size[3])
 	p.CFrame = CFrame.new(origin + Vector3.new(spec.pos[1], spec.pos[2], spec.pos[3]))
 		* CFrame.Angles(0, math.rad(spec.yaw), 0) * CFrame.Angles(math.rad(spec.pitch or 0), 0, math.rad(spec.roll or 0))
-	if spec.shape == "Cylinder" then p.Shape = Enum.PartType.Cylinder end -- Achse läuft entlang x, mit roll = 90 steht sie senkrecht
+	if spec.shape == "Cylinder" then p.Shape = Enum.PartType.Cylinder elseif spec.shape == "Ball" then p.Shape = Enum.PartType.Ball end -- Achse läuft entlang x, mit roll = 90 steht sie senkrecht
 	if spec.transparency then p.Transparency = spec.transparency end
 	p.Color = Color3.fromRGB(spec.color[1], spec.color[2], spec.color[3])
 	p.Material = MATERIALS[spec.material] or Enum.Material.SmoothPlastic
@@ -2046,6 +2442,7 @@ local Specials = Specials
 local RoadsPlanner = RoadsPlanner
 local LightsPlanner = LightsPlanner
 local Landmarks = Landmarks
+local Garden = Garden
 local TerrainPlanner = TerrainPlanner
 local WallPlanner = WallPlanner
 local Builder = Builder
@@ -2073,6 +2470,12 @@ local STEPS = {
 		local plan = Landmarks.plan(Config)
 		Builder.buildParts(plan.parts, Builder.container("Wahrzeichen"), origin)
 		return string.format("%d Teile (Siegestor, Friedensengel)", #plan.parts)
+	end,
+	gardens = function(opts, origin)
+		local plan = Garden.plan(Config, RoadsPlanner.plan(Config), Specials)
+		Builder.buildParts(plan.parts, Builder.container("Gruenanlagen"), origin)
+		local st = plan.stats
+		return string.format("%d Teile, %d Bäume, %d Uferweg-Platten, %d Findlinge", #plan.parts, st.hofTrees + st.egTrees, st.bank.slabs, st.bank.rocks)
 	end,
 	houses = function(opts, origin)
 		local only, houses, parts = {}, 0, 0
@@ -2106,7 +2509,7 @@ local STEPS = {
 	end,
 }
 
-BuildAll.order = { "terrain", "roads", "lights", "landmarks", "houses", "wall" }
+BuildAll.order = { "terrain", "roads", "lights", "landmarks", "gardens", "houses", "wall" }
 
 -- Nach dem Terrain: echte Bodenhöhe messen (alles weitere wird daran ausgerichtet) und prüfen, ob Wasser da ist.
 local function afterTerrain(base)

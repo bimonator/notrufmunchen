@@ -15,5 +15,5 @@ return {
 	{ name = "Uni-Fassade", x0 = -160, z0 = 130, x1 = -60, z1 = 220, facing = "E", floors = 4, color = { 214, 204, 176 } },
 	{ name = "Casino-Odeon", x0 = -200, z0 = 316, x1 = -144, z1 = 360, facing = "E", floors = 2, color = { 70, 56, 84 } },
 	{ name = "Kaffeehaus", x0 = 144, z0 = 300, x1 = 194, z1 = 340, facing = "W", floors = 2, color = { 100, 150, 100 } },
-	{ name = "Prinz-Eins", x0 = 560, z0 = 330, x1 = 616, z1 = 370, facing = "S", floors = 2, color = { 52, 44, 76 } },
+	{ name = "Prinz-Eins", x0 = 546, z0 = 330, x1 = 602, z1 = 370, facing = "S", floors = 2, color = { 52, 44, 76 } },
 }

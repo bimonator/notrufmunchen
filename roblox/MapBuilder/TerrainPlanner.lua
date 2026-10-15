@@ -30,6 +30,15 @@ end
 
 local function river(ops, rv)
 	local samples = TerrainPlanner.riverSamples(rv.pts)
+	-- Uferstufen vorab mit Sand/Gras füllen; das Ausheben unten lässt davon nur den Ring zwischen den Stufenkanten stehen
+	for _, f in ipairs(rv.fills or {}) do
+		for _, sm in ipairs(samples) do
+			local alongZ = math.abs(sm.uz) >= math.abs(sm.ux)
+			local sx, sz
+			if alongZ then sx, sz = 2 * f[3] / math.abs(sm.uz), STEP + 2 else sx, sz = STEP + 2, 2 * f[3] / math.abs(sm.ux) end
+			block(ops, f[4], sm.x, (f[1] + f[2]) / 2, sm.z, sx, f[2] - f[1], sz, rv.name .. "_fill")
+		end
+	end
 	for pass = 1, 2 do -- 1 = ausheben, 2 = fluten
 		for li, ly in ipairs(rv.layers) do
 			local top, bot, hw = ly[1], ly[2], ly[3]

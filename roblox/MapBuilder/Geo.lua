@@ -44,6 +44,19 @@ function Geo.within(px, pz, ux, uz, L, r, margin)
 	return lo, hi
 end
 
+-- Abstand des Punkts (x, z) zu einem Linienzug pts = { {x, z}, ... }
+function Geo.polyDist(x, z, pts)
+	local best = 1e9
+	for i = 1, #pts - 1 do
+		local ax, az, bx, bz = pts[i][1], pts[i][2], pts[i + 1][1], pts[i + 1][2]
+		local dx, dz = bx - ax, bz - az
+		local t = math.max(0, math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz)))
+		local px, pz = ax + t * dx - x, az + t * dz - z
+		best = math.min(best, math.sqrt(px * px + pz * pz))
+	end
+	return best
+end
+
 -- Überlappen sich zwei Rechtecke (Format von Geo.rect) in der Draufsicht um mehr als 0,5 Studs? (Trennachsen-Test)
 function Geo.rectsOverlap(a, b)
 	local function corners(r)

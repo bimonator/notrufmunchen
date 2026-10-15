@@ -45,7 +45,7 @@ C.roads = {
 	{ name = "H1", profile = "raster57", pts = { { -661, -285 }, { 0, -285 } } },
 	{ name = "H2", profile = "raster57", pts = { { -661, 30 }, { 0, 30 } } },
 	{ name = "Diagonale", profile = "std48", pts = { { 0, 30 }, { 290, 36 }, { 455, -77 }, { 605, -212 }, { 770, -347 }, { 790, -472 } } },
-	{ name = "Isarspange", profile = "std48", pts = { { 455, -77 }, { 700, -60 }, { 780, -40 }, { 990, 0 }, { 1030, 70 }, { 1076, 210 } } },
+	{ name = "Isarspange", profile = "std48", pts = { { 455, -77 }, { 700, -60 }, { 780, -40 }, { 1012, 3 }, { 1030, 70 }, { 1076, 210 } } },
 	{ name = "V3", profile = "std48", pts = { { 300, -472 }, { 300, 32 } } },
 	{ name = "KreiselNord", profile = "std48", pts = { { -550, 30 }, { -550, 196 } } },
 	{ name = "KreiselWest", profile = "std48", pts = { { -661, 254 }, { -612, 254 } } },
@@ -75,12 +75,12 @@ C.bridges = {
 	{ name = "B5", x = 672, z = 120, len = 44, wid = 10, yaw = 0, pedestrian = true },
 }
 
--- Isar-Brücken: gewölbte Steinbrücken (Fahrbahn steigt zur Mitte um peak), breiter als die Straße, mit Pfeilern im Fluss.
--- len = Gesamtlänge entlang der Straße, wid = Breite der Fahrbahn, walk = Breite jedes Gehwegs, yaw = Richtung der Straße
-C.archBridges = {
-	{ name = "B2", x = 890, z = -19, len = 170, wid = 28, walk = 14, yaw = 349.4, peak = 10 },
-	{ name = "B3", x = 687.5, z = 410, len = 220, wid = 28, walk = 14, yaw = 0, peak = 12 }, -- Luitpoldbrücke über Bach und Isar
-	{ name = "B4", x = 985, z = -472, len = 170, wid = 28, walk = 14, yaw = 0, peak = 8 },
+-- Isar-Brücken: flache Brücken auf Straßenhöhe (Oberkante 0,5), bleiben oben und tragen auf Säulen im Flussbett und auf den Uferstufen.
+-- len = Gesamtlänge entlang der Straße (länger als die Uferböschung, 2 x 90), wid = Fahrbahn, walk = Gehweg je Seite, pier = Abstand der Pfeilerreihen
+C.isarBridges = {
+	{ name = "B2", x = 887, z = -19, len = 214, wid = 28, walk = 14, yaw = 349.4, pier = 36 },
+	{ name = "B3", x = 692, z = 410, len = 252, wid = 28, walk = 14, yaw = 0, pier = 36 }, -- Luitpoldbrücke über Bach und Isar
+	{ name = "B4", x = 945, z = -472, len = 214, wid = 28, walk = 14, yaw = 0, pier = 36 },
 }
 
 -- Siegestor-Unterführung: die vier Fahrspuren der Achse tauchen unter der Querstraße H2/D ab
@@ -88,8 +88,10 @@ C.tunnel = { road = "Achse", half = 34, z0 = -144, rampN = { -144, -8 }, box = {
 
 C.water = {
 	isar = {
-		pts = { { 985, -556 }, { 985, -472 }, { 960, -330 }, { 930, -200 }, { 895, -90 }, { 885, 0 }, { 850, 100 }, { 800, 200 }, { 750, 300 }, { 705, 390 }, { 695, 410 }, { 670, 494 } },
-		layers = { { 0, -4, 62.5 }, { -4, -8, 47.5 }, { -8, -12, 36 }, { -12, -14, 30 } }, waterTop = -8,
+		pts = { { 945, -556 }, { 945, -472 }, { 930, -330 }, { 915, -200 }, { 895, -90 }, { 885, 0 }, { 850, 100 }, { 800, 200 }, { 750, 300 }, { 705, 390 }, { 695, 410 }, { 670, 494 } },
+		-- Böschung in drei Stufen: Uferweg (Oberkante -4, Breite 30), Kiesbank auf Wasserhöhe (-8, Breite 24), dann Wasser bis -14.
+		layers = { { 0, -4, 90 }, { -4, -8, 60 }, { -8, -12, 36 }, { -12, -14, 30 } }, waterTop = -8,
+		fills = { { -12, -8, 60, "Sand" }, { -8, -4, 90, "Grass" } }, -- Material der beiden Uferstufen (vor dem Ausheben eingefüllt)
 	},
 	bach = {
 		pts = { { 640, -257 }, { 642, -226 }, { 665, -31 }, { 672, 194 }, { 650, 330 }, { 620, 410 }, { 612, 494 } },
@@ -130,9 +132,9 @@ C.landmarks = {
 }
 
 C.wall = {
-	gates = { N = { { -60, 60 }, { 915, 1055 } }, S = { { -40, 40 }, { 590, 745 } } },
+	gates = { N = { { -60, 60 }, { 835, 1055 } }, S = { { -40, 40 }, { 560, 780 } } },
 	specials = { { side = "N", name = "Querriegel", x0 = -60, x1 = 60, floors = 10 }, { side = "S", name = "Feldherrnhalle", x0 = -40, x1 = 40, floors = 2 } },
-	riverGates = { { side = "N", x0 = 915, x1 = 1055 }, { side = "S", x0 = 590, x1 = 745 } }, -- Brückenhaus: Gebäude über dem Fluss
+	riverGates = { { side = "N", x0 = 835, x1 = 1055 }, { side = "S", x0 = 560, x1 = 780 } }, -- Brückenhaus: Gebäude über dem Fluss
 }
 
 return C

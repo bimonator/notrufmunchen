@@ -41,7 +41,7 @@ terrain.ReadVoxels = function(self, region, res) return { { { Enum.Material.Wate
 Region3 = { new = function(a, b) return { ExpandToGrid = function(self, r) return self end } end }
 RaycastParams = { new = function() return {} end }
 Enum.RaycastFilterType = { Include = "Include" }
-Enum.PartType = { Cylinder = "Cylinder" }
+Enum.PartType = { Cylinder = "Cylinder", Ball = "Ball" }
 Enum.NormalId = { Front = "Front" }
 Enum.SurfaceGuiSizingMode = { PixelsPerStud = "PixelsPerStud" }
 Enum.Font = { GothamBold = "GothamBold" }

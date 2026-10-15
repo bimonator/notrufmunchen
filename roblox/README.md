@@ -17,6 +17,7 @@ Baut die Karte aus `docs/MAP_PLAN.md` und `docs/phase1_bauplan.html` per Code: T
 [roads] 1475 Teile, 157 Parkbuchten
 [lights] 270 Laternen, 13 Ampelmasten, 2 Fußgängerampeln, 1529 Teile
 [landmarks] 87 Teile (Siegestor, Friedensengel)
+[gardens] 964 Teile, 157 Bäume, 103 Uferweg-Platten, 50 Findlinge
 [houses] 154 Häuser, 12928 Teile
 [ampel] Script AmpelSteuerung in ServerScriptService angelegt
 [wall] 128 Gebäude, 8743 Teile
@@ -33,7 +34,7 @@ Strg+Z nimmt den ganzen Lauf zurück. Erneutes Bauen ersetzt die Ordner `Strasse
 
 ### Schritt für Schritt (wenn etwas nicht klappt)
 
-Die Schritte laufen in dieser Reihenfolge und sind unabhängig voneinander ausführbar: `terrain` → `roads` → `lights` → `landmarks` → `houses` → `wall`. Im Script oben `STEPS = { "terrain" }`, dann `{ "roads" }` usw. Fehler eines Schritts stoppen die anderen nicht, sie stehen im Output als `FEHLER: ...`.
+Die Schritte laufen in dieser Reihenfolge und sind unabhängig voneinander ausführbar: `terrain` → `roads` → `lights` → `landmarks` → `gardens` → `houses` → `wall`. Im Script oben `STEPS = { "terrain" }`, dann `{ "roads" }` usw. Fehler eines Schritts stoppen die anderen nicht, sie stehen im Output als `FEHLER: ...`.
 
 ## Dateien
 
@@ -56,7 +57,8 @@ Nach jeder Änderung an `MapBuilder/*.lua` die Einzeldateien neu erzeugen: `pyth
 | Was | Wo | Beispiel |
 |---|---|---|
 | Hügel und Terrasse niedriger oder höher | `MapBuilder/Config.lua`: `C.hills` (Schichten `{ Radius, von, bis }`) und `C.terrace.height` | Terrasse 4 → 0 entfernt sie fast |
-| Höhe und Länge der Isar-Brücken | `C.archBridges`: `peak` (Scheitelhöhe), `len`, `walk` (Gehwegbreite) | `peak = 16` für höhere Brücken |
+| Länge der Isar-Brücken, Pfeilerabstand | `C.isarBridges`: `len` (muss größer als 2 × Böschungsbreite sein), `pier`, `walk` (Gehwegbreite) | `pier = 30` für engere Pfeiler |
+| Isar-Böschung (Breite der Stufen, Material) | `C.water.isar.layers` (Tiefe, Halbbreite) und `fills` (Sand-Kiesbank, Gras-Uferweg) | Halbbreite 90 → 70 für ein schmaleres Ufer |
 | Mittelstreifen-Höhe | `MapBuilder/RoadsPlanner.lua`: `TOP.median` | 0.8 (Gehweg 1.0, Straße 0.5) |
 | Abwechslung der Häuser | `MapBuilder/Planner.lua`: `DEFAULTS.floorWeights`, `palette`, `targetWidth` | mehr Hochhäuser: `{ 6, 0.3 }` |
 | Anderer Zufall | `seed` in `MapBuilder_Script.lua` bzw. `BuildAll.run({ seed = 7 })` | gleiche Zahl = gleiche Häuser |

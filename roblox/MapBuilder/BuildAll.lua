@@ -11,6 +11,7 @@ local Specials = require(script and script.Parent.Specials or "Specials")
 local RoadsPlanner = require(script and script.Parent.RoadsPlanner or "RoadsPlanner")
 local LightsPlanner = require(script and script.Parent.LightsPlanner or "LightsPlanner")
 local Landmarks = require(script and script.Parent.Landmarks or "Landmarks")
+local Garden = require(script and script.Parent.Garden or "Garden")
 local TerrainPlanner = require(script and script.Parent.TerrainPlanner or "TerrainPlanner")
 local WallPlanner = require(script and script.Parent.WallPlanner or "WallPlanner")
 local Builder = require(script and script.Parent.Builder or "Builder")
@@ -38,6 +39,12 @@ local STEPS = {
 		local plan = Landmarks.plan(Config)
 		Builder.buildParts(plan.parts, Builder.container("Wahrzeichen"), origin)
 		return string.format("%d Teile (Siegestor, Friedensengel)", #plan.parts)
+	end,
+	gardens = function(opts, origin)
+		local plan = Garden.plan(Config, RoadsPlanner.plan(Config), Specials)
+		Builder.buildParts(plan.parts, Builder.container("Gruenanlagen"), origin)
+		local st = plan.stats
+		return string.format("%d Teile, %d Bäume, %d Uferweg-Platten, %d Findlinge", #plan.parts, st.hofTrees + st.egTrees, st.bank.slabs, st.bank.rocks)
 	end,
 	houses = function(opts, origin)
 		local only, houses, parts = {}, 0, 0
@@ -71,7 +78,7 @@ local STEPS = {
 	end,
 }
 
-BuildAll.order = { "terrain", "roads", "lights", "landmarks", "houses", "wall" }
+BuildAll.order = { "terrain", "roads", "lights", "landmarks", "gardens", "houses", "wall" }
 
 -- Nach dem Terrain: echte Bodenhöhe messen (alles weitere wird daran ausgerichtet) und prüfen, ob Wasser da ist.
 local function afterTerrain(base)
