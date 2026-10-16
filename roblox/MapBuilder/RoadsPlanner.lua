@@ -219,36 +219,104 @@ function RoadsPlanner.plan(cfg)
 		if Geo.polyDist(x, z, cfg.water.bach.pts) < 16 then y = math.min(y, -7) end
 		return y
 	end
+	-- Maximilianbrücke: dünnes Deck auf Straßenhöhe, darunter zwei flache Segmentbögen (aus senkrechten Scheiben unter dem Deck) über einen
+	-- Mittelpfeiler mit Vorköpfen im Fluss, Widerlager an beiden Seiten, Statuen auf Sockeln über dem Pfeiler und klassische Laternen.
+	local function maximilian(b, ux, uz, nx2, nz2)
+		local total = b.wid + 2 * b.walk
+		local BODY = { 200, 190, 168 }
+		local function at(sAlong, lat) return b.x + ux * sAlong + nx2 * lat, b.z + uz * sAlong + nz2 * lat end
+		part(parts, "BrueckeFahrbahn", "road", b.x, -0.25, b.z, b.len, 1.5, b.wid, b.yaw, COLOR.road, "Asphalt", {})
+		for _, side in ipairs({ -1, 1 }) do
+			local x, z = at(0, side * (b.wid / 2 + b.walk / 2))
+			part(parts, "BrueckeGehweg", "walk", x, 0.25, z, b.len, 1.5, b.walk, b.yaw, STONE, "Concrete", {})
+			x, z = at(0, side * (b.wid / 2 + b.walk - 0.4))
+			part(parts, "BrueckeBruestung", "rail", x, 1.7, z, b.len, 1.4, 0.8, b.yaw, STONE, "Concrete", {})
+			x, z = at(0, side * (total / 2 - 0.2))
+			part(parts, "BrueckeGesims", "deck", x, -0.5, z, b.len, 0.7, 1.2, b.yaw, { 176, 166, 146 }, "Concrete", {})
+		end
+		-- Bögen: Spannweite 2 * span / 2 je Bogen, Kämpfer auf -7, Scheitel der Untersicht auf -2,5
+		local a, f = b.span / 2, b.rise
+		local R = (a * a + f * f) / (2 * f)
+		local yc = -2.5
+		for _, sc in ipairs({ -a, a }) do
+			local n = 24
+			local w = 2 * a / n
+			for k = 1, n do
+				local sm = sc - a + (k - 0.5) * w
+				local soffit = yc - R + math.sqrt(R * R - (sm - sc) ^ 2)
+				local h = -1 - soffit
+				local x, z = at(sm, 0)
+				part(parts, "BrueckeBogen", "deck", x, (-1 + soffit) / 2, z, w + 0.05, h, total - 4, b.yaw, BODY, "Concrete", {})
+			end
+		end
+		for _, sd in ipairs({ -1, 1 }) do -- Widerlager: massiver Block vom Bogenende bis zum Brückenende
+			local s0, s1 = b.span, b.len / 2
+			local x, z = at(sd * (s0 + s1) / 2, 0)
+			part(parts, "BrueckeWiderlager", "deck", x, -4.5, z, s1 - s0, 7, total - 4, b.yaw, BODY, "Concrete", {})
+			x, z = at(sd * b.span, 0) -- Fuß unter dem Bogenansatz bis in die Kiesbank
+			part(parts, "BrueckePfeiler", "deck", x, -9.5, z, 6, 6, total - 8, b.yaw, BODY, "Concrete", {})
+		end
+		local px, pz = at(0, 0) -- Mittelpfeiler vom Flussbett bis zum Bogenansatz, Vorköpfe rund
+		part(parts, "BrueckePfeiler", "deck", px, -11, pz, 7, 8, total - 16, b.yaw, BODY, "Concrete", {})
+		for _, sd in ipairs({ -1, 1 }) do
+			local x, z = at(0, sd * (total - 16) / 2)
+			part(parts, "BrueckePfeilerKopf", "deck", x, -11, z, 8, 7, 7, 0, BODY, "Concrete", { shape = "Cylinder", roll = 90 })
+		end
+		-- Statuen auf Sockeln über dem Pfeiler (beide Seiten)
+		local STATUE = { 176, 172, 162 }
+		for _, sd in ipairs({ -1, 1 }) do
+			local x, z = at(0, sd * 25.5)
+			part(parts, "StatueSockel", "deck", x, 3.5, z, 5, 5, 5, b.yaw, BODY, "Concrete", {})
+			part(parts, "StatueGewand", "deck", x, 8.5, z, 3.2, 5, 3.2, b.yaw, STATUE, "Concrete", { collide = false })
+			part(parts, "StatueTorso", "deck", x, 12.2, z, 2.6, 2.6, 2, b.yaw, STATUE, "Concrete", { collide = false })
+			part(parts, "StatueKopf", "deck", x, 14.3, z, 1.6, 1.8, 1.6, b.yaw, STATUE, "Concrete", { collide = false })
+		end
+		-- Laternen: Pfosten mit Leuchtkasten (Tag StreetLamp), am Pfeiler und über den Bogenansätzen
+		for _, s in ipairs({ -b.span, 0, b.span }) do
+			for _, sd in ipairs({ -1, 1 }) do
+				local x, z = at(s, sd * 27)
+				part(parts, "BrueckenLaterne", "lamp", x, 5.5, z, 0.5, 9, 0.5, 0, { 40, 56, 48 }, "Metal", {})
+				part(parts, "BrueckenLaternenKasten", "lamp", x, 10.8, z, 1.6, 2, 1.6, 0, { 255, 226, 150 }, "Neon", { collide = false })
+				parts[#parts].tag, parts[#parts].attrs = "StreetLamp", { Lit = true }
+			end
+		end
+		stats.isarBridges = (stats.isarBridges or 0) + 1
+	end
+
 	for _, b in ipairs(cfg.isarBridges) do
 		local r = math.rad(b.yaw)
 		local ux, uz = math.cos(r), -math.sin(r) -- Richtung der Brücke
 		local nx2, nz2 = -uz, ux -- quer
-		local total = b.wid + 2 * b.walk
-		part(parts, "BrueckeFahrbahn", "road", b.x, -1.5, b.z, b.len, 4, b.wid, b.yaw, COLOR.road, "Asphalt", {})
-		for _, side in ipairs({ -1, 1 }) do
-			local lat = side * (b.wid / 2 + b.walk / 2)
-			part(parts, "BrueckeGehweg", "walk", b.x + nx2 * lat, -1, b.z + nz2 * lat, b.len, 4, b.walk, b.yaw, STONE, "Concrete", {})
-			lat = side * (b.wid / 2 + b.walk - 0.4)
-			part(parts, "BrueckeBruestung", "rail", b.x + nx2 * lat, 1.7, b.z + nz2 * lat, b.len, 1.4, 0.8, b.yaw, STONE, "Concrete", {})
-		end
-		local k = 0
-		while k * b.pier <= b.len / 2 - 8 do
-			for _, sgn in ipairs(k == 0 and { 1 } or { -1, 1 }) do
-				local s = sgn * k * b.pier
-				local px, pz = b.x + ux * s, b.z + uz * s
-				local floor = floorAt(px, pz)
-				if floor <= -8 then -- nur im Wasser und auf der Kiesbank
-					part(parts, "BrueckePfeilerBalken", "deck", px, -5, pz, 6, 3, total - 6, b.yaw, STONE, "Concrete", {})
-					for _, lat in ipairs({ -21, -7, 7, 21 }) do
-						local h = -6.5 - (floor - 1)
-						part(parts, "BrueckeSaeule", "deck", px + nx2 * lat, (floor - 1 - 6.5) / 2, pz + nz2 * lat, h, 4.5, 4.5, 0, STONE, "Concrete", { shape = "Cylinder", roll = 90 })
-					end
-					stats.piers = (stats.piers or 0) + 1
-				end
+		if b.style == "maximilian" then
+			maximilian(b, ux, uz, -uz, ux)
+		else
+			local total = b.wid + 2 * b.walk
+			part(parts, "BrueckeFahrbahn", "road", b.x, -1.5, b.z, b.len, 4, b.wid, b.yaw, COLOR.road, "Asphalt", {})
+			for _, side in ipairs({ -1, 1 }) do
+				local lat = side * (b.wid / 2 + b.walk / 2)
+				part(parts, "BrueckeGehweg", "walk", b.x + nx2 * lat, -1, b.z + nz2 * lat, b.len, 4, b.walk, b.yaw, STONE, "Concrete", {})
+				lat = side * (b.wid / 2 + b.walk - 0.4)
+				part(parts, "BrueckeBruestung", "rail", b.x + nx2 * lat, 1.7, b.z + nz2 * lat, b.len, 1.4, 0.8, b.yaw, STONE, "Concrete", {})
 			end
-			k = k + 1
+			local k = 0
+			while k * b.pier <= b.len / 2 - 8 do
+				for _, sgn in ipairs(k == 0 and { 1 } or { -1, 1 }) do
+					local s = sgn * k * b.pier
+					local px, pz = b.x + ux * s, b.z + uz * s
+					local floor = floorAt(px, pz)
+					if floor <= -8 then -- nur im Wasser und auf der Kiesbank
+						part(parts, "BrueckePfeilerBalken", "deck", px, -5, pz, 6, 3, total - 6, b.yaw, STONE, "Concrete", {})
+						for _, lat in ipairs({ -21, -7, 7, 21 }) do
+							local h = -6.5 - (floor - 1)
+							part(parts, "BrueckeSaeule", "deck", px + nx2 * lat, (floor - 1 - 6.5) / 2, pz + nz2 * lat, h, 4.5, 4.5, 0, STONE, "Concrete", { shape = "Cylinder", roll = 90 })
+						end
+						stats.piers = (stats.piers or 0) + 1
+					end
+				end
+				k = k + 1
+			end
+			stats.isarBridges = (stats.isarBridges or 0) + 1
 		end
-		stats.isarBridges = (stats.isarBridges or 0) + 1
 	end
 
 	-- Unterführung: Rampen (geneigt), Boden, Decke unter der Querstraße, Seitenwände des Tunnelkastens

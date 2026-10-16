@@ -50,6 +50,7 @@ C.roads = {
 	{ name = "KreiselNord", profile = "std48", pts = { { -550, 30 }, { -550, 196 } } },
 	{ name = "KreiselWest", profile = "std48", pts = { { -661, 254 }, { -612, 254 } } },
 	{ name = "Kreisel", closed = true, profile = "kreisel24", pts = circle(-550, 254, 58, 24) },
+	{ name = "Maximilianstrasse", profile = "std48", pts = { { 395, 410 }, { 395, 298 }, { 876, 298 } } }, -- vom Ring zur Maximilianbrücke und den Stufen zum Friedensengel
 	{ name = "Fussgaengerzone", profile = "plaza40", pts = { { -480, 254 }, { -55, 254 } } },
 }
 
@@ -81,6 +82,8 @@ C.isarBridges = {
 	{ name = "B2", x = 887, z = -19, len = 214, wid = 28, walk = 14, yaw = 349.4, pier = 36 },
 	{ name = "B3", x = 692, z = 410, len = 252, wid = 28, walk = 14, yaw = 0, pier = 36 }, -- Luitpoldbrücke über Bach und Isar
 	{ name = "B4", x = 945, z = -472, len = 214, wid = 28, walk = 14, yaw = 0, pier = 36 },
+	-- Maximilianbrücke: zwei flache Segmentbögen über einen Mittelpfeiler mit Statuen, führt von der Maximilianstraße zur Friedensengel-Terrasse
+	{ name = "B6", style = "maximilian", x = 751, z = 298, len = 244, wid = 28, walk = 14, yaw = 0, span = 60, rise = 4.5 },
 }
 
 -- Siegestor-Unterführung: die vier Fahrspuren der Achse tauchen unter der Querstraße H2/D ab
@@ -105,7 +108,7 @@ C.parks = { -- Gras-Oberfläche (Terrain)
 	{ name = "Hinterhofpark", x0 = -401.5, z0 = -418, x1 = -293.5, z1 = -343.5 },
 }
 C.hills = { { name = "Monopteros", x = 575, z = 75, layers = { { 44, 0, 4 }, { 30, 4, 8 } } } } -- { Radius, y0, y1 }, nur 8 hoch
-C.terrace = { name = "Friedensengel", x0 = 870, z0 = 250, x1 = 1020, z1 = 346, height = 4 }
+C.terrace = { name = "Friedensengel", x0 = 890, z0 = 250, x1 = 1040, z1 = 346, height = 4 }
 
 -- Straßenlaternen nach Foto: hoher, schlanker grauer Mast mit geschwungenem Ausleger und Kopf über der Fahrbahn.
 C.lamps = { spacing = 64, inset = 2.5, height = 36 }
@@ -128,7 +131,7 @@ C.pedSignals = { { name = "Siegestor_West", x = -62, z = 8, fx = 1, fz = 0 }, { 
 -- Wahrzeichen: Siegestor steht auf dem Tunneldeckel (Mitte = Ursprung), Friedensengel in der Mitte der Terrasse
 C.landmarks = {
 	siegestor = { x = 0, z = 0, baseY = 0.4 },
-	friedensengel = { x = 945, z = 298, baseY = 3.7 },
+	friedensengel = { x = 965, z = 298, baseY = 3.7 },
 	frauenkirche = { x = -550, z = 254, baseY = 0.7 }, -- auf der Marienplatz-Insel im Kreisel
 	turm = { x = 573, z = 224, baseY = 0.2 }, -- Chinesischer Turm im Englischen Garten, Biergarten rundherum
 	biergarten = { x0 = 532, z0 = 186, x1 = 614, z1 = 262 },

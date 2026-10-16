@@ -57,6 +57,7 @@ Nach jeder Änderung an `MapBuilder/*.lua` die Einzeldateien neu erzeugen: `pyth
 | Was | Wo | Beispiel |
 |---|---|---|
 | Hügel und Terrasse niedriger oder höher | `MapBuilder/Config.lua`: `C.hills` (Schichten `{ Radius, von, bis }`) und `C.terrace.height` | Terrasse 4 → 0 entfernt sie fast |
+| Maximilianbrücke (Spannweite, Bogenhöhe) | `C.isarBridges` Eintrag B6: `span` (Hälfte der Gesamtbogenlänge je Bogen), `rise` (Pfeilhöhe der Bögen, flach = 4,5) | `rise = 7` für stärker gewölbte Bögen (Ansatz sinkt ins Wasser, dann `rise` ≤ 5,5 lassen) |
 | Länge der Isar-Brücken, Pfeilerabstand | `C.isarBridges`: `len` (muss größer als 2 × Böschungsbreite sein), `pier`, `walk` (Gehwegbreite) | `pier = 30` für engere Pfeiler |
 | Isar-Böschung (Breite der Stufen, Material) | `C.water.isar.layers` (Tiefe, Halbbreite) und `fills` (Sand-Kiesbank, Gras-Uferweg) | Halbbreite 90 → 70 für ein schmaleres Ufer |
 | Mittelstreifen-Höhe | `MapBuilder/RoadsPlanner.lua`: `TOP.median` | 0.8 (Gehweg 1.0, Straße 0.5) |

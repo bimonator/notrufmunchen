@@ -220,7 +220,7 @@ local function englischerGarten(cfg, add, rng, free)
 		end
 	end
 	-- Bänke am Hügel und am Hauptweg
-	for _, z in ipairs({ p.z0 + 60, 140, 200, 300 }) do
+	for _, z in ipairs({ p.z0 + 60, 140, 200, 240 }) do
 		bench(add, 513, 0, z, 270)
 		bench(add, 527, 0, z, 90)
 	end

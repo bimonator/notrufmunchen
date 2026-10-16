@@ -154,8 +154,26 @@ for _, b in ipairs(Config.isarBridges) do
 		check(math.abs(deck.pos[2] + deck.size[2] / 2 - 0.5) < 1e-6, b.name .. " Fahrbahn nicht auf Straßenhöhe")
 		check(deck.size[1] >= 2 * hwBank + 20, b.name .. " Brücke kürzer als die Böschung: " .. deck.size[1])
 	end
-	check(piers >= 3, b.name .. " Pfeilerreihen " .. piers)
-	check(columns == piers, b.name .. " Säulen " .. columns .. " zu Pfeilern " .. piers)
+	if b.style == "maximilian" then
+		local slices, statues, minSoffit, lamps, pier = 0, 0, 1e9, 0, 0
+		for _, p in ipairs(parts) do
+			if p.name == "BrueckeBogen" then
+				slices = slices + 1
+				minSoffit = math.min(minSoffit, p.pos[2] - p.size[2] / 2)
+				check(p.pos[2] + p.size[2] / 2 <= -0.99, "Bogenscheibe ragt in das Deck")
+			end
+			if p.name == "StatueSockel" then statues = statues + 1 end
+			if p.name == "BrueckenLaterne" then lamps = lamps + 1 end
+			if p.name == "BrueckePfeiler" and math.abs(p.pos[1] - b.x) < 1 then pier = pier + 1 check(p.pos[2] - p.size[2] / 2 <= -14.9, "Mittelpfeiler steht nicht im Flussbett") end
+		end
+		check(slices == 48, "Bogenscheiben " .. slices)
+		check(minSoffit >= -7.05 and minSoffit <= -6.5, "Bogenansatz " .. minSoffit)
+		check(minSoffit > Config.water.isar.waterTop, "Bogen taucht ins Wasser")
+		check(statues == 2 and lamps == 6 and pier == 1, "Maximilianbrücke: Statuen " .. statues .. ", Laternen " .. lamps .. ", Mittelpfeiler " .. pier)
+	else
+		check(piers >= 3, b.name .. " Pfeilerreihen " .. piers)
+		check(columns == piers, b.name .. " Säulen " .. columns .. " zu Pfeilern " .. piers)
+	end
 	check(flat == 0, b.name .. ": " .. flat .. " flache Straßenteile unter der Brücke")
 end
 
@@ -417,11 +435,14 @@ do
 	local gold, column = 0, 0
 	for _, p in ipairs(fe) do
 		local x0, ya, z0, x1, yb, z1 = aabb(p)
-		check(x0 >= 870 and x1 <= 1020 and z0 >= 250 and z1 <= 346, "Friedensengel: " .. p.name .. " liegt nicht auf der Terrasse")
+		check(x0 >= Config.terrace.x0 - 20 and x1 <= Config.terrace.x1 and z0 >= Config.terrace.z0 - 4 and z1 <= Config.terrace.z1, "Friedensengel: " .. p.name .. " liegt nicht auf der Terrasse")
 		if p.color[1] == 236 and p.color[2] == 184 then gold = gold + 1 end
 		if p.name == "Saeule" then column = p.size[1] end
 		check(yb < 130, "Friedensengel zu hoch")
 	end
+	local steps = 0
+	for _, p in ipairs(fe) do if p.name == "TerrassenStufe" then steps = steps + 1 end end
+	check(steps == 4, "Treppe zur Terrasse: " .. steps)
 	check(column >= 60 and gold >= 6, "Friedensengel: Säule " .. column .. ", Goldteile " .. gold)
 end
 

@@ -113,6 +113,15 @@ function Landmarks.friedensengel(cfg)
 	for _, a in ipairs({ { 4.5, 0 }, { -4.5, 0 }, { 0, 4.5 }, { 0, -4.5 } }) do -- Wasserstrahlen am Sockel
 		add("Wasserstrahl", a[1], yb + 4, a[2], 0.9, 8, 0.9, { 240, 248, 255 }, "SmoothPlastic", { collide = false, transparency = 0.5 })
 	end
+	-- Treppe vom Ende der Maximilianstraße (x = Terrasse - 14) zur Terrasse: vier Stufen, Wangenmauern
+	local t = cfg.terrace
+	local sx0 = t.x0 - 14 - L.x
+	for i = 1, 4 do
+		add("TerrassenStufe", sx0 + (i - 0.5) * 3.5, i / 2 - 0.2, 0, 3.5, i + 0.4, 24, STONE, "Concrete")
+	end
+	for _, sd in ipairs({ -1, 1 }) do
+		add("TerrassenWange", sx0 + 7, 1.8, sd * 12.8, 14, 4.4, 1.6, STONE, "Concrete")
+	end
 	return parts
 end
 

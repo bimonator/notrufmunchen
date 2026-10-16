@@ -176,6 +176,7 @@ C.roads = {
 	{ name = "KreiselNord", profile = "std48", pts = { { -550, 30 }, { -550, 196 } } },
 	{ name = "KreiselWest", profile = "std48", pts = { { -661, 254 }, { -612, 254 } } },
 	{ name = "Kreisel", closed = true, profile = "kreisel24", pts = circle(-550, 254, 58, 24) },
+	{ name = "Maximilianstrasse", profile = "std48", pts = { { 395, 410 }, { 395, 298 }, { 876, 298 } } }, -- vom Ring zur Maximilianbrücke und den Stufen zum Friedensengel
 	{ name = "Fussgaengerzone", profile = "plaza40", pts = { { -480, 254 }, { -55, 254 } } },
 }
 
@@ -207,6 +208,8 @@ C.isarBridges = {
 	{ name = "B2", x = 887, z = -19, len = 214, wid = 28, walk = 14, yaw = 349.4, pier = 36 },
 	{ name = "B3", x = 692, z = 410, len = 252, wid = 28, walk = 14, yaw = 0, pier = 36 }, -- Luitpoldbrücke über Bach und Isar
 	{ name = "B4", x = 945, z = -472, len = 214, wid = 28, walk = 14, yaw = 0, pier = 36 },
+	-- Maximilianbrücke: zwei flache Segmentbögen über einen Mittelpfeiler mit Statuen, führt von der Maximilianstraße zur Friedensengel-Terrasse
+	{ name = "B6", style = "maximilian", x = 751, z = 298, len = 244, wid = 28, walk = 14, yaw = 0, span = 60, rise = 4.5 },
 }
 
 -- Siegestor-Unterführung: die vier Fahrspuren der Achse tauchen unter der Querstraße H2/D ab
@@ -231,7 +234,7 @@ C.parks = { -- Gras-Oberfläche (Terrain)
 	{ name = "Hinterhofpark", x0 = -401.5, z0 = -418, x1 = -293.5, z1 = -343.5 },
 }
 C.hills = { { name = "Monopteros", x = 575, z = 75, layers = { { 44, 0, 4 }, { 30, 4, 8 } } } } -- { Radius, y0, y1 }, nur 8 hoch
-C.terrace = { name = "Friedensengel", x0 = 870, z0 = 250, x1 = 1020, z1 = 346, height = 4 }
+C.terrace = { name = "Friedensengel", x0 = 890, z0 = 250, x1 = 1040, z1 = 346, height = 4 }
 
 -- Straßenlaternen nach Foto: hoher, schlanker grauer Mast mit geschwungenem Ausleger und Kopf über der Fahrbahn.
 C.lamps = { spacing = 64, inset = 2.5, height = 36 }
@@ -254,7 +257,7 @@ C.pedSignals = { { name = "Siegestor_West", x = -62, z = 8, fx = 1, fz = 0 }, { 
 -- Wahrzeichen: Siegestor steht auf dem Tunneldeckel (Mitte = Ursprung), Friedensengel in der Mitte der Terrasse
 C.landmarks = {
 	siegestor = { x = 0, z = 0, baseY = 0.4 },
-	friedensengel = { x = 945, z = 298, baseY = 3.7 },
+	friedensengel = { x = 965, z = 298, baseY = 3.7 },
 	frauenkirche = { x = -550, z = 254, baseY = 0.7 }, -- auf der Marienplatz-Insel im Kreisel
 	turm = { x = 573, z = 224, baseY = 0.2 }, -- Chinesischer Turm im Englischen Garten, Biergarten rundherum
 	biergarten = { x0 = 532, z0 = 186, x1 = 614, z1 = 262 },
@@ -1315,36 +1318,104 @@ function RoadsPlanner.plan(cfg)
 		if Geo.polyDist(x, z, cfg.water.bach.pts) < 16 then y = math.min(y, -7) end
 		return y
 	end
+	-- Maximilianbrücke: dünnes Deck auf Straßenhöhe, darunter zwei flache Segmentbögen (aus senkrechten Scheiben unter dem Deck) über einen
+	-- Mittelpfeiler mit Vorköpfen im Fluss, Widerlager an beiden Seiten, Statuen auf Sockeln über dem Pfeiler und klassische Laternen.
+	local function maximilian(b, ux, uz, nx2, nz2)
+		local total = b.wid + 2 * b.walk
+		local BODY = { 200, 190, 168 }
+		local function at(sAlong, lat) return b.x + ux * sAlong + nx2 * lat, b.z + uz * sAlong + nz2 * lat end
+		part(parts, "BrueckeFahrbahn", "road", b.x, -0.25, b.z, b.len, 1.5, b.wid, b.yaw, COLOR.road, "Asphalt", {})
+		for _, side in ipairs({ -1, 1 }) do
+			local x, z = at(0, side * (b.wid / 2 + b.walk / 2))
+			part(parts, "BrueckeGehweg", "walk", x, 0.25, z, b.len, 1.5, b.walk, b.yaw, STONE, "Concrete", {})
+			x, z = at(0, side * (b.wid / 2 + b.walk - 0.4))
+			part(parts, "BrueckeBruestung", "rail", x, 1.7, z, b.len, 1.4, 0.8, b.yaw, STONE, "Concrete", {})
+			x, z = at(0, side * (total / 2 - 0.2))
+			part(parts, "BrueckeGesims", "deck", x, -0.5, z, b.len, 0.7, 1.2, b.yaw, { 176, 166, 146 }, "Concrete", {})
+		end
+		-- Bögen: Spannweite 2 * span / 2 je Bogen, Kämpfer auf -7, Scheitel der Untersicht auf -2,5
+		local a, f = b.span / 2, b.rise
+		local R = (a * a + f * f) / (2 * f)
+		local yc = -2.5
+		for _, sc in ipairs({ -a, a }) do
+			local n = 24
+			local w = 2 * a / n
+			for k = 1, n do
+				local sm = sc - a + (k - 0.5) * w
+				local soffit = yc - R + math.sqrt(R * R - (sm - sc) ^ 2)
+				local h = -1 - soffit
+				local x, z = at(sm, 0)
+				part(parts, "BrueckeBogen", "deck", x, (-1 + soffit) / 2, z, w + 0.05, h, total - 4, b.yaw, BODY, "Concrete", {})
+			end
+		end
+		for _, sd in ipairs({ -1, 1 }) do -- Widerlager: massiver Block vom Bogenende bis zum Brückenende
+			local s0, s1 = b.span, b.len / 2
+			local x, z = at(sd * (s0 + s1) / 2, 0)
+			part(parts, "BrueckeWiderlager", "deck", x, -4.5, z, s1 - s0, 7, total - 4, b.yaw, BODY, "Concrete", {})
+			x, z = at(sd * b.span, 0) -- Fuß unter dem Bogenansatz bis in die Kiesbank
+			part(parts, "BrueckePfeiler", "deck", x, -9.5, z, 6, 6, total - 8, b.yaw, BODY, "Concrete", {})
+		end
+		local px, pz = at(0, 0) -- Mittelpfeiler vom Flussbett bis zum Bogenansatz, Vorköpfe rund
+		part(parts, "BrueckePfeiler", "deck", px, -11, pz, 7, 8, total - 16, b.yaw, BODY, "Concrete", {})
+		for _, sd in ipairs({ -1, 1 }) do
+			local x, z = at(0, sd * (total - 16) / 2)
+			part(parts, "BrueckePfeilerKopf", "deck", x, -11, z, 8, 7, 7, 0, BODY, "Concrete", { shape = "Cylinder", roll = 90 })
+		end
+		-- Statuen auf Sockeln über dem Pfeiler (beide Seiten)
+		local STATUE = { 176, 172, 162 }
+		for _, sd in ipairs({ -1, 1 }) do
+			local x, z = at(0, sd * 25.5)
+			part(parts, "StatueSockel", "deck", x, 3.5, z, 5, 5, 5, b.yaw, BODY, "Concrete", {})
+			part(parts, "StatueGewand", "deck", x, 8.5, z, 3.2, 5, 3.2, b.yaw, STATUE, "Concrete", { collide = false })
+			part(parts, "StatueTorso", "deck", x, 12.2, z, 2.6, 2.6, 2, b.yaw, STATUE, "Concrete", { collide = false })
+			part(parts, "StatueKopf", "deck", x, 14.3, z, 1.6, 1.8, 1.6, b.yaw, STATUE, "Concrete", { collide = false })
+		end
+		-- Laternen: Pfosten mit Leuchtkasten (Tag StreetLamp), am Pfeiler und über den Bogenansätzen
+		for _, s in ipairs({ -b.span, 0, b.span }) do
+			for _, sd in ipairs({ -1, 1 }) do
+				local x, z = at(s, sd * 27)
+				part(parts, "BrueckenLaterne", "lamp", x, 5.5, z, 0.5, 9, 0.5, 0, { 40, 56, 48 }, "Metal", {})
+				part(parts, "BrueckenLaternenKasten", "lamp", x, 10.8, z, 1.6, 2, 1.6, 0, { 255, 226, 150 }, "Neon", { collide = false })
+				parts[#parts].tag, parts[#parts].attrs = "StreetLamp", { Lit = true }
+			end
+		end
+		stats.isarBridges = (stats.isarBridges or 0) + 1
+	end
+
 	for _, b in ipairs(cfg.isarBridges) do
 		local r = math.rad(b.yaw)
 		local ux, uz = math.cos(r), -math.sin(r) -- Richtung der Brücke
 		local nx2, nz2 = -uz, ux -- quer
-		local total = b.wid + 2 * b.walk
-		part(parts, "BrueckeFahrbahn", "road", b.x, -1.5, b.z, b.len, 4, b.wid, b.yaw, COLOR.road, "Asphalt", {})
-		for _, side in ipairs({ -1, 1 }) do
-			local lat = side * (b.wid / 2 + b.walk / 2)
-			part(parts, "BrueckeGehweg", "walk", b.x + nx2 * lat, -1, b.z + nz2 * lat, b.len, 4, b.walk, b.yaw, STONE, "Concrete", {})
-			lat = side * (b.wid / 2 + b.walk - 0.4)
-			part(parts, "BrueckeBruestung", "rail", b.x + nx2 * lat, 1.7, b.z + nz2 * lat, b.len, 1.4, 0.8, b.yaw, STONE, "Concrete", {})
-		end
-		local k = 0
-		while k * b.pier <= b.len / 2 - 8 do
-			for _, sgn in ipairs(k == 0 and { 1 } or { -1, 1 }) do
-				local s = sgn * k * b.pier
-				local px, pz = b.x + ux * s, b.z + uz * s
-				local floor = floorAt(px, pz)
-				if floor <= -8 then -- nur im Wasser und auf der Kiesbank
-					part(parts, "BrueckePfeilerBalken", "deck", px, -5, pz, 6, 3, total - 6, b.yaw, STONE, "Concrete", {})
-					for _, lat in ipairs({ -21, -7, 7, 21 }) do
-						local h = -6.5 - (floor - 1)
-						part(parts, "BrueckeSaeule", "deck", px + nx2 * lat, (floor - 1 - 6.5) / 2, pz + nz2 * lat, h, 4.5, 4.5, 0, STONE, "Concrete", { shape = "Cylinder", roll = 90 })
-					end
-					stats.piers = (stats.piers or 0) + 1
-				end
+		if b.style == "maximilian" then
+			maximilian(b, ux, uz, -uz, ux)
+		else
+			local total = b.wid + 2 * b.walk
+			part(parts, "BrueckeFahrbahn", "road", b.x, -1.5, b.z, b.len, 4, b.wid, b.yaw, COLOR.road, "Asphalt", {})
+			for _, side in ipairs({ -1, 1 }) do
+				local lat = side * (b.wid / 2 + b.walk / 2)
+				part(parts, "BrueckeGehweg", "walk", b.x + nx2 * lat, -1, b.z + nz2 * lat, b.len, 4, b.walk, b.yaw, STONE, "Concrete", {})
+				lat = side * (b.wid / 2 + b.walk - 0.4)
+				part(parts, "BrueckeBruestung", "rail", b.x + nx2 * lat, 1.7, b.z + nz2 * lat, b.len, 1.4, 0.8, b.yaw, STONE, "Concrete", {})
 			end
-			k = k + 1
+			local k = 0
+			while k * b.pier <= b.len / 2 - 8 do
+				for _, sgn in ipairs(k == 0 and { 1 } or { -1, 1 }) do
+					local s = sgn * k * b.pier
+					local px, pz = b.x + ux * s, b.z + uz * s
+					local floor = floorAt(px, pz)
+					if floor <= -8 then -- nur im Wasser und auf der Kiesbank
+						part(parts, "BrueckePfeilerBalken", "deck", px, -5, pz, 6, 3, total - 6, b.yaw, STONE, "Concrete", {})
+						for _, lat in ipairs({ -21, -7, 7, 21 }) do
+							local h = -6.5 - (floor - 1)
+							part(parts, "BrueckeSaeule", "deck", px + nx2 * lat, (floor - 1 - 6.5) / 2, pz + nz2 * lat, h, 4.5, 4.5, 0, STONE, "Concrete", { shape = "Cylinder", roll = 90 })
+						end
+						stats.piers = (stats.piers or 0) + 1
+					end
+				end
+				k = k + 1
+			end
+			stats.isarBridges = (stats.isarBridges or 0) + 1
 		end
-		stats.isarBridges = (stats.isarBridges or 0) + 1
 	end
 
 	-- Unterführung: Rampen (geneigt), Boden, Decke unter der Querstraße, Seitenwände des Tunnelkastens
@@ -1594,6 +1665,15 @@ function Landmarks.friedensengel(cfg)
 	add("EngelZweig", -2.6 * k, ya + 11 * k, 1.2 * k, 0.5, 7 * k, 0.5, GOLD, "Metal", { collide = false })
 	for _, a in ipairs({ { 4.5, 0 }, { -4.5, 0 }, { 0, 4.5 }, { 0, -4.5 } }) do -- Wasserstrahlen am Sockel
 		add("Wasserstrahl", a[1], yb + 4, a[2], 0.9, 8, 0.9, { 240, 248, 255 }, "SmoothPlastic", { collide = false, transparency = 0.5 })
+	end
+	-- Treppe vom Ende der Maximilianstraße (x = Terrasse - 14) zur Terrasse: vier Stufen, Wangenmauern
+	local t = cfg.terrace
+	local sx0 = t.x0 - 14 - L.x
+	for i = 1, 4 do
+		add("TerrassenStufe", sx0 + (i - 0.5) * 3.5, i / 2 - 0.2, 0, 3.5, i + 0.4, 24, STONE, "Concrete")
+	end
+	for _, sd in ipairs({ -1, 1 }) do
+		add("TerrassenWange", sx0 + 7, 1.8, sd * 12.8, 14, 4.4, 1.6, STONE, "Concrete")
 	end
 	return parts
 end
@@ -2141,7 +2221,7 @@ local function englischerGarten(cfg, add, rng, free)
 		end
 	end
 	-- Bänke am Hügel und am Hauptweg
-	for _, z in ipairs({ p.z0 + 60, 140, 200, 300 }) do
+	for _, z in ipairs({ p.z0 + 60, 140, 200, 240 }) do
 		bench(add, 513, 0, z, 270)
 		bench(add, 527, 0, z, 90)
 	end
