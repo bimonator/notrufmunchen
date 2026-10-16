@@ -941,7 +941,154 @@ local function styleBuero(h, o, rng)
 	add(h, "Oberlicht", "glass", 0, y0 + H + 5.6, D / 2, W - 22, 3.2, D - 6, { 96, 124, 146 }, "Glass", { collide = false })
 end
 
-local STYLES = { feuerwache = styleFeuerwache, polizei = stylePolizei, klinik = styleKlinik, buero = styleBuero }
+-- Gemeinsame Vorplatz-Bausteine (lokal): Platte in Gehwegoptik (Oberkante 1), Bank, Baum
+local function forecourt(h, lx, lz, w, d)
+	add(h, "Vorplatz", "trim", lx, 0.5, lz, w, 1, d, { 168, 172, 174 }, "Concrete", { collide = true })
+end
+local function benchAt(h, lx, lz, yaw)
+	add(h, "VorplatzBank", "decor", lx, 2.1, lz, 5, 0.5, 1.6, { 120, 84, 56 }, "Wood", { yaw = yaw, collide = true })
+	add(h, "VorplatzBank", "decor", lx, 3.0, lz + ((yaw == 0) and 0.7 or 0), 5, 1.6, 0.3, { 120, 84, 56 }, "Wood", { yaw = yaw })
+	for _, sd in ipairs({ -1, 1 }) do add(h, "VorplatzBank", "decor", lx + sd * 2, 1.5, lz, 0.4, 1, 1.2, { 60, 62, 66 }, "Metal", { yaw = yaw }) end
+end
+local function treeAt(h, lx, lz)
+	add(h, "VorplatzStamm", "tree", lx, 4.5, lz, 1.4, 7, 1.4, { 96, 70, 48 }, "Wood", { collide = true })
+	add(h, "VorplatzKrone", "tree", lx, 12, lz, 10, 10, 10, { 70, 124, 62 }, "Grass", { shape = "Ball" })
+end
+
+-- Kino "Casino Odeon" (Filmcasino, erfundener Name): dunkle Fassade, Vordach (Marquise) mit goldenem Neonrand und Schriftzug, gläserne Eingangshalle
+-- mit Doppeltür und Kasse, vier beleuchtete Filmplakate, Dachschild "KINO" mit Filmrolle, roter Teppich mit Absperrpfosten, Vorplatz mit Bänken und Bäumen.
+local function styleKino(h, o, rng)
+	local W, D, y0 = h.width, h.depth, o.floorY
+	local H = 36
+	local WALL, TRIM, GOLD, RED, DARKR = h.color, { 214, 200, 176 }, { 240, 196, 90 }, { 168, 30, 42 }, { 70, 20, 28 }
+	h.floors, h.height, h.facade, h.roof = 3, H, WALL, "flat"
+	add(h, "Body", "body", 0, y0 + H / 2, D / 2, W, H, D, WALL, "SmoothPlastic", { collide = true })
+	add(h, "Sockel", "trim", 0, y0 + 1.2, -0.3, W, 2.4, 0.6, { 90, 84, 88 }, "Concrete")
+	add(h, "Kranzgesims", "trim", 0, y0 + H - 0.8, -0.9, W + 1.2, 1.6, 1.8, TRIM, "Concrete")
+	add(h, "Gurtgesims", "trim", 0, y0 + 15.2, -0.5, W + 0.6, 0.8, 1.2, TRIM, "Concrete")
+	add(h, "Dach", "roof", 0, y0 + H + 0.3, D / 2, W, 0.6, D, { 96, 96, 100 }, "Concrete", { collide = true })
+	ribbon(h, o, rng, "front", y0 + 22, 6.4, -W / 2 + 3, W / 2 - 3, 8, GLASS, DARKG, 0.3, o.litChance)
+	ribbon(h, o, rng, "front", y0 + 30, 4.8, -W / 2 + 3, W / 2 - 3, 8, GLASS, DARKG, 0.3, o.litChance)
+	for _, face in ipairs({ "+x", "-x" }) do
+		ribbon(h, o, rng, face, y0 + 22, 6.4, 6, D - 6, 8, GLASS, DARKG, 0.3, o.litChance)
+		ribbon(h, o, rng, face, y0 + 30, 4.8, 6, D - 6, 8, GLASS, DARKG, 0.3, o.litChance)
+	end
+	-- Eingangshalle: Glasfront, Doppeltür (Tag ShopDoor, ohne Kollision), Kasse
+	ribbon(h, o, rng, "front", y0 + 7.5, 10, -16, -4.5, 4, GLASS, DARKR, 0.3, nil)
+	ribbon(h, o, rng, "front", y0 + 7.5, 10, 4.5, 16, 4, GLASS, DARKR, 0.3, nil)
+	for _, sd in ipairs({ -1, 1 }) do add(h, "Kinotuer", "glass", sd * 2.2, y0 + 5.2, -0.5, 4, 10.4, 0.3, { 140, 160, 170 }, "Glass", { tag = "ShopDoor" }) end
+	add(h, "Tuerrahmen", "trim", 0, y0 + 10.7, -0.6, 9.6, 0.8, 0.6, GOLD, "Metal")
+	add(h, "KasseFenster", "glass", -23, y0 + 5.4, -0.4, 6, 4, 0.3, { 150, 170, 180 }, "Glass")
+	add(h, "KasseRahmen", "trim", -23, y0 + 5.4, -0.3, 7, 5, 0.3, GOLD, "Metal")
+	label(h, "front", -23, y0 + 9.2, 0.6, 6, 1.6, "KASSE", GOLD)
+	-- Filmplakate links und rechts der Halle (hinterleuchtet)
+	local posters = { { "PREMIERE", { 170, 60, 50 } }, { "ACTION", { 50, 90, 150 } }, { "KOMOEDIE", { 220, 170, 60 } }, { "DRAMA", { 90, 60, 120 } } }
+	for i, u in ipairs({ -29, -21.5, 21.5, 29 }) do
+		add(h, "PlakatRahmen", "trim", u, y0 + 7.8, -0.5, 6, 9, 0.5, { 36, 34, 38 }, "Metal")
+		add(h, "Plakat", "decor", u, y0 + 7.8, -0.85, 5, 8, 0.2, posters[i][2], "SmoothPlastic", { lit = true })
+		label(h, "front", u, y0 + 7.8, 1.1, 4.6, 1.4, posters[i][1], { 255, 255, 255 })
+		add(h, "PlakatLicht", "trim", u, y0 + 12.6, -0.9, 5.4, 0.3, 0.5, { 255, 244, 214 }, "Neon")
+	end
+	-- Marquise
+	add(h, "Marquise", "trim", 0, y0 + 14.6, -5, 40, 1.2, 10, { 40, 28, 34 }, "Metal", { collide = true })
+	for _, sd in ipairs({ -1, 1 }) do
+		add(h, "MarquiseSaeule", "trim", sd * 18.5, y0 + 7.3, -9, 1.2, 14.6, 1.2, GOLD, "Metal", { collide = true })
+		add(h, "MarquiseNeon", "trim", sd * 20, y0 + 15.5, -5, 0.4, 0.5, 10, GOLD, "Neon")
+	end
+	add(h, "MarquiseNeon", "trim", 0, y0 + 15.5, -10, 40.4, 0.5, 0.4, GOLD, "Neon")
+	add(h, "MarquiseNeon", "trim", 0, y0 + 13.9, -10, 40.4, 0.4, 0.4, GOLD, "Neon")
+	for i = -9, 9 do add(h, "MarquiseLampe", "trim", i * 2, y0 + 13.8, -9.8, 0.7, 0.7, 0.7, { 255, 244, 190 }, "Neon", { shape = "Ball" }) end
+	add(h, "Schriftband", "trim", 0, y0 + 18, -10, 36, 4, 0.6, DARKR, "SmoothPlastic")
+	label(h, "front", 0, y0 + 18, 10.5, 34, 3, "CASINO ODEON", GOLD)
+	-- Dachschild mit Filmrolle
+	for _, sd in ipairs({ -1, 1 }) do add(h, "Schildstuetze", "trim", sd * 12, y0 + H + 3, 6, 0.8, 5, 0.8, { 50, 52, 56 }, "Metal") end
+	add(h, "KinoSchild", "trim", 0, y0 + H + 7.2, 6, 30, 7, 0.8, { 24, 20, 28 }, "SmoothPlastic")
+	label(h, "front", 0, y0 + H + 7.2, -5.6, 28, 5.4, "KINO", GOLD)
+	add(h, "Filmrolle", "decor", -W / 2 + 7, y0 + H + 8, 6, 1.4, 9, 9, { 30, 30, 34 }, "Metal", { shape = "Cylinder", yaw = 90 })
+	for k = 0, 5 do
+		local a = math.rad(k * 60)
+		add(h, "FilmrolleLoch", "decor", -W / 2 + 7 + 2.6 * math.cos(a), y0 + H + 8 + 2.6 * math.sin(a), 5.2, 0.4, 1.8, 1.8, { 200, 196, 188 }, "Metal", { shape = "Cylinder", yaw = 90 })
+	end
+	-- Vorplatz: Platte, roter Teppich mit Pfosten und Kordel, Bänke, Bäume
+	forecourt(h, 0, -14, W + 8, 28)
+	add(h, "RoterTeppich", "decor", 0, 1.1, -12, 9, 0.2, 24, RED, "Fabric")
+	for _, sd in ipairs({ -1, 1 }) do
+		for _, lz in ipairs({ -2, -8, -14, -20 }) do add(h, "Absperrpfosten", "decor", sd * 5.4, 2.6, lz, 0.5, 3, 0.5, GOLD, "Metal", { collide = true }) end
+		add(h, "Kordel", "decor", sd * 5.4, 3.7, -11, 0.3, 0.3, 18, { 150, 24, 36 }, "Fabric")
+	end
+	benchAt(h, -20, -20, 0)
+	benchAt(h, 20, -20, 0)
+	treeAt(h, -30, -24)
+	treeAt(h, 30, -24)
+end
+
+-- Kaffeehaus Odeon (grün-weißes Café nach Plan, bewusst ohne echtes Markenlogo): helle Fassade mit grünen Bändern, großes Glasfenster, grünes Vordach
+-- mit Schriftzug, rundes Schild mit Kaffeebohne, Terrasse mit Zaun, Tischen, Stühlen und Sonnenschirmen, Menütafel.
+local function styleKaffee(h, o, rng)
+	local W, D, y0 = h.width, h.depth, o.floorY
+	local H = 22
+	local CREAM, GREEN, DGREEN, WHITE2 = { 244, 242, 232 }, { 30, 120, 80 }, { 18, 84, 56 }, { 250, 250, 246 }
+	h.floors, h.height, h.facade, h.roof = 2, H, CREAM, "flat"
+	add(h, "Body", "body", 0, y0 + H / 2, D / 2, W, H, D, CREAM, "SmoothPlastic", { collide = true })
+	add(h, "Sockel", "trim", 0, y0 + 1.2, -0.3, W, 2.4, 0.6, DGREEN, "Concrete")
+	add(h, "Band", "trim", 0, y0 + 13.2, -0.4, W + 0.6, 1.2, 0.8, GREEN, "SmoothPlastic")
+	add(h, "Kranzgesims", "trim", 0, y0 + H - 0.8, -0.8, W + 1, 1.6, 1.6, GREEN, "SmoothPlastic")
+	add(h, "Dach", "roof", 0, y0 + H + 0.3, D / 2, W, 0.6, D, { 96, 96, 100 }, "Concrete", { collide = true })
+	add(h, "Attika", "trim", 0, y0 + H + 1.6, 0.4, W, 2, 0.8, CREAM, "Concrete")
+	for _, lx in ipairs({ -W / 4, W / 4 }) do add(h, "Lueftung", "trim", lx, y0 + H + 2.4, D * 0.6, 5, 3.6, 4, { 170, 176, 180 }, "Metal") end
+	-- Glasfront im Erdgeschoss, Tür in der Mitte; Fenster im Obergeschoss
+	ribbon(h, o, rng, "front", y0 + 7, 9.4, -W / 2 + 2, -3.6, 4.4, GLASS, DGREEN, 0.3, nil)
+	ribbon(h, o, rng, "front", y0 + 7, 9.4, 3.6, W / 2 - 2, 4.4, GLASS, DGREEN, 0.3, nil)
+	ribbon(h, o, rng, "front", y0 + 18, 4.4, -W / 2 + 2, W / 2 - 2, 6, GLASS, DGREEN, 0.3, o.litChance)
+	for _, sd in ipairs({ -1, 1 }) do
+		add(h, "Kaffeetuer", "glass", sd * 1.7, y0 + 4.8, -0.5, 3.2, 9.6, 0.3, { 160, 180, 176 }, "Glass", { tag = "ShopDoor" })
+		add(h, "Tuerrahmen", "trim", sd * 3.5, y0 + 5, -0.6, 0.5, 10, 0.5, DGREEN, "Metal")
+	end
+	add(h, "Tuerrahmen", "trim", 0, y0 + 10.1, -0.6, 7.4, 0.5, 0.5, DGREEN, "Metal")
+	for _, face in ipairs({ "+x", "-x" }) do
+		ribbon(h, o, rng, face, y0 + 7, 9, 6, D - 6, 8, GLASS, DGREEN, 0.3, o.litChance)
+		ribbon(h, o, rng, face, y0 + 18, 4.4, 6, D - 6, 8, GLASS, DGREEN, 0.3, o.litChance)
+	end
+	-- grünes Vordach mit Schriftzug
+	add(h, "Markise", "trim", 0, y0 + 12.2, -3, W - 8, 0.6, 6, GREEN, "Fabric")
+	add(h, "MarkiseSaum", "trim", 0, y0 + 11.3, -6, W - 8, 1.8, 0.4, GREEN, "Fabric")
+	label(h, "front", 0, y0 + 11.3, 6.3, W - 12, 1.2, "KAFFEEHAUS ODEON", WHITE2)
+	-- rundes Schild mit Kaffeebohne (eigenes Zeichen, kein Markenlogo)
+	add(h, "SchildRand", "decor", 0, y0 + 18.4, -0.4, 0.6, 9, 9, DGREEN, "Metal", { shape = "Cylinder", yaw = 90 })
+	add(h, "SchildGruen", "decor", 0, y0 + 18.4, -0.7, 0.4, 8, 8, GREEN, "SmoothPlastic", { shape = "Cylinder", yaw = 90 })
+	add(h, "SchildRing", "decor", 0, y0 + 18.4, -0.9, 0.3, 6.6, 6.6, WHITE2, "SmoothPlastic", { shape = "Cylinder", yaw = 90 })
+	add(h, "SchildBohne", "decor", 0, y0 + 18.4, -1.1, 0.3, 4.6, 3, { 92, 56, 36 }, "SmoothPlastic", { shape = "Cylinder", yaw = 90, roll = 25 })
+	add(h, "SchildBohneNaht", "decor", 0, y0 + 18.4, -1.3, 0.2, 0.3, 4.4, WHITE2, "SmoothPlastic", { roll = 25 })
+	-- Terrasse
+	forecourt(h, 0, -13, W + 8, 26)
+	for _, sd in ipairs({ -1, 1 }) do
+		for _, lz in ipairs({ -8, -14, -20, -25 }) do add(h, "Zaunpfosten", "decor", sd * (W / 2 + 2), 2.4, lz, 0.4, 2.8, 0.4, DGREEN, "Metal", { collide = true }) end
+		add(h, "Zaunriegel", "decor", sd * (W / 2 + 2), 3.4, -16.5, 0.3, 0.3, 17.5, DGREEN, "Metal")
+	end
+	add(h, "Zaunriegel", "decor", 0, 3.4, -25.2, W + 4, 0.3, 0.3, DGREEN, "Metal")
+	for _, lx in ipairs({ -W / 2 + 2, W / 2 - 2 }) do for _, lz in ipairs({ -25.2 }) do add(h, "Zaunpfosten", "decor", lx, 2.4, lz, 0.4, 2.8, 0.4, DGREEN, "Metal", { collide = true }) end end
+	local ti = 0
+	for _, lx in ipairs({ -13, 0, 13 }) do
+		for _, lz in ipairs({ -12, -20 }) do
+			ti = ti + 1
+			add(h, "Tisch", "decor", lx, 3.4, lz, 0.4, 3.4, 3.4, { 240, 238, 230 }, "SmoothPlastic", { shape = "Cylinder", roll = 90, collide = true })
+			add(h, "Tischfuss", "decor", lx, 2.2, lz, 2.2, 0.5, 0.5, { 50, 54, 58 }, "Metal", { shape = "Cylinder", roll = 90 })
+			for _, sd in ipairs({ -1, 1 }) do add(h, "Stuhl", "decor", lx + sd * 2.6, 2.5, lz, 1.5, 0.4, 1.5, DGREEN, "Metal", { collide = true }) end
+			if ti % 2 == 1 then
+				add(h, "SchirmStange", "decor", lx, 5.2, lz, 0.3, 8.4, 0.3, { 200, 200, 196 }, "Metal")
+				add(h, "Schirm", "decor", lx, 9.5, lz, 0.3, 9, 9, (ti % 4 == 1) and GREEN or WHITE2, "Fabric", { shape = "Cylinder", roll = 90 })
+			end
+		end
+	end
+	for _, sd in ipairs({ -1, 1 }) do -- Pflanzkübel am Eingang, Menütafel
+		add(h, "Kuebel", "decor", sd * 7, 1.9, -2.6, 2.8, 1.8, 2.8, { 70, 66, 62 }, "Concrete", { collide = true })
+		add(h, "KuebelBusch", "bush", sd * 7, 4.2, -2.6, 4, 4, 4, { 46, 92, 52 }, "Grass", { shape = "Ball" })
+	end
+	add(h, "MenuTafel", "decor", 8.4, 3.3, -4.2, 3, 4.6, 0.4, { 28, 32, 30 }, "SmoothPlastic", { collide = true })
+	label(h, "front", 8.4, y0 + 3.4, 4.5, 2.6, 1.4, "MENUE", WHITE2)
+end
+
+local STYLES = { feuerwache = styleFeuerwache, polizei = stylePolizei, klinik = styleKlinik, buero = styleBuero, kino = styleKino, kaffee = styleKaffee }
 
 
 -- Teil in Weltkoordinaten (für Anlagen, die nicht zum Haus-Koordinatensystem passen: Tankstelle, Polizeihof)
@@ -1167,13 +1314,28 @@ local function parkingLot(h, spec)
 			W3(h, "EVStecker", "trim", cx + 1.2, 1.7, zb - 2.4, 0.6, 0.9, 0.6, GREEN, "SmoothPlastic")
 		elseif k == "H" then
 			W3(h, "BehindertenStellplatz", "decor", cx, 1.03, zc, w - 0.5, 0.06, d - 0.4, BLUE, "SmoothPlastic")
-			-- Rollstuhlsymbol (weiß, flach auf dem Boden): Kopf, Rumpf, Sitz, Unterschenkel, Rad
-			W3(h, "RollstuhlSymbol", "decor", cx, 1.1, zc - 0.2, 0.9, 0.08, 0.9, WHITE, "SmoothPlastic", { shape = "Cylinder", roll = 90 })
-			W3(h, "RollstuhlSymbol", "decor", cx - 0.2, 1.1, zc + 1.3, 0.7, 0.08, 2.0, WHITE, "SmoothPlastic")
-			W3(h, "RollstuhlSymbol", "decor", cx + 0.8, 1.1, zc + 2.2, 2.0, 0.08, 0.6, WHITE, "SmoothPlastic")
-			W3(h, "RollstuhlSymbol", "decor", cx + 1.7, 1.1, zc + 3.2, 0.6, 0.08, 2.0, WHITE, "SmoothPlastic")
-			W3(h, "RollstuhlSymbol", "decor", cx, 1.1, zc + 3.4, 3.0, 0.08, 3.0, WHITE, "SmoothPlastic", { shape = "Cylinder", roll = 90 })
-			W3(h, "RollstuhlSymbol", "decor", cx, 1.12, zc + 3.4, 2.1, 0.08, 2.1, BLUE, "SmoothPlastic", { shape = "Cylinder", roll = 90 })
+			-- Rollstuhlsymbol (ISA, weiß auf blau, flach auf dem Boden): Rad als Ring, Kopf, Rumpf, Arm, Oberschenkel, Unterschenkel mit Fußstütze und Gelenkkappen.
+			-- Koordinaten (a nach rechts, b nach oben = zum Stellplatzende), aus Sicht des anfahrenden Fahrers (Blick nach Süden, rechts = Westen).
+			local sc = 0.75
+			local function wx(a) return cx - (a - 4) * sc end
+			local function wz(b) return zc + (b - 5) * sc end
+			local function disc(a, b, dia, y, color) W3(h, "RollstuhlSymbol", "decor", wx(a), y, wz(b), 0.06, dia * sc, dia * sc, color, "SmoothPlastic", { shape = "Cylinder", roll = 90 }) end
+			local function limb(a0, b0, a1, b1, wd)
+				local x0, z0, x1, z1 = wx(a0), wz(b0), wx(a1), wz(b1)
+				local len = math.sqrt((x1 - x0) ^ 2 + (z1 - z0) ^ 2)
+				W3(h, "RollstuhlSymbol", "decor", (x0 + x1) / 2, 1.15, (z0 + z1) / 2, len, 0.06, wd * sc, WHITE, "SmoothPlastic", { yaw = math.deg(math.atan2(-(z1 - z0), x1 - x0)) % 360 })
+				disc(a0, b0, wd, 1.15, WHITE)
+				disc(a1, b1, wd, 1.15, WHITE)
+			end
+			disc(3.4, 3.2, 6.4, 1.08, WHITE) -- Rad: weißer Ring um blaue Mitte
+			disc(3.4, 3.2, 4.6, 1.10, BLUE)
+			disc(3.4, 3.2, 1.0, 1.15, WHITE) -- Nabe
+			disc(3.4, 9.0, 2.1, 1.15, WHITE) -- Kopf
+			limb(3.4, 7.8, 3.4, 5.0, 1.2) -- Rumpf
+			limb(3.4, 7.2, 5.8, 6.1, 0.8) -- Arm zur Greifreifen-Seite
+			limb(3.4, 4.8, 6.2, 4.8, 1.1) -- Oberschenkel
+			limb(6.2, 4.8, 7.2, 1.4, 1.0) -- Unterschenkel
+			limb(7.2, 1.4, 8.4, 1.4, 0.8) -- Fußstütze
 			W3(h, "RollstuhlSchildPfosten", "decor", cx - w / 2 + 0.6, 3.3, zb - 0.8, 0.4, 4.6, 0.4, STEEL, "Metal", { collide = true })
 			W3(h, "RollstuhlSchild", "decor", cx - w / 2 + 0.6, 6.2, zb - 0.8, 3.2, 3.2, 0.3, BLUE, "SmoothPlastic")
 			W3(h, "Schrift", "text", cx - w / 2 + 0.6, 6.2, zb - 1.05, 2.6, 2.6, 0.2, WHITE, "SmoothPlastic", { text = { s = "P", color = WHITE } })

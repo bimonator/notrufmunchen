@@ -394,6 +394,22 @@ do
 	print(string.format("Isar-Allee: %d Häuser, Kirche mit %d Teilen", houses, church and #church.parts or 0))
 end
 
+-- ===== Odeonsplatz: Kino "Casino Odeon" und "Kaffeehaus Odeon" (keine echten Markennamen/Logos) =====
+do
+	local function named(sname)
+		for _, sp in ipairs(Specials) do if sp.name == sname then return Planner.planSpecial(sp, { seed = 1 }).houses[1].parts end end
+	end
+	local function n(list, name) local c = 0 for _, p in ipairs(list) do if p.name == name then c = c + 1 end end return c end
+	local function hasText(list, s) for _, p in ipairs(list) do if p.text and string.find(p.text.s, s, 1, true) then return true end end return false end
+	local k, c = named("Casino-Odeon"), named("Kaffeehaus")
+	check(k and c, "Kino/Kaffeehaus fehlen")
+	check(hasText(k, "CASINO ODEON") and hasText(k, "KINO") and n(k, "Plakat") == 4 and n(k, "Kinotuer") == 2 and n(k, "Marquise") == 1 and n(k, "Filmrolle") == 1, "Kino: Schriftzüge/Plakate/Tür/Marquise/Filmrolle unvollständig")
+	check(hasText(c, "KAFFEEHAUS ODEON") and n(c, "Tisch") == 6 and n(c, "Schirm") == 3 and n(c, "Kaffeetuer") == 2 and n(c, "SchildBohne") == 1, "Kaffeehaus: Schrift/Tische/Schirme/Tür/Schild unvollständig")
+	for _, list in ipairs({ k, c }) do
+		check(not hasText(list, "STARBUCKS") and not hasText(list, "Starbucks"), "echter Markenname im Bauwerk")
+	end
+end
+
 -- ===== Eckhäuser am Siegestor =====
 do
 	local Config = require("Config")

@@ -627,6 +627,23 @@ do
 	check(ringWalks >= 8, "Kreisverkehr: Gehwegteile " .. ringWalks)
 end
 
+-- ===== Fußgängerüberwege (Zebrastreifen) =====
+do
+	local bars, off = 0, 0
+	for _, p in ipairs(parts) do
+		if p.name == "Zebra" then
+			bars = bars + 1
+			local on = false
+			for _, o in ipairs(parts) do
+				if o.kind == "road" and o.pos[2] > -3 and Geo.inPart(p.pos[1], p.pos[3], o, 0) then on = true break end
+			end
+			if not on then off = off + 1 end
+		end
+	end
+	check(road.stats.zebras == #Config.crossings and #Config.crossings == 12, "Zebrastreifen: " .. road.stats.zebras)
+	check(bars >= 70 and off == 0, "Zebra-Streifen: " .. bars .. ", davon " .. off .. " nicht auf der Fahrbahn")
+end
+
 -- ===== Isar-Allee (Ostufer): Straße, Radweg, Laternen, Bäume, Parkbuchten =====
 do
 	local a = Config.allee

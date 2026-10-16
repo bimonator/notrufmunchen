@@ -245,6 +245,19 @@ function RoadsPlanner.plan(cfg)
 		end
 	end
 
+	-- Zebrastreifen: Streifen parallel zur Fahrtrichtung, nebeneinander quer über die Fahrbahn (a0..a1 von der Mitte in Richtung Normale)
+	stats.zebras = 0
+	for _, cr in ipairs(cfg.crossings or {}) do
+		local yaw = Geo.yawOf(cr.ux, cr.uz)
+		local nx, nz = -cr.uz, cr.ux
+		local a = cr.a0 + 1
+		while a + 1 <= cr.a1 do
+			part(parts, "Zebra", "dash", cr.x + nx * a, DASH_Y, cr.z + nz * a, 10, DASH_H, 2, yaw, COLOR.dash, "SmoothPlastic", { collide = false })
+			a = a + 4
+		end
+		stats.zebras = stats.zebras + 1
+	end
+
 	for _, pl in ipairs(cfg.plazas) do
 		part(parts, "Plaza_" .. pl.name, "plaza", (pl.x0 + pl.x1) / 2, TOP.plaza + PLAZA_LIFT - THICK.plaza / 2, (pl.z0 + pl.z1) / 2, pl.x1 - pl.x0, 1, pl.z1 - pl.z0, 0, COLOR.plaza, MATERIAL.plaza, {})
 		tileJoints(parts, (pl.x0 + pl.x1) / 2, (pl.z0 + pl.z1) / 2, 1, 0, pl.x1 - pl.x0, pl.z1 - pl.z0, TOP.plaza + PLAZA_LIFT, 0)

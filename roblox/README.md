@@ -113,7 +113,7 @@ Gerade Straße `IsarAllee` parallel zur (jetzt geraden) Isar zwischen Ring Nord 
 
 ## Parkplätze an der Allguth-Tankstelle
 
-Im freien Südteil des Grundstücks, gegenüber der schmalen Südseite des Schirms (Fahrzeuge stehen mit der Front zum Schirm): 10 Plätze in einer Reihe (`Config.tankstelle.parking`): 1 Behindertenparkplatz (blau, Rollstuhlsymbol, Schild), 3 Ladeplätze (grün markiert, je eine Ladesäule, Schild „E-LADEN“, **ohne Überdachung**) und 6 normale Plätze mit weißen Linien. Die Säulen tragen den Tag `EVCharger` (Attribute `Station`, `kW`); es ist nur die Optik, ohne Ladelogik.
+Im freien Südteil des Grundstücks, gegenüber der schmalen Südseite des Schirms (Fahrzeuge stehen mit der Front zum Schirm): 10 Plätze in einer Reihe (`Config.tankstelle.parking`): 1 Behindertenparkplatz (blau, detailliertes Rollstuhlsymbol aus 16 Teilen: Rad als Ring, Kopf, Rumpf, Arm, Ober- und Unterschenkel, Fußstütze; Schild), 3 Ladeplätze (grün markiert, je eine Ladesäule, Schild „E-LADEN“, **ohne Überdachung**) und 6 normale Plätze mit weißen Linien. Die Säulen tragen den Tag `EVCharger` (Attribute `Station`, `kW`); es ist nur die Optik, ohne Ladelogik.
 
 ## Friedensengel-Oval
 
@@ -127,9 +127,13 @@ An allen rechtwinkligen Kreuzungen füllt `RoadsPlanner` das Eck zwischen den be
 
 Auf der Isarseite gegenüber der Allee steht eine Häuserzeile mit Ufergehweg und Baumreihe (`Planner.planWestbank`) und dahinter ein Park. Die Ost-Häuser der Allee haben Hintergärten (Rasen, bei genug Platz zwei Bäume).
 
-## Entfernte Pflasterflächen
+## Fußgängerüberwege
 
-Odeonsplatz, Kirchplatz und Fußgängerzone sind vorerst entfernt (`Config.plazas` ist leer). Die Leopoldstraße bleibt Asphalt; um die Frauenkirche liegt kein Pflaster. Was dort hinkommt, ist noch offen.
+`Config.crossings`: 12 Zebrastreifen (Streifen 2 breit, 2 Lücke, 10 lang, parallel zur Fahrtrichtung): 6 am Friedensengel-Oval (radial über die Fahrbahn von Gehweg zu Gehweg, bei 22°, 90°, 158°, 202°, 270°, 338°) und 6 am Siegestor (Achse Nord und Süd je beide Fahrbahnen, H2, Diagonale).
+
+## Odeonsplatz
+
+Odeonsplatz, Kirchplatz und Fußgängerzone bleiben ohne Pflaster (`Config.plazas` ist leer); die Leopoldstraße ist durchgehend Asphalt. Am Odeonsplatz stehen nach `docs/MAP_PLAN.md` zwei Bauten mit Vorplatz in Gehwegoptik: das Kino **Casino Odeon** (West, x −205…−135: dunkle Fassade, Marquise mit goldenem Neonrand und Schriftzug, Glashalle mit Doppeltür und Kasse, vier Filmplakate, Dachschild „KINO“ mit Filmrolle, roter Teppich) und das **Kaffeehaus Odeon** (Ost, x 140…200: grün-weiße Fassade, grüne Markise, rundes Schild mit Kaffeebohne, Terrasse mit Zaun, 6 Tischen, 3 Sonnenschirmen). Der Plan nennt für die Kaffeekette bewusst einen eigenen Namen ohne Logo (Markenrisiko).
 
 ## Hinweise zu Terrain-Einstellungen
 

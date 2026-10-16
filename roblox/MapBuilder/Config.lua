@@ -204,6 +204,30 @@ C.signals = {
 C.pedSignals = {} -- die Fußgängerampeln am Siegestor entfallen (Kreisverkehr)
 
 -- Wahrzeichen: Siegestor steht auf dem Tunneldeckel (Mitte = Ursprung), Friedensengel in der Mitte der Terrasse
+-- Fußgängerüberwege (Zebrastreifen): Mitte (x, z), Fahrtrichtung (ux, uz), Querbereich a0..a1 (Abstand von der Mitte in Richtung der Normalen (-uz, ux));
+-- Streifen 2 breit, 2 Lücke, 10 lang. Am Friedensengel-Oval (6, radial über die Fahrbahn zwischen äußerem und innerem Gehweg) und am Siegestor (6).
+C.crossings = {
+	{ x = 0, z = -91, ux = 0, uz = 1, a0 = 6, a1 = 43 }, { x = 0, z = -91, ux = 0, uz = 1, a0 = -43, a1 = -6 }, -- Achse Nord, beide Fahrbahnen
+	{ x = 0, z = 91, ux = 0, uz = 1, a0 = 6, a1 = 43 }, { x = 0, z = 91, ux = 0, uz = 1, a0 = -43, a1 = -6 }, -- Achse Süd
+	{ x = -96, z = 30, ux = 1, uz = 0, a0 = -18.5, a1 = 18.5 }, -- H2 vor dem Kreisverkehr
+	{ x = 110, z = 31.3, ux = 0.9997, uz = 0.0262, a0 = -14, a1 = 14 }, -- Diagonale
+}
+do
+	local p = 2.6
+	local function pt(t)
+		local c, s = math.cos(t), math.sin(t)
+		return 1013 + 107 * (c < 0 and -1 or 1) * math.abs(c) ^ (2 / p), 298 + 62 * (s < 0 and -1 or 1) * math.abs(s) ^ (2 / p)
+	end
+	for _, deg in ipairs({ 22, 90, 158, 202, 270, 338 }) do
+		local t = math.rad(deg)
+		local x0, z0 = pt(t - 0.01)
+		local x1, z1 = pt(t + 0.01)
+		local l = math.sqrt((x1 - x0) ^ 2 + (z1 - z0) ^ 2)
+		local x, z = pt(t)
+		C.crossings[#C.crossings + 1] = { x = x, z = z, ux = (x1 - x0) / l, uz = (z1 - z0) / l, a0 = -14, a1 = 14 }
+	end
+end
+
 C.landmarks = {
 	siegestor = { x = 0, z = 0, baseY = 1.4, islandR = 52, ringR = 68 }, -- steht auf der Mittelinsel des Kreisverkehrs
 	friedensengel = { x = 1040, z = 298, baseY = 3.7 }, -- im östlichen Teil der Insel, der Blick geht nach Westen die Maximilianstraße hinunter

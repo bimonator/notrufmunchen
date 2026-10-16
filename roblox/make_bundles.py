@@ -13,7 +13,7 @@ def read(name):
     with open(os.path.join(here, "MapBuilder", name + ".lua"), encoding="utf-8") as f:
         text = f.read().rstrip() + "\n"
     # reine Kommentarzeilen entfallen im Bundle (Roblox-Scripts sind auf ca. 200 000 Zeichen begrenzt); die Originale bleiben in MapBuilder/
-    text = "".join(l for l in text.splitlines(True) if not l.lstrip().startswith("--"))
+    text = "".join(l.lstrip() for l in text.splitlines(True) if not l.lstrip().startswith("--"))  # auch die Einrückung entfällt (Lua ignoriert sie)
     # require(script and script.Parent.X or "X") -> lokale Variable X
     return re.sub(r'require\(script and script\.Parent\.(\w+) or "\w+"\)', r"\1", text)
 
@@ -34,13 +34,13 @@ script = """-- MapBuilder_Script.lua  (automatisch erzeugt mit make_bundles.py, 
 -- WAS GEBAUT WIRD (Schritte, in dieser Reihenfolge; Output zeigt je Schritt eine Zeile):
 --   terrain    Boden, Parks, Hügel (Monopteros), Terrasse (Friedensengel), Isar mit 3-stufiger Böschung, Bach
 --   roads      Ring, Leopoldstraße/Ludwigstraße (Achse, rund um das Siegestor ein Kreisverkehr), Schwabinger Raster, Diagonale, Isarspange,
---              Maximilianstraße, Isar-Allee (Ostufer: Straße mit Parkstreifen, Laternen, roter Radweg, Baumreihe, Ufergehweg), Friedensengel-Oval, Kreisverkehr, gerundete Gehwegecken, Parkbuchten, 4 Brücken über die Isar (flach, auf Säulen),
+--              Maximilianstraße, Isar-Allee (Ostufer: Straße mit Parkstreifen, Laternen, roter Radweg, Baumreihe, Ufergehweg), Friedensengel-Oval, Kreisverkehr, gerundete Gehwegecken, 12 Zebrastreifen, Parkbuchten, 4 Brücken über die Isar (flach, auf Säulen),
 --              Maximilianbrücke (zwei Bögen, Statuen)
 --   lights     270 Laternen (runder Mast, Bogenarm, Leuchtkopf), 13 Ampelmasten (Rundmast, Ausleger, Linsenköpfe mit Blenden)
 --   landmarks  Siegestor auf Mittelinsel, Friedensengel (Engel mit Flügeln, Ölzweig, Nike; rundes Becken), Frauenkirche (runde Zwiebelhauben),
 --              Chinesischer Turm
 --   gardens    Hofgarten, Englischer Garten, Monopteros-Tempel, Biergarten, Eisbachwelle, Isar-Uferwege, Prinz-Eins-Vorplatz
---   houses     7 Häuserblöcke mit Rück- und Hinterhäusern, Isar-Allee-Zeile mit Backsteinkirche, Westufer-Zeile, gebogene Eckhäuser am Siegestor, 13 Sonderbauten (Feuerwache, Polizeiwache mit Hof, Klinikum,
+--   houses     7 Häuserblöcke mit Rück- und Hinterhäusern, Isar-Allee-Zeile mit Backsteinkirche, Westufer-Zeile, gebogene Eckhäuser am Siegestor, Kino Casino Odeon und Kaffeehaus Odeon am Odeonsplatz, 13 Sonderbauten (Feuerwache, Polizeiwache mit Hof, Klinikum,
 --              Tankstelle mit Schirm, Shop und Parkplätzen (3 Ladeplätze, 1 Behindertenparkplatz), Bank, Parkhaus, ...)
 --   wall       Häuserband um die Karte (Mapgrenze) mit Toren und Flusstoren
 --
