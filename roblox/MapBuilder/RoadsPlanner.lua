@@ -7,14 +7,15 @@ local Geo = require(script and script.Parent.Geo or "Geo")
 local RoadsPlanner = {}
 
 local COLOR = {
-	road = { 84, 90, 96 }, walk = { 168, 172, 174 }, plaza = { 214, 208, 196 }, median = { 118, 150, 98 },
+	road = { 84, 90, 96 }, walk = { 168, 172, 174 }, plaza = { 214, 208, 196 }, median = { 118, 150, 98 }, green = { 104, 148, 84 }, bike = { 176, 66, 58 },
 	dash = { 236, 236, 230 }, deck = { 140, 140, 146 }, rail = { 70, 70, 76 }, tunnel = { 110, 110, 116 },
 }
-local MATERIAL = { road = "Asphalt", walk = "Concrete", plaza = "Concrete", median = "Grass" }
-local TOP = { road = 0.5, walk = 1.0, plaza = 0.5, median = 0.8 }
+local MATERIAL = { road = "Asphalt", walk = "Concrete", plaza = "Concrete", median = "Grass", green = "Grass", bike = "Asphalt" }
+local TOP = { road = 0.5, walk = 1.0, plaza = 0.5, median = 0.8, green = 1.0, bike = 0.8 }
 -- Markierungen stehen 0,1 bis 0,2 Studs über der Fahrbahn (Fahrbahn-Oberkante 0,5 bis 0,62)
 local DASH_Y, DASH_H = 0.6, 0.2
-local THICK = { road = 1, walk = 2, plaza = 1, median = 1.8 }
+local THICK = { road = 1, walk = 2, plaza = 1, median = 1.8, green = 1.8, bike = 1.8 }
+local CUT = { walk = true, green = true, bike = true } -- Streifen, die an Kreuzungen unterbrochen werden (Gehwege, Grün- und Radwegstreifen)
 
 local function part(parts, name, kind, x, y, z, sx, sy, sz, yaw, color, material, extra)
 	extra = extra or {}
@@ -138,7 +139,7 @@ function RoadsPlanner.plan(cfg)
 			local sx, sz = p0x + nx * mid, p0z + nz * mid
 			local cuts = {}
 			local lift = (kind == "road") and LEVEL_STEP * level[seg.id] or (kind == "plaza" and PLAZA_LIFT or 0)
-			if kind == "walk" then cuts = crossCuts(segs, seg, sx, sz, L, 0.05) end
+			if CUT[kind] then cuts = crossCuts(segs, seg, sx, sz, L, 0.05) end
 			for _, bc in ipairs(bridgeCuts) do cuts[#cuts + 1] = bc end
 			for _, sp in ipairs(Geo.subtract({ { 0, L } }, cuts)) do
 				local len = sp[2] - sp[1]
@@ -174,8 +175,12 @@ function RoadsPlanner.plan(cfg)
 		local n = math.floor(len / cfg.bay.length)
 		for k = 0, n do
 			local x, z = x0 + ux * cfg.bay.length * k, z0 + uz * cfg.bay.length * k
-			local sx, sz = (math.abs(ux) > 0.5) and 0.3 or cfg.bay.width, (math.abs(ux) > 0.5) and cfg.bay.width or 0.3
-			part(parts, "BayLine", "dash", x, DASH_Y, z, sx, DASH_H, sz, 0, COLOR.dash, "SmoothPlastic", { collide = false })
+			if math.abs(ux) > 0.999 or math.abs(uz) > 0.999 then
+				local sx, sz = (math.abs(ux) > 0.5) and 0.3 or cfg.bay.width, (math.abs(ux) > 0.5) and cfg.bay.width or 0.3
+				part(parts, "BayLine", "dash", x, DASH_Y, z, sx, DASH_H, sz, 0, COLOR.dash, "SmoothPlastic", { collide = false })
+			else -- schräge Straße (Isar-Allee): Linie quer zur Laufrichtung
+				part(parts, "BayLine", "dash", x, DASH_Y, z, 0.3, DASH_H, cfg.bay.width, Geo.yawOf(ux, uz), COLOR.dash, "SmoothPlastic", { collide = false })
+			end
 		end
 		stats.bays = stats.bays + n
 	end

@@ -68,7 +68,7 @@ Nach jeder Änderung `python3 make_bundles.py` ausführen und das Plugin bzw. Sc
 
 ## Was getestet wurde (Cloud-Session, kein Roblox)
 
-- `python3 tests/run_with_lupa.py` (Lua 5.1): Häuser (Maße, Überlappung, Eckhäuser, Abwechslung bei Farben, Geschossen, Dachformen, Breiten, Sonderflächen frei), Sonderbauten (Grundfläche stimmt, keine Überlappung), Straßen (157 Parkbuchten wie im Plan, kein Gehweg in einer Kreuzung, jede Straße asphaltiert, Kreisverkehr (Zu- und Abfahrten münden im Ring, keine Häuser im Ring), Brücken: Scheitelhöhe, Enden auf Straßenniveau, zwei Pfeiler im Fluss, keine flache Straße darunter), Terrain (Kacheln decken die Karte genau ab, Wasser nur zwischen Bett und Wasserlinie), Wand (innen bleibt der Ring frei, Tore frei, Höhen 74–110).
+- `python3 tests/run_with_lupa.py` (Lua 5.1): Häuser (Maße, Überlappung, Eckhäuser, Abwechslung bei Farben, Geschossen, Dachformen, Breiten, Sonderflächen frei), Sonderbauten (Grundfläche stimmt, keine Überlappung), Straßen (157 Parkbuchten wie im Plan, kein Gehweg in einer Kreuzung, jede Straße asphaltiert, Kreisverkehr (Zu- und Abfahrten münden im Ring, keine Häuser im Ring), Brücken: Scheitelhöhe, Enden auf Straßenniveau, zwei Pfeiler im Fluss, keine flache Straße darunter), Terrain (Kacheln decken die Karte genau ab, Wasser nur zwischen Bett und Wasserlinie), Wand (innen bleibt der Ring frei, Tore frei, Höhen 74–110), Isar-Allee (parallel zur Isar, Gehweg hinter der Böschungskante, Laternen im Laternenstreifen, Baumreihe, Parklinien quer zur Straße, Häuser nie in der Fahrbahn und ohne Überlappung, Kirche mit 18-teiligem Helm und Uhr).
 - `python3 tests/bundle_smoke_test.py`: `Builder` und `BuildAll` laufen gegen eine selbst gebaute Roblox-Attrappe: 257 Models, 18 211 Teile, 1171 Terrain-Aufrufe, zweiter Lauf ersetzt statt zu verdoppeln.
 - Eine Draufsicht der berechneten Teile (aus den Plänen gezeichnet) stimmt mit der Karte im Bauplan überein.
 - Die Tests wurden gezielt mit eingebauten Fehlern geprüft (Gehweg-Schnitt aus, Brücken-Schnitt aus, Kreisverkehr-Schnitt aus, falscher Drehwinkel): sie schlagen dann an.
@@ -106,6 +106,10 @@ Die Preiszeilen tragen den Tag `FuelPrice` mit den Attributen `Fuel` und `Price`
 ## Kreisverkehr am Siegestor
 
 Das Siegestor steht auf einer runden Mittelinsel (Radius 52, Bordstein). Rundherum läuft ein 24 Studs breiter Ring (Mittellinie Radius 68, `SiegestorKreisel`). Die Leopoldstraße (Achse) läuft oberirdisch in den Ring, ebenso H2 und die Diagonale; Häuser am Rand wurden dafür entfernt. Ein Tunnel und Rampen gibt es nicht mehr.
+
+## Isar-Allee (Ostufer)
+
+Gerade Straße `IsarAllee` parallel zur (jetzt geraden) Isar zwischen Ring Nord und Isarspange; die Karte ist dafür nach Osten um 100 Studs gewachsen (`Config.map.xmax` 1260, Ring 1176). Querschnitt von der Isar zu den Häusern (Studs): Ufergehweg 8, Baumreihe 12 (alle 24 Studs), roter Radweg 8, Laternenstreifen 4 (Laternen alle 48), Straße 20, Parkstreifen 9, Gehweg 8, dann die Häuserzeile. 11 Häuser (um 7,2° gedreht, wie die Isar) und eine neuromanische Backsteinkirche mit Turm (Uhr, Rosette, Kupferhelm, Höhe ca. 128), Seitenschiffen, Satteldach und Apsis. Die Straßenstreifen `green` und `bike` sind neue Arten in `RoadsPlanner`; Parkbuchten laufen auch an schrägen Straßen (Linien quer zur Fahrtrichtung). Einen Kanal gibt es bewusst nicht.
 
 ## E-Ladepark (Allguth)
 

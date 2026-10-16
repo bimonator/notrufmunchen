@@ -10,13 +10,13 @@
 -- WAS GEBAUT WIRD (Schritte, in dieser Reihenfolge; Output zeigt je Schritt eine Zeile):
 --   terrain    Boden, Parks, Hügel (Monopteros), Terrasse (Friedensengel), Isar mit 3-stufiger Böschung, Bach
 --   roads      Ring, Leopoldstraße/Ludwigstraße (Achse, rund um das Siegestor ein Kreisverkehr), Schwabinger Raster, Diagonale, Isarspange,
---              Maximilianstraße, Kreisel, Fußgängerzone mit Fliesen, Parkbuchten, 4 Brücken über die Isar (flach, auf Säulen),
+--              Maximilianstraße, Isar-Allee (Ostufer: Straße mit Parkstreifen, Laternen, roter Radweg, Baumreihe, Ufergehweg), Kreisel, Fußgängerzone mit Fliesen, Parkbuchten, 4 Brücken über die Isar (flach, auf Säulen),
 --              Maximilianbrücke (zwei Bögen, Statuen)
 --   lights     270 Laternen (runder Mast, Bogenarm, Leuchtkopf), 13 Ampelmasten (Rundmast, Ausleger, Linsenköpfe mit Blenden)
 --   landmarks  Siegestor auf Mittelinsel, Friedensengel (Engel mit Flügeln, Ölzweig, Nike; rundes Becken), Frauenkirche (runde Zwiebelhauben),
 --              Chinesischer Turm
 --   gardens    Hofgarten, Englischer Garten, Monopteros-Tempel, Biergarten, Eisbachwelle, Isar-Uferwege, Prinz-Eins-Vorplatz
---   houses     7 Häuserblöcke mit Rück- und Hinterhäusern, 13 Sonderbauten (Feuerwache, Polizeiwache mit Hof, Klinikum,
+--   houses     7 Häuserblöcke mit Rück- und Hinterhäusern, Isar-Allee-Zeile mit Backsteinkirche, 13 Sonderbauten (Feuerwache, Polizeiwache mit Hof, Klinikum,
 --              Tankstelle mit Schirm, Shop und E-Ladepark (8 Plätze, 4 Ladesäulen), Bank, Parkhaus, ...)
 --   wall       Häuserband um die Karte (Mapgrenze) mit Toren und Flusstoren
 --
@@ -28,6 +28,7 @@
 --   Spawns      Polizeihof: 4 Flächen mit Tag VehicleSpawn (Attribut Team = Polizei).
 --   Fenster     Tag HouseWindow, Attribut Lit = leuchtet nachts (Tag-Nacht-Skript folgt). Laternen: Tag StreetLamp.
 --   Eisbachwelle  Tags Eisbachwelle und SurfZone (Surf-Skript folgt).
+--   Isar-Allee  Ostufer der Isar zwischen Ring Nord und Isarspange (Karte nach Osten um 100 Studs erweitert), 11 Häuser + Backsteinkirche.
 --   Alle Maße   in Config (weiter unten im Text, Block "local Config = (function()"): Straßen, Isar, Brücken, Tankstelle, Gärten.
 --
 -- OUTPUT-ZEILEN, auf die du achten kannst: [boden] (Bodenhöhe), [wasser] ok, [roads], [lights], [landmarks], [gardens], [houses], [wall].
@@ -38,8 +39,6 @@ local ONLY = nil -- nur bestimmte Häuserblöcke, z. B. { "B_NordMitte" }; nil =
 local ORIGIN = Vector3.new(0, 0, 0) -- Position des Siegestors
 
 local Geo = (function()
--- Geo.lua
--- Kleine 2D-Geometrie in der Draufsicht (x = Ost, z = Süd). Reine Mathematik, keine Roblox-Funktionen.
 
 local Geo = {}
 
@@ -47,25 +46,21 @@ function Geo.round3(v)
 	return math.floor(v * 1000 + 0.5) / 1000
 end
 
--- Einheitsvektor und Länge von a nach b
 function Geo.dir(ax, az, bx, bz)
 	local dx, dz = bx - ax, bz - az
 	local l = math.sqrt(dx * dx + dz * dz)
 	return dx / l, dz / l, l
 end
 
--- Drehwinkel (Grad) um die Y-Achse, bei dem die lokale x-Achse eines Teils in Richtung (ux, uz) zeigt
 function Geo.yawOf(ux, uz)
 	return math.deg(math.atan2(-uz, ux)) % 360
 end
 
--- Rechteck um eine Strecke a-b mit Halbbreite hw; extA/extB verlängern an den Enden
 function Geo.rect(ax, az, bx, bz, hw, extA, extB)
 	local ux, uz, l = Geo.dir(ax, az, bx, bz)
 	return { ax = ax, az = az, ux = ux, uz = uz, nx = -uz, nz = ux, s0 = -extA, s1 = l + extB, w = hw }
 end
 
--- Abschnitt [t0, t1] der Linie P + u*t (t = 0..L), der im Rechteck r liegt (margin verkleinert das Rechteck). nil, wenn keiner.
 function Geo.within(px, pz, ux, uz, L, r, margin)
 	margin = margin or 0
 	local lo, hi = 0, L
@@ -84,7 +79,6 @@ function Geo.within(px, pz, ux, uz, L, r, margin)
 	return lo, hi
 end
 
--- Abstand des Punkts (x, z) zu einem Linienzug pts = { {x, z}, ... }
 function Geo.polyDist(x, z, pts)
 	local best = 1e9
 	for i = 1, #pts - 1 do
@@ -97,7 +91,6 @@ function Geo.polyDist(x, z, pts)
 	return best
 end
 
--- Überlappen sich zwei Rechtecke (Format von Geo.rect) in der Draufsicht um mehr als 0,5 Studs? (Trennachsen-Test)
 function Geo.rectsOverlap(a, b)
 	local function corners(r)
 		local out = {}
@@ -120,7 +113,6 @@ function Geo.rectsOverlap(a, b)
 	return true
 end
 
--- Aus den Abschnitten spans (Liste {a, b}) die Abschnitte cuts herausschneiden
 function Geo.subtract(spans, cuts)
 	local out = {}
 	for _, s in ipairs(spans) do
@@ -142,7 +134,6 @@ function Geo.subtract(spans, cuts)
 	return out
 end
 
--- Liegt der Punkt (px, pz) in der Draufsicht innerhalb des Teils? (margin verkleinert)
 function Geo.inPart(px, pz, p, margin)
 	margin = margin or 0
 	local r = math.rad(p.yaw)
@@ -157,21 +148,14 @@ return Geo
 end)()
 
 local Config = (function()
--- Config.lua
--- Alle Karten-Maße aus docs/MAP_PLAN.md und docs/phase1_bauplan.html als Daten.
--- Koordinaten: x = Ost, z = Süd, Ursprung = Siegestor. Einheiten: Studs. Terrain-Oberkante = Y 0.
 
 local C = {}
 
--- Oberkante des Terrains im Plan. Etwas unter 0 gewählt, damit die flachen Straßen (Oberkante 0,5) nie im Terrain versinken,
--- egal wie Roblox die 4-Studs-Zellen ausrichtet. BuildAll misst die echte Höhe nach dem Bau und richtet alles daran aus.
 C.groundTop = -2
 
-C.map = { xmin = -745, zmin = -556, xmax = 1160, zmax = 494 }
-C.ring = { xmin = -685, zmin = -496, xmax = 1100, zmax = 434 } -- Außenkante der Ringstraße = Innenkante der Mapgrenze
+C.map = { xmin = -745, zmin = -556, xmax = 1260, zmax = 494 } -- Osten um 100 Studs erweitert (Isar-Allee)
+C.ring = { xmin = -685, zmin = -496, xmax = 1200, zmax = 434 } -- Außenkante der Ringstraße = Innenkante der Mapgrenze
 
--- Querschnitte: strips = { von, bis, Art } quer zur Straße (positiv = links der Fahrtrichtung, Normale n = (-uz, ux)).
--- dashes = Versatz der gestrichelten Linien. underground = Streifen entfällt im Tunnelbereich.
 C.profiles = {
 	std48 = { half = 24, dashes = { 0 }, strips = { { -24, -14, "walk" }, { -14, 14, "road" }, { 14, 24, "walk" } } },
 	raster57 = { half = 28.5, dashes = { -4.5 }, strips = { { -28.5, -18.5, "walk" }, { -18.5, 18.5, "road" }, { 18.5, 28.5, "walk" } } },
@@ -181,6 +165,10 @@ C.profiles = {
 			{ -55, -43, "walk" }, { -43, -34, "road" }, { -34, -6, "road" }, { -6, 6, "median" },
 			{ 6, 34, "road" }, { 34, 43, "road" }, { 43, 55, "walk" },
 		},
+	},
+	allee = {
+		half = 35.5, dashes = { -8.5 }, lamps = { offsets = { 3.5 }, spacing = 48 },
+		strips = { { -35.5, -27.5, "walk" }, { -27.5, 1.5, "road" }, { 1.5, 5.5, "green" }, { 5.5, 13.5, "bike" }, { 13.5, 25.5, "green" }, { 25.5, 33.5, "walk" } }, -- Ufergehweg 8 breit, endet 3 Studs vor der Böschungskante
 	},
 	approach86 = { half = 43, dashes = {}, strips = { { -43, 43, "road" } } }, -- Zulauf der Achse zum Kreisverkehr (ohne Mittelstreifen)
 	kreisel24 = { half = 12, dashes = {}, strips = { { -12, 12, "road" } } },
@@ -196,10 +184,8 @@ local function circle(cx, cz, r, n)
 	return pts
 end
 
--- Fahrtrichtung der Raster-Straßen: V nach Norden, H nach Osten, damit die Parkseite (positiv) östlich bzw. südlich liegt.
 C.roads = {
-	{ name = "Ring", closed = true, profile = "std48", pts = { { -661, -472 }, { 1076, -472 }, { 1076, 410 }, { -661, 410 } } },
-	-- Leopoldstraße / Ludwigstraße: läuft oben in den Kreisverkehr um das Siegestor (Mittelradius 68, Insel Radius 52)
+	{ name = "Ring", closed = true, profile = "std48", pts = { { -661, -472 }, { 1176, -472 }, { 1176, 410 }, { -661, 410 } } },
 	{ name = "AchseNord", profile = "axis110", pts = { { 0, -472 }, { 0, -84 } } },
 	{ name = "ZulaufNord", profile = "approach86", pts = { { 0, -84 }, { 0, -60 } } },
 	{ name = "ZulaufSued", profile = "approach86", pts = { { 0, 60 }, { 0, 84 } } },
@@ -210,17 +196,15 @@ C.roads = {
 	{ name = "H1", profile = "raster57", pts = { { -661, -285 }, { 0, -285 } } },
 	{ name = "H2", profile = "raster57", pts = { { -661, 30 }, { -61, 30 } } },
 	{ name = "Diagonale", profile = "std48", pts = { { 61, 30 }, { 290, 36 }, { 455, -77 }, { 605, -212 }, { 770, -347 }, { 790, -472 } } },
-	{ name = "Isarspange", profile = "std48", pts = { { 455, -77 }, { 700, -60 }, { 780, -40 }, { 1012, 3 }, { 1030, 70 }, { 1076, 210 } } },
+	{ name = "Isarspange", profile = "std48", pts = { { 455, -77 }, { 700, -60 }, { 780, -40 }, { 1012, 3 }, { 1030, 70 }, { 1055, 140 }, { 1110, 190 }, { 1176, 210 } } },
 	{ name = "V3", profile = "std48", pts = { { 300, -472 }, { 300, 32 } } },
 	{ name = "KirchplatzNord", profile = "std48", pts = { { -550, 30 }, { -550, 140 } } }, -- endet am Kirchplatz der Frauenkirche
+	{ name = "IsarAllee", profile = "allee", pts = { { 1072.5, -472 }, { 1012, 3 } } },
 	{ name = "Maximilianstrasse", profile = "std48", pts = { { 395, 410 }, { 395, 298 }, { 876, 298 } } }, -- vom Ring zur Maximilianbrücke und den Stufen zum Friedensengel
 	{ name = "Fussgaengerzone", profile = "plaza40", pts = { { -200, 254 }, { -55, 254 } } },
 }
 
--- Parkbuchten: Mittellinie des Parkstreifens, Buchtlänge 16, Breite 9. { x0, z0, x1, z1 }
 C.bay = { length = 16, width = 9 }
--- Allguth-Tankstelle: Grundstück und Ein-/Ausfahrten (z-Bereiche an der Straße, Einfahrt südlich, Ausfahrt nördlich davon).
--- Vor den Einfahrten gibt es keine Parkbuchten und die Laternen stehen nicht im Weg (siehe driveways).
 C.tankstelle = { lot = { 57, -336, 180, -150 }, gaps = { { -262, -218 }, { -196, -152 } }, ev = { x0 = 162, x1 = 178, z0 = -290, n = 8, w = 9 } } -- ev: E-Ladepark an der Ostseite (Stellplatzfeld)
 C.driveways = {}
 for _, g in ipairs(C.tankstelle.gaps) do C.driveways[#C.driveways + 1] = { x0 = 43, x1 = 57, z0 = g[1] - 3, z1 = g[2] + 3 } end
@@ -234,32 +218,40 @@ C.bays = {
 	{ -221, -448, -221, -317 }, { -221, -253, -221, -3 },
 }
 
+C.allee = { road = "IsarAllee", rowFrom = 28, rowTo = 436, church = { 190, 244 }, bay = { from = 40, to = 430, off = 23 }, trees = { from = 40, to = 440, step = 24, off = 19.5 } }
+do
+	local r
+	for _, rd in ipairs(C.roads) do if rd.name == "IsarAllee" then r = rd end end
+	local ax, az, bx, bz = r.pts[1][1], r.pts[1][2], r.pts[2][1], r.pts[2][2]
+	local l = math.sqrt((bx - ax) ^ 2 + (bz - az) ^ 2)
+	local ux, uz = (bx - ax) / l, (bz - az) / l
+	local ex, ez = uz, -ux -- Osten (quer zur Straße, Gegenrichtung der Normalen)
+	local b = C.allee.bay
+	C.bays[#C.bays + 1] = { ax + ux * b.from + ex * b.off, az + uz * b.from + ez * b.off, ax + ux * b.to + ex * b.off, az + uz * b.to + ez * b.off }
+	C.allee.ux, C.allee.uz, C.allee.len, C.allee.ax, C.allee.az = ux, uz, l, ax, az
+end
+
 C.plazas = {
 	{ name = "Odeonsplatz", x0 = -140, z0 = 296, x1 = 140, z1 = 386 },
 	{ name = "Kirchplatz", x0 = -634, z0 = 140, x1 = -200, z1 = 368 }, -- Platz um die Frauenkirche (Kreisel entfällt)
 }
 
--- Kleine Brücken (flaches Deck unter der Straße, Länge entlang der Straße, Breite quer, yaw in Grad)
 C.bridges = {
 	{ name = "B0", x = 640, z = -257, len = 56, wid = 48, yaw = 39.3 },
 	{ name = "B1", x = 661, z = -62, len = 56, wid = 48, yaw = 356 },
 	{ name = "B5", x = 672, z = 120, len = 44, wid = 10, yaw = 0, pedestrian = true },
 }
 
--- Isar-Brücken: flache Brücken auf Straßenhöhe (Oberkante 0,5), bleiben oben und tragen auf Säulen im Flussbett und auf den Uferstufen.
--- len = Gesamtlänge entlang der Straße (länger als die Uferböschung, 2 x 90), wid = Fahrbahn, walk = Gehweg je Seite, pier = Abstand der Pfeilerreihen
 C.isarBridges = {
 	{ name = "B2", x = 887, z = -19, len = 214, wid = 28, walk = 14, yaw = 349.4, pier = 36 },
 	{ name = "B3", x = 692, z = 410, len = 252, wid = 28, walk = 14, yaw = 0, pier = 36 }, -- Luitpoldbrücke über Bach und Isar
 	{ name = "B4", x = 945, z = -472, len = 214, wid = 28, walk = 14, yaw = 0, pier = 36 },
-	-- Maximilianbrücke: zwei flache Segmentbögen über einen Mittelpfeiler mit Statuen, führt von der Maximilianstraße zur Friedensengel-Terrasse
 	{ name = "B6", style = "maximilian", x = 751, z = 298, len = 244, wid = 28, walk = 14, yaw = 0, span = 60, rise = 4.5 },
 }
 
 C.water = {
 	isar = {
-		pts = { { 945, -556 }, { 945, -472 }, { 930, -330 }, { 915, -200 }, { 895, -90 }, { 885, 0 }, { 850, 100 }, { 800, 200 }, { 750, 300 }, { 705, 390 }, { 695, 410 }, { 670, 494 } },
-		-- Böschung in drei Stufen: Uferweg (Oberkante -4, Breite 30), Kiesbank auf Wasserhöhe (-8, Breite 24), dann Wasser bis -14.
+		pts = { { 945, -556 }, { 945, -472 }, { 885, 0 }, { 850, 100 }, { 800, 200 }, { 750, 300 }, { 705, 390 }, { 695, 410 }, { 670, 494 } },
 		layers = { { 0, -4, 90 }, { -4, -8, 60 }, { -8, -12, 36 }, { -12, -14, 30 } }, waterTop = -8,
 		fills = { { -18, -12, 36, "Sand" }, { -12, -8, 60, "Sand" }, { -8, -4, 90, "Grass" } }, -- Sandbett, Kiesbank und Gras-Uferweg (vor dem Ausheben eingefüllt)
 	},
@@ -278,12 +270,8 @@ C.parks = { -- Gras-Oberfläche (Terrain)
 C.hills = { { name = "Monopteros", x = 575, z = 75, layers = { { 44, 0, 4 }, { 30, 4, 8 } } } } -- { Radius, y0, y1 }, nur 8 hoch
 C.terrace = { name = "Friedensengel", x0 = 890, z0 = 250, x1 = 1040, z1 = 346, height = 4 }
 
--- Straßenlaternen nach Foto: hoher, schlanker grauer Mast mit geschwungenem Ausleger und Kopf über der Fahrbahn.
 C.lamps = { spacing = 64, inset = 2.5, height = 36 }
 
--- Ampeln nach Foto: grauer Mast mit Ausleger über die Fahrbahn (arm = Richtung zur Straße), je ein Signalkopf am Ausleger und am Mast.
--- Standort Mast, Blickrichtung des Kopfes (f) zum ankommenden Verkehr. Rechtsverkehr: Achse Süd-Richtung fährt auf der Westseite.
--- Maste stehen auf Gehwegen, nie auf der Fahrbahn.
 C.signals = {
 	{ name = "Achse_RingNord", x = 45, z = -445, fx = 0, fz = 1, ax = -1, az = 0 }, { name = "Achse_RingNord", x = -58, z = -456, fx = -1, fz = 0, ax = 0, az = -1 },
 	{ name = "Achse_RingNord", x = 58, z = -488, fx = 1, fz = 0, ax = 0, az = 1 },
@@ -296,7 +284,6 @@ C.signals = {
 }
 C.pedSignals = {} -- die Fußgängerampeln am Siegestor entfallen (Kreisverkehr)
 
--- Wahrzeichen: Siegestor steht auf dem Tunneldeckel (Mitte = Ursprung), Friedensengel in der Mitte der Terrasse
 C.landmarks = {
 	siegestor = { x = 0, z = 0, baseY = 1.4, islandR = 52, ringR = 68 }, -- steht auf der Mittelinsel des Kreisverkehrs
 	friedensengel = { x = 965, z = 298, baseY = 3.7 },
@@ -317,11 +304,6 @@ return C
 end)()
 
 local Planner = (function()
--- Planner.lua
--- Reine Geometrie für Häuser (Blockränder, Sonderbauten, Mapgrenze). Keine Roblox-Funktionen, läuft in Luau und in Lua 5.1 (Tests).
--- Koordinaten wie im Kartenplan: x = Ost, z = Süd, y = oben. Einheiten: Studs.
--- Lokales Haus-System: x läuft entlang der Fassade, z zeigt von der Fassade in den Block hinein, y nach oben.
--- Alles, was vor der Wand liegt (Fenster, Gesimse, Balkone), hat lokal z < 0.
 
 local Planner = {}
 
@@ -342,7 +324,6 @@ Planner.DEFAULTS = {
 		{ 238, 214, 140 }, { 206, 224, 214 }, { 232, 196, 196 }, { 210, 214, 226 }, { 226, 220, 200 }, { 244, 226, 168 },
 	},
 }
--- Fassadenfarben je Stilvariante (Palazzo = Naturstein, Jugendstil = warme Putzfarben, modern = kühles Grau)
 local PALAZZO = { { 226, 216, 196 }, { 214, 200, 170 }, { 232, 222, 200 }, { 206, 190, 164 } }
 local JUGEND = { { 238, 214, 140 }, { 244, 226, 168 }, { 226, 196, 150 }, { 232, 206, 196 }, { 204, 214, 200 } }
 local MODERN = { { 196, 198, 204 }, { 176, 182, 190 }, { 214, 214, 208 }, { 150, 160, 170 } }
@@ -359,7 +340,6 @@ local function hash(s)
 	return h
 end
 
--- Park-Miller: Zwischenwerte bleiben unter 2^53, daher in Luau und Lua 5.1 identisch.
 local function newRng(seed)
 	local state = (seed % 2147483646) + 1
 	local self = {}
@@ -401,7 +381,6 @@ local function mergeOpts(opts)
 	return o
 end
 
--- Teil im lokalen Haus-System anlegen; Position wird in Weltkoordinaten umgerechnet.
 local function add(h, name, kind, lx, ly, lz, sx, sy, sz, color, material, extra)
 	extra = extra or {}
 	local r = math.rad(h.yaw)
@@ -413,14 +392,13 @@ local function add(h, name, kind, lx, ly, lz, sx, sy, sz, color, material, extra
 		yaw = (h.yaw + (extra.yaw or 0)) % 360, pitch = extra.pitch or 0,
 		color = color, material = material,
 		collide = extra.collide == true,
-		lit = extra.lit, tag = extra.tag, text = extra.text,
+		lit = extra.lit, tag = extra.tag, text = extra.text, shape = extra.shape, roll = extra.roll, transparency = extra.transparency,
 		lpos = { lx, ly, lz },
 	}
 	h.parts[#h.parts + 1] = part
 	return part
 end
 
--- Fläche (face) "front", "+x" oder "-x"; u = Position entlang der Fläche, d = Abstand vor der Wand
 local function onFace(h, face, u, d)
 	if face == "front" then return u, -d, 0 end
 	if face == "back" then return u, h.depth + d, 180 end
@@ -428,13 +406,96 @@ local function onFace(h, face, u, d)
 	return -h.width / 2 - d, u, 90
 end
 
+local function planChurch(h, o)
+	local y0 = o.floorY
+	local BRICK, DARK, STONE, ROOF, COPPER, GOLD = { 150, 72, 54 }, { 128, 58, 44 }, { 208, 200, 184 }, { 74, 82, 88 }, { 94, 152, 130 }, { 220, 180, 70 }
+	local DOOR, GLASSC, SLIT = { 62, 44, 34 }, { 70, 92, 112 }, { 30, 26, 24 }
+	local function box(name, kind, lx, y, lz, sx, sy, sz, color, mat, extra) add(h, name, kind, lx, y, lz, sx, sy, sz, color, mat or "Brick", extra) end
+	local function disc(name, lx, y, lz, thick, dia, color, mat, extra) -- Zylinder mit Achse entlang der Tiefe (z): Zifferblatt, Rosette, Bögen an der Front
+		extra = extra or {}
+		extra.shape, extra.yaw = "Cylinder", 90
+		box(name, "trim", lx, y, lz, thick, dia, dia, color, mat or "Concrete", extra)
+	end
+	local function frontWin(u, yb, w, hgt, zw) -- Rundbogenfenster in der Wandebene lz = zw
+		local ph = hgt - w / 2
+		box("Glass", "glass", u, yb + ph / 2, zw - 0.2, w, ph, 0.3, GLASSC, "Glass", { tag = "HouseWindow", lit = false })
+		disc("GlassBogen", u, yb + ph, zw - 0.2, 0.3, w, GLASSC, "Glass", { tag = "HouseWindow", lit = false })
+		box("Sill", "trim", u, yb - 0.3, zw - 0.5, w + 1.6, 0.6, 1.0, STONE, "Concrete")
+	end
+	local function sideWin(sg, xw, lz, yb, w, hgt) -- Rundbogenfenster in der Wandebene lx = xw (sg = +-1: Blickrichtung)
+		local ph = hgt - w / 2
+		box("Glass", "glass", xw + sg * 0.2, yb + ph / 2, lz, 0.3, ph, w, GLASSC, "Glass", { tag = "HouseWindow", lit = false })
+		box("GlassBogen", "glass", xw + sg * 0.2, yb + ph, lz, 0.3, w, w, GLASSC, "Glass", { shape = "Cylinder", tag = "HouseWindow", lit = false })
+		box("Sill", "trim", xw + sg * 0.5, yb - 0.3, lz, 1.0, 0.6, w + 1.6, STONE, "Concrete")
+	end
+	box("Body", "body", 0, y0 + 31, 9, 18, 62, 18, BRICK, "Brick", { collide = true })
+	for _, yy in ipairs({ 14, 44, 62 }) do box("Gurt", "trim", 0, y0 + yy, 9, 18.8, 0.9, 18.8, STONE, "Concrete") end
+	for _, sd in ipairs({ -1, 1 }) do for _, dz in ipairs({ 0.2, 17.8 }) do box("Eckquader", "trim", sd * 9, y0 + 31, dz, 1.2, 62, 1.2, DARK, "Brick") end end
+	box("Glockenstube", "body", 0, y0 + 71, 9, 16, 18, 16, BRICK, "Brick", { collide = true })
+	for _, u in ipairs({ -3.6, 3.6 }) do -- Schallöffnungen in den vier Wänden
+		box("Schallloch", "trim", u, y0 + 71.5, 0.9, 3, 9, 0.6, SLIT, "SmoothPlastic")
+		box("Schallloch", "trim", u, y0 + 71.5, 17.1, 3, 9, 0.6, SLIT, "SmoothPlastic")
+		box("Schallloch", "trim", -8.1, y0 + 71.5, 9 + u, 0.6, 9, 3, SLIT, "SmoothPlastic")
+		box("Schallloch", "trim", 8.1, y0 + 71.5, 9 + u, 0.6, 9, 3, SLIT, "SmoothPlastic")
+	end
+	box("Kranzgesims", "trim", 0, y0 + 80.6, 9, 17.6, 1.2, 17.6, STONE, "Concrete")
+	for _, sd in ipairs({ -1, 1 }) do
+		for _, dz in ipairs({ 1.2, 16.8 }) do -- Ecktürmchen
+			box("Fiale", "trim", sd * 7.4, y0 + 85, dz, 8, 1.8, 1.8, STONE, "Concrete", { shape = "Cylinder", roll = 90 })
+			box("FialeKopf", "trim", sd * 7.4, y0 + 89.6, dz, 2.4, 2.4, 2.4, COPPER, "Metal", { shape = "Ball" })
+		end
+	end
+	for i = 0, 17 do -- Turmhelm: 18 überlappende Scheiben, Kegel mit geschwungener Spitze
+		local t = i / 17
+		local d = 13.8 * (1 - t) ^ 1.15 + 1.1
+		box("Turmhelm", "roof", 0, y0 + 81.8 + t * 40, 9, 2.6, d, d, COPPER, "Metal", { shape = "Cylinder", roll = 90 })
+	end
+	box("Turmkugel", "trim", 0, y0 + 123.4, 9, 2.4, 2.4, 2.4, GOLD, "Metal", { shape = "Ball" })
+	box("Turmkreuz", "trim", 0, y0 + 127, 9, 0.8, 6, 0.8, GOLD, "Metal")
+	box("Turmkreuz", "trim", 0, y0 + 128, 9, 3.6, 0.8, 0.8, GOLD, "Metal")
+	disc("UhrRand", 0, y0 + 52, -0.25, 0.5, 9.2, STONE, "Concrete")
+	disc("Uhr", 0, y0 + 52, -0.55, 0.3, 7.8, { 246, 242, 230 }, "SmoothPlastic")
+	for _, hd in ipairs({ { 300, 2.2 }, { 60, 3.2 } }) do -- Zeiger (roll dreht um die Tiefenachse, positiv = im Uhrzeigersinn von vorn gesehen)
+		local phi = math.rad(hd[1])
+		box("Uhrzeiger", "trim", -(hd[2] / 2) * math.sin(phi), y0 + 52 + (hd[2] / 2) * math.cos(phi), -0.85, 0.5, hd[2], 0.3, { 30, 28, 26 }, "Metal", { roll = hd[1] })
+	end
+	for _, sd in ipairs({ -1, 1 }) do
+		box("Uhrstrich", "trim", 0, y0 + 52 + sd * 3.1, -0.85, 0.4, 0.9, 0.3, { 30, 28, 26 }, "Metal")
+		box("Uhrstrich", "trim", sd * 3.1, y0 + 52, -0.85, 0.9, 0.4, 0.3, { 30, 28, 26 }, "Metal")
+	end
+	box("PortalRahmen", "trim", 0, y0 + 5.2, -0.15, 8, 10.4, 0.6, STONE, "Concrete")
+	disc("PortalBogen", 0, y0 + 10.4, -0.15, 0.6, 8, STONE, "Concrete")
+	box("Portal", "door", 0, y0 + 4.8, -0.5, 5.6, 9.6, 0.5, DOOR, "Wood", { tag = "HouseDoor" })
+	disc("PortalTuerBogen", 0, y0 + 9.6, -0.5, 0.5, 5.6, DOOR, "Wood")
+	box("Stufe", "trim", 0, y0 + 0.3, -1.0, 10, 0.6, 1.6, STONE, "Concrete")
+	disc("RosetteRand", 0, y0 + 24, -0.3, 0.6, 8, STONE, "Concrete")
+	disc("Rosette", 0, y0 + 24, -0.55, 0.3, 6.6, GLASSC, "Glass", { tag = "HouseWindow", lit = false })
+	for _, r in ipairs({ 0, 45, 90, 135 }) do box("RosetteSteg", "trim", 0, y0 + 24, -0.8, 6.6, 0.45, 0.25, STONE, "Concrete", { roll = r }) end
+	for _, u in ipairs({ -3.8, 3.8 }) do frontWin(u, y0 + 33, 2.4, 9, 0) end
+	for _, sd in ipairs({ -1, 1 }) do sideWin(sd, sd * 9, 9, y0 + 30, 2.6, 10) end
+	for _, sd in ipairs({ -1, 1 }) do
+		box("Seitenschiff", "body", sd * 15, y0 + 8, 21, 8, 16, 42, BRICK, "Brick", { collide = true })
+		for _, lz in ipairs({ 8, 17, 26, 35 }) do sideWin(sd, sd * 19, lz, y0 + 4, 3.2, 9) end
+		frontWin(sd * 14.5, y0 + 4, 3.2, 9, 0)
+		for _, lz in ipairs({ 3, 12.5, 21.5, 30.5, 39.5 }) do box("Strebepfeiler", "trim", sd * 19.6, y0 + 6, lz, 1.6, 12, 1.6, DARK, "Brick") end
+		box("Seitendach", "roof", sd * 15.4, y0 + 19.4, 21, 44, 0.8, math.sqrt(8.8 ^ 2 + 7.2 ^ 2) + 0.8, ROOF, "Metal", { yaw = 90, pitch = sd * math.deg(math.atan2(7.2, 8.8)) })
+		for _, lz in ipairs({ 22, 30, 38 }) do sideWin(sd, sd * 11, lz, y0 + 24.4, 3.2, 5.4) end
+		box("Hauptdach", "roof", sd * 5.8, y0 + 37, 30, 34, 0.8, math.sqrt(11.6 ^ 2 + 14 ^ 2) + 0.8, ROOF, "Metal", { yaw = 90, pitch = sd * math.deg(math.atan2(14, 11.6)) })
+	end
+	box("Mittelschiff", "body", 0, y0 + 15, 30, 22, 30, 32, BRICK, "Brick", { collide = true })
+	box("First", "trim", 0, y0 + 44.3, 30, 34, 0.8, 1.4, ROOF, "Metal")
+	for i = 0, 4 do box("Giebelstufe", "trim", 0, y0 + 31.4 + 2.8 * i, 46.4, 22 - 4.4 * i, 2.8, 1.2, BRICK, "Brick") end
+	box("Apsis", "body", 0, y0 + 11, 46, 22, 19, 19, BRICK, "Brick", { shape = "Cylinder", roll = 90, collide = true })
+	box("ApsisDach", "roof", 0, y0 + 22, 46, 19, 19, 19, COPPER, "Metal", { shape = "Ball" })
+end
+
+
 local FRAME = { 70, 62, 56 }
 local GLASS = { 70, 92, 112 }
 local GLASS_LIT = { 255, 214, 140 }
 local SHUTTERS = { { 70, 100, 80 }, { 110, 60, 50 }, { 60, 70, 100 }, { 90, 90, 94 } }
 local AWNINGS = { { 190, 60, 50 }, { 60, 100, 150 }, { 70, 130, 90 }, { 220, 170, 60 } }
 
--- Fenster: Rahmen und Scheibe sitzen vor der Wand (kein Ausschnitt), Fensterbank darunter. shift = zusätzlicher Abstand (Erker).
 local function addWindow(h, label, face, u, yc, w, hgt, lit, shift, noSill)
 	shift = shift or 0
 	local lx, lz, ey = onFace(h, face, u, 0.2 + shift)
@@ -466,7 +527,6 @@ local function planHouse(h, o, rng, cornerA, cornerB)
 	local ledgeColor = (rng.next() < 0.5) and tint(facade, 0.35) or shade(facade, 0.12)
 	local shutterColor = rng.pick(SHUTTERS)
 	local awning = rng.pick(AWNINGS)
-	-- Stilvariante für mehr Abwechslung: Palazzo (Rustika, Kranzgesims), Erkerturm, Jugendstil (Terrassenzaun, Gauben), modern (Glasbalkone)
 	local variant = "plain"
 	if not h.simple and not h.color and not h.forceFloors then
 		variant = rng.weighted({ { "plain", 0.34 }, { "palazzo", 0.16 }, { "erker", 0.16 }, { "jugend", 0.2 }, { "modern", 0.14 } })
@@ -483,7 +543,6 @@ local function planHouse(h, o, rng, cornerA, cornerB)
 	h.variant = variant
 	h.floors, h.height, h.facade, h.roof = floors, H, facade, roof
 
-	-- Hauptkörper, Sockel, Gesimse
 	add(h, "Body", "body", 0, y0 + H / 2, D / 2, W, H, D, facade, "SmoothPlastic", { collide = true })
 	add(h, "Plinth", "trim", 0, y0 + 1.2, -0.25, W, 2.4, 0.5, plinthColor, "Concrete")
 	for k = 1, floors - 1 do
@@ -492,7 +551,6 @@ local function planHouse(h, o, rng, cornerA, cornerB)
 	end
 	add(h, "Cornice", "trim", 0, y0 + H - 0.8, -0.8, W, 1.6, 1.6, tint(facade, 0.45), "Concrete")
 
-	-- Dach: flach mit Attika, Mansarddach (steile Front, flaches Dach dahinter) oder zurückgesetztes Staffelgeschoss
 	local base = y0 + H
 	add(h, "Roof", "roof", 0, base + 0.3, D / 2, W, 0.6, D, { 96, 96, 100 }, "Concrete", { collide = true })
 	local roofTop = base + 0.6
@@ -518,7 +576,6 @@ local function planHouse(h, o, rng, cornerA, cornerB)
 		add(h, "Chimney" .. i, "chimney", rng.int(-lim, lim), roofTop + 3, D - 6, 2.5, 6, 2.5, { 170, 100, 80 }, "Brick")
 	end
 
-	-- Obergeschoss: Fenster, Erker, Fensterläden, Balkone
 	local nw = math.max(2, math.floor((W - 4) / 9))
 	local erkerIdx
 	if erker then
@@ -558,7 +615,6 @@ local function planHouse(h, o, rng, cornerA, cornerB)
 		end
 	end
 
-	-- Erdgeschoss: Tür auf einer Seite; Schaufenster mit Markise oder zwei kleinere Fenster
 	local a = W / 2 - 6
 	local dx = doorSign * a
 	add(h, "DoorFrame", "frame", dx, y0 + 5, -0.25, 6.4, 10, 0.5, { 70, 52, 42 }, "Wood")
@@ -577,7 +633,6 @@ local function planHouse(h, o, rng, cornerA, cornerB)
 		end
 	end
 
-	-- Rückseite zum Innenhof: Fenster in jedem Geschoss, zwei Erdgeschossfenster und eine Hintertür
 	if h.rear then
 		for k = 1, floors - 1 do
 			local yb = y0 + o.groundH + o.upperH * (k - 1)
@@ -594,7 +649,6 @@ local function planHouse(h, o, rng, cornerA, cornerB)
 		end
 	end
 
-	-- Stildetails je Variante (nur Vorderseite, nicht weiter als 2 Studs über den Blockrand hinaus)
 	if variant == "palazzo" then
 		for i = 1, 5 do add(h, "Rustika", "trim", 0, y0 + i * 2.4, -0.12, W, 0.2, 0.3, shade(facade, 0.2), "Concrete") end
 		for i = 1, nw do
@@ -641,7 +695,6 @@ local function planHouse(h, o, rng, cornerA, cornerB)
 		add(h, "Akzentstreifen", "trim", W / 2 - 3, y0 + H / 2, -0.15, 1.6, H, 0.3, { 200, 120, 70 }, "SmoothPlastic")
 	end
 
-	-- Eckhaus: Fenster auch an der Seitenfläche zur Querstraße
 	for _, face in ipairs({ cornerA and "-x" or false, cornerB and "+x" or false }) do
 		if face and not h.simple then
 			for _, u in ipairs({ 7, D - 7 }) do
@@ -654,7 +707,6 @@ local function planHouse(h, o, rng, cornerA, cornerB)
 	end
 end
 
--- Zufällige Hausbreiten, die genau die Länge füllen (Abweichung höchstens etwa +-10 % vom Durchschnitt)
 local function splitWidths(len, n, rng)
 	local w, sum = {}, 0
 	for i = 1, n do
@@ -665,8 +717,6 @@ local function splitWidths(len, n, rng)
 	return w
 end
 
--- Häuser entlang mehrerer Fassadenlinien. side = { name, yaw, sx, sz, ux, uz, len, corners, ranges }
--- ranges = { { t0, t1 }, ... } begrenzt die bebaubaren Abschnitte (Lücken z. B. für Tore); Standard: ganze Länge.
 local function planSides(name, sides, o, rng, plan, depth)
 	for _, side in ipairs(sides) do
 		local ranges = side.ranges or { { 0, side.len } }
@@ -701,7 +751,6 @@ local function bodyOf(h)
 	end
 end
 
--- Achsparallele Außenmaße eines Teils (Drehung nur in 90-Grad-Schritten).
 function Planner.aabb(p)
 	local sx, sy, sz = p.size[1], p.size[2], p.size[3]
 	if p.yaw % 180 == 90 then sx, sz = sz, sx end
@@ -709,8 +758,6 @@ function Planner.aabb(p)
 end
 
 
--- Hinterhäuser: der Innenhof wird mit niedrigen Häusern (2 bis 3 Geschosse) in einem Raster gefüllt, dazwischen 12 Studs breite Gassen,
--- 14 Studs Abstand zu den Rückseiten der Randhäuser. Sonderflächen (reserved) und das Tankstellen-Grundstück (lot) bleiben mit 10 Studs Rand frei.
 local function planInner(plan, block, o, rng)
 	plan.inner = {}
 	if block.noInner then return end
@@ -746,8 +793,6 @@ local function planInner(plan, block, o, rng)
 	end
 end
 
--- block = { name, xmin, zmin, xmax, zmax, reserved = { {x0,z0,x1,z1}, ... } } (Außenkante = Straßenrand).
--- Häuser, die in reserved-Flächen (Sonderbauten) stehen würden, entfallen.
 function Planner.planBlock(block, opts)
 	local o = mergeOpts(opts)
 	local rng = newRng(o.seed + hash(block.name))
@@ -759,8 +804,6 @@ function Planner.planBlock(block, opts)
 		{ name = "W", yaw = 90, sx = xmin + s, sz = zmax - s - D, ux = 0, uz = -1, len = (zmax - zmin) - 2 * s - 2 * D, corners = false },
 		{ name = "E", yaw = 270, sx = xmax - s, sz = zmin + s + D, ux = 0, uz = 1, len = (zmax - zmin) - 2 * s - 2 * D, corners = false },
 	}
-	-- Reservierte Flächen (Sonderbauten) sparen Abschnitte der Randbebauung aus; die Nachbarhäuser werden auf die Restlänge verteilt und
-	-- schließen so bündig an die Sonderbauten an (eine durchgehende Häuserlinie).
 	for _, side in ipairs(sides) do
 		local r = math.rad(side.yaw)
 		local cs, sn = math.cos(r), math.sin(r)
@@ -805,13 +848,31 @@ function Planner.planBlock(block, opts)
 end
 
 
--- ===== Sonderbauten nach Fotovorlagen (Feuerwache 4 Schwabing, Polizeiinspektion, Klinikum) =====
+function Planner.planAllee(cfg, opts)
+	local o = mergeOpts(opts)
+	local a = cfg.allee
+	local rng = newRng(o.seed + hash("IsarAllee"))
+	local ex, ez = a.uz, -a.ux
+	local off = cfg.profiles.allee.half + o.setback
+	local function P(s, d) return a.ax + a.ux * s + ex * d, a.az + a.uz * s + ez * d end
+	local yaw = math.deg(math.atan2(ex, ez))
+	local sx, sz = P(a.rowTo, off)
+	local len = a.rowTo - a.rowFrom
+	local t0, t1 = a.rowTo - a.church[2], a.rowTo - a.church[1]
+	local side = { name = "A", yaw = yaw, sx = sx, sz = sz, ux = -a.ux, uz = -a.uz, len = len, ranges = { { 0, t0 }, { t1, len } } }
+	local plan = { houses = {} }
+	planSides("IsarAllee", { side }, o, rng, plan, o.depth)
+	local cx, cz = P((a.church[1] + a.church[2]) / 2, off)
+	local h = { side = "A", index = 0, simple = o.simple, ox = cx, oz = cz, yaw = yaw, width = a.church[2] - a.church[1], depth = 56, parts = {}, name = "Kirche_IsarAllee" }
+	planChurch(h, o)
+	plan.houses[#plan.houses + 1] = h
+	return plan
+end
+
 local DARKG = { 58, 60, 64 }
 local GLASS_DARK = { 40, 50, 60 }
 local WHITE = { 236, 236, 232 }
 
--- Fensterband: Glasfelder mit Pfosten und Riegeln zwischen u0 und u1; d = Abstand vor der Wand (negativ = zurückgesetzt).
--- litChance nil = nachts nicht beleuchtet (Tore), sonst Anteil leuchtender Felder.
 local function ribbon(h, o, rng, face, yc, hgt, u0, u1, step, glass, frame, d, litChance, gateTag)
 	local n = math.max(1, math.floor((u1 - u0) / step))
 	local w = (u1 - u0) / n
@@ -833,7 +894,6 @@ local function ribbon(h, o, rng, face, yc, hgt, u0, u1, step, glass, frame, d, l
 	end
 end
 
--- Einzelfenster mit hellem Rahmen
 local function win(h, o, rng, face, u, yc, w, hgt, frame, glass)
 	local lx, lz, ey = onFace(h, face, u, 0.2)
 	add(h, "Frame", "frame", lx, yc, lz, w + 1.4, hgt + 1.4, 0.4, frame, "SmoothPlastic", { yaw = ey })
@@ -841,15 +901,11 @@ local function win(h, o, rng, face, u, yc, w, hgt, frame, glass)
 	add(h, "Glass", "glass", lx, yc, lz, w, hgt, 0.2, glass, "Glass", { yaw = ey, tag = "HouseWindow", lit = rng.next() < o.litChance })
 end
 
--- Schrift: unsichtbare Platte mit SurfaceGui (Builder), Vorderseite zeigt in Blickrichtung des Teils
 local function label(h, face, u, y, d, w, hgt, text, color)
 	local lx, lz, ey = onFace(h, face, u, d)
 	add(h, "Schrift", "text", lx, y, lz, w, hgt, 0.2, color, "SmoothPlastic", { yaw = ey, text = { s = text, color = color } })
 end
 
--- Feuerwache: durchgehende Fahrzeughalle (hohl) mit 4 Toren vorn (Feuerwehr) und 4 hinten (Rettung), roter Obergeschoss-Block
--- mit Fensterbändern, höherer Kopfbau, Schrift, Mast. Die Tore sind Geisterteile (nicht kollidierend, Tag "FireGate"), damit man
--- schon durchfahren kann; ein späteres Skript kann sie öffnen und schließen.
 local function styleFeuerwache(h, o, rng)
 	local W, D, y0 = h.width, h.depth, o.floorY
 	local RED, HALL, UP = { 192, 36, 34 }, { 44, 46, 52 }, 36
@@ -886,8 +942,6 @@ local function styleFeuerwache(h, o, rng)
 	label(h, "front", W / 2 - tbw / 2, roofTop + 4.5, 0.2, tbw - 4, 4, "FEUERWACHE SCHWABING", { 250, 250, 250 })
 	label(h, "back", 0, y0 + 14 + UP - 1.7, 0.2, 40, 2.6, "RETTUNGSWACHE", { 250, 250, 250 })
 
-	-- Details: Paneelfugen, Torvorplätze mit gelber Markierung, Blaulichter und Torziffern, Hallenbeleuchtung und Spurlinien,
-	-- Solarfeld, Schlauchturm und Lüfter auf dem Dach, Fahnenmasten, Notruf-Emblem
 	local SEAM, YEL, BLUE = { 150, 28, 28 }, { 240, 200, 40 }, { 40, 110, 255 }
 	for _, face in ipairs({ "front", "back" }) do
 		for u = -W / 2 + 6, W / 2 - 6, 6 do
@@ -942,7 +996,6 @@ local function styleFeuerwache(h, o, rng)
 	label(h, "front", W / 2 - tbw - 8, roofTop + 4.5, 0.7, 7.6, 4, "112", { 255, 255, 255 })
 end
 
--- Polizeiinspektion: roter Sockel, graue Obergeschosse mit hellen Fensterrahmen, Durchfahrt zum Innenhof, blaues Schild
 local function stylePolizei(h, o, rng)
 	local W, D, y0 = h.width, h.depth, o.floorY
 	local floors = h.forceFloors or 4
@@ -972,8 +1025,6 @@ local function stylePolizei(h, o, rng)
 	add(h, "PolizeiSchild", "trim", ux, y0 + 12.6, -0.4, 11, 2.6, 0.5, { 30, 80, 190 }, "SmoothPlastic")
 	label(h, "front", ux, y0 + 12.6, 0.8, 10, 2, "POLIZEI", { 255, 255, 255 })
 
-	-- Details: dunkle Brüstungsbänder und weiße Fassadenpfeiler, Lamellen-Sonnenschutz, Fugen im roten Sockel, Treppe, Blaulicht,
-	-- Treppenhaus-Glasturm am anderen Ende, Dachaufbauten (Technik, Antennen, Solar, Fahne), Brandmauer-Attika
 	local DG, ALU, SEAM = { 74, 76, 86 }, { 150, 154, 160 }, { 150, 40, 38 }
 	local nw = math.floor((W - 8) / 9)
 	for _, face in ipairs({ "front", "back" }) do
@@ -1005,12 +1056,10 @@ local function stylePolizei(h, o, rng)
 	end
 	for _, sd in ipairs({ -4.4, 4.4 }) do add(h, "Vordachsaeule", "trim", ux + sd, y0 + 5.5, -3.8, 0.8, 11, 0.8, WHITE, "Concrete", { collide = true }) end
 	add(h, "Blaulicht", "trim", ux + 6.8, y0 + 9, -1.2, 1.6, 2.2, 1.2, { 40, 110, 255 }, "Neon")
-	-- Glas-Treppenhausturm am Ostende der Front
 	local sx = -W / 2 + 8
 	add(h, "Treppenhaus", "glass", sx, y0 + (14 + UP + 6) / 2, -1.2, 12, 14 + UP + 6, 6, { 80, 110, 130 }, "Glass", { collide = true })
 	for i = 0, 3 do add(h, "TreppenhausPfosten", "trim", sx - 6 + i * 4, y0 + (14 + UP + 6) / 2, -4.3, 0.6, 14 + UP + 6.4, 0.6, DARKG, "Metal") end
 	for k = 0, floors do add(h, "TreppenhausRiegel", "trim", sx, y0 + 1 + k * 12.4, -4.3, 12.4, 0.5, 0.6, DARKG, "Metal") end
-	-- Dach: Attika, Technikaufbau, Antennen, Solar, Fahnenmast
 	local rt = y0 + 14 + UP + 0.6
 	add(h, "Attika", "trim", 0, rt + 0.9, -0.4, W + 1, 1.8, 0.8, { 190, 192, 198 }, "Concrete")
 	add(h, "Attika", "trim", 0, rt + 0.9, D + 0.4, W + 1, 1.8, 0.8, { 190, 192, 198 }, "Concrete")
@@ -1022,15 +1071,12 @@ local function stylePolizei(h, o, rng)
 	end
 	add(h, "Fahnenmast", "trim", W / 2 - 5, rt + 12, D - 6, 0.6, 24, 0.6, { 200, 202, 206 }, "Metal", { collide = true })
 	add(h, "Fahne", "trim", W / 2 - 5, rt + 20, D - 2, 0.2, 5, 8, { 0, 100, 190 }, "Fabric", { collide = false })
-	-- Durchfahrt: Deckenleuchten und Hinweisschild "Einsatzfahrzeuge frei"
 	for i = 0, 2 do add(h, "Durchfahrtlicht", "trim", (a0 + a1) / 2, y0 + 13.7, 8 + i * (D - 16) / 2, 0.2, 2.4, 2.4, { 255, 250, 235 }, "Neon", { shape = "Cylinder", roll = 90 }) end
 	local sgx, sgz = onFace(h, "front", a1 + 1.5, 1.6)
 	add(h, "HinweisSchild", "trim", sgx, y0 + 9, sgz, 4.2, 4.6, 0.3, { 30, 80, 190 }, "SmoothPlastic")
 	label(h, "front", a1 + 1.5, y0 + 9, 1.9, 3.8, 3.8, "Einsatz-\nfahrzeuge\nfrei", { 255, 255, 255 })
 end
 
--- Klinikum: Betonfassade mit auskragenden Geschossplatten und Brüstungsbändern, Fensterbänder, Stützen im Sockel,
--- Glasturm an der Ecke, Schriftzug und senkrechtes Schild
 local function styleKlinik(h, o, rng)
 	local W, D, y0 = h.width, h.depth, o.floorY
 	local floors = h.forceFloors or 5
@@ -1056,7 +1102,6 @@ local function styleKlinik(h, o, rng)
 			ribbon(h, o, rng, face, yb + 6.4, 5, -W / 2 + 3, W / 2 - 3, 8, GLASS, DARKG, 0.2, o.litChance)
 		end
 	end
-	-- Glasturm an der Nordecke (in z-Richtung der Fassade am Ende), springt 12 Studs vor
 	local gx, gw = W / 2 - 17, 34
 	local gh = 14 + UP
 	add(h, "Glasturm", "glass", gx, y0 + gh / 2, -6, gw, gh, 12, GLASSB, "Glass", { collide = true })
@@ -1073,8 +1118,6 @@ local function styleKlinik(h, o, rng)
 end
 
 
--- Bürogebäude hinter der Tankstelle (nach Foto): dunkle Glasfassade mit weißen Geschossbändern, hohe Stahlpfeiler bis über das Dach,
--- weit auskragendes Dach mit aufgesetztem Oberlichtband. Fassade (vorn) zur Tankstelle, Rückseite ebenfalls verglast.
 local function styleBuero(h, o, rng)
 	local W, D, y0 = h.width, h.depth, o.floorY
 	local floors = h.forceFloors or 5
@@ -1102,7 +1145,6 @@ end
 local STYLES = { feuerwache = styleFeuerwache, polizei = stylePolizei, klinik = styleKlinik, buero = styleBuero }
 
 
--- Teil in Weltkoordinaten (für Anlagen, die nicht zum Haus-Koordinatensystem passen: Tankstelle, Polizeihof)
 local function W3(h, name, kind, x, y, z, sx, sy, sz, color, mat, extra)
 	extra = extra or {}
 	h.parts[#h.parts + 1] = {
@@ -1112,7 +1154,6 @@ local function W3(h, name, kind, x, y, z, sx, sy, sz, color, mat, extra)
 	}
 end
 
--- Logo: weiße Platte mit rotem "A" (nur der Buchstabe, kein Firmenname). face = "W", "E", "N" oder "S" (Blickrichtung der Vorderseite)
 local FACE = { W = { 90, -1, 0 }, E = { 270, 1, 0 }, N = { 0, 0, -1 }, S = { 180, 0, 1 } }
 local function logoA(h, x, y, z, size, face)
 	local f = FACE[face]
@@ -1120,7 +1161,6 @@ local function logoA(h, x, y, z, size, face)
 	W3(h, "Schrift", "text", x + f[2] * 0.25, y, z + f[3] * 0.25, size * 0.85, size * 0.85, 0.2, { 200, 32, 40 }, "SmoothPlastic", { yaw = f[1], text = { s = "A", color = { 200, 32, 40 } } })
 end
 
--- Tankstellen-Shop (nach Beschreibung): weiß mit rotem Band, schließt an die schmale Seite des Schirms an, hohl mit Glasfront zur Straße (West)
 local function styleTankstelle(h, spec)
 	local x0, z0, x1, z1 = spec.x0, spec.z0, spec.x1, spec.z1
 	local cx, cz, w, d = (x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0
@@ -1135,7 +1175,6 @@ local function styleTankstelle(h, spec)
 	W3(h, "ShopBand", "trim", cx, 14.2, z0 - 0.1, w, 2.8, 0.4, RED, "SmoothPlastic") -- Südseite grenzt an den Schirm
 	W3(h, "ShopBandHinten", "trim", x1 + 0.1, 14.2, cz, 0.4, 2.8, d, RED, "SmoothPlastic")
 	logoA(h, x0 - 0.3, 14.2, cz, 2.7, "W")
-	-- Glasfassade zur Straße: Scheiben links und rechts der Schiebetür (8 breit), Pfosten, rote Türrahmen
 	local door = 8
 	local function panes(za, zb)
 		local n = math.max(1, math.floor((zb - za) / 4))
@@ -1150,14 +1189,11 @@ local function styleTankstelle(h, spec)
 	W3(h, "ShopTuer", "glass", x0 + 0.6, 6.2, cz, 0.3, 10.4, door, GL, "Glass", { tag = "ShopDoor" }) -- ohne Kollision, man läuft hinein
 	for _, zz in ipairs({ cz - door / 2, cz + door / 2 }) do W3(h, "ShopTuerrahmen", "trim", x0 + 0.6, 6.2, zz, 0.7, 10.6, 0.5, RED, "SmoothPlastic") end
 	W3(h, "ShopTuerrahmen", "trim", x0 + 0.6, 11.6, cz, 0.7, 0.5, door, RED, "SmoothPlastic")
-	-- Einrichtung: Kasse am Eingang, Regale an der Rückwand
 	W3(h, "Kasse", "trim", x0 + 5, 3, cz - 11, 3, 4, 9, { 190, 190, 194 }, "SmoothPlastic", { collide = true })
 	for _, zz in ipairs({ z0 + 7, cz + 4, z1 - 7 }) do W3(h, "Regal", "trim", x1 - 3, 4.5, zz, 2.2, 7, 8, { 220, 220, 224 }, "SmoothPlastic", { collide = true }) end
 	W3(h, "Kuehlregal", "trim", cx, 4, z1 - 3.5, 12, 6, 2.4, { 150, 190, 215 }, "SmoothPlastic", { collide = true })
 end
 
--- Polizeihof hinter der Durchfahrt: Hof mit Parkbuchten, vier Fahrzeug-Spawnflächen, Zaun zum Hofgarten, Ausfahrt an der Ostseite mit Schranke,
--- Einfahrt durch die Durchfahrt mit Schranke. Alles in Weltkoordinaten; Schranken tragen den Tag "Schranke" (Attribut Offen).
 local function compoundPolizei(h, spec, o)
 	local ASPH, WHITE, RED = { 70, 72, 78 }, { 240, 240, 236 }, { 200, 40, 40 }
 	local function slab(name, x0, z0, x1, z1) W3(h, name, "trim", (x0 + x1) / 2, 0.4, (z0 + z1) / 2, x1 - x0, 1.2, z1 - z0, ASPH, "Asphalt", { collide = true }) end
@@ -1171,12 +1207,10 @@ local function compoundPolizei(h, spec, o)
 	for i = 1, 4 do -- Spawnflächen für Streifenwagen
 		W3(h, "FahrzeugSpawn", "spawn", spec.x0 + 20 + 24 * i, 1.12, 330, 12, 0.2, 20, { 36, 60, 120 }, "SmoothPlastic", { tag = "VehicleSpawn", attrs = { Team = "Polizei" } })
 	end
-	-- Zaun an der Nordkante (lockere Einfriedung, Gitterstäbe alle 4 Studs)
 	local fx0, fx1 = spec.x0 + 16, spec.x1 + 2
 	W3(h, "ZaunRiegel", "trim", (fx0 + fx1) / 2, 4.6, 296.2, fx1 - fx0, 0.4, 0.4, { 50, 54, 58 }, "Metal")
 	W3(h, "ZaunRiegel", "trim", (fx0 + fx1) / 2, 1.6, 296.2, fx1 - fx0, 0.4, 0.4, { 50, 54, 58 }, "Metal")
 	for x = fx0, fx1, 4 do W3(h, "ZaunStab", "trim", x, 3, 296.2, 0.3, 3.4, 0.3, { 50, 54, 58 }, "Metal") end
-	-- Schranken: Pfosten (rot-weiß) und Arm quer über die Fahrspur, geschlossen
 	local function barrier(name, px, pz, len)
 		W3(h, name .. "Pfosten", "trim", px, 3, pz, 1.4, 4, 1.4, RED, "SmoothPlastic", { collide = true })
 		local n = 4
@@ -1191,8 +1225,6 @@ end
 
 local COMPOUNDS = { polizei = compoundPolizei }
 
--- Allguth-Schirm nach Fotos: flaches weißes Dach, am freien Südende abgerundete Ecken (im Norden schließt der Shop an), rotes Band mit
--- Logo "A", kräftige weiße Stützen in zwei Reihen, Deckenleuchten, zwei Zapfsäulen-Inseln mit weiß-roten Säulen.
 local function canopyAllguth(h, c)
 	local x0, z0, x1, z1 = c[1], c[2], c[3], c[4]
 	local cx, cz, w, d = (x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0
@@ -1221,15 +1253,12 @@ local function canopyAllguth(h, c)
 	logoA(h, x0 - 0.2, 14.2, (zs + ze) / 2 - 8, 2.7, "W") -- Logo auf dem Band: West (Straße), Ost und Südende
 	logoA(h, x1 + 0.2, 14.2, (zs + ze) / 2 - 8, 2.7, "E")
 	logoA(h, cx, 14.2, z1 + 0.2, 2.7, "S")
-	-- Stützen: zwei Reihen à vier, kräftig weiß
 	for _, px in ipairs({ x0 + 10, x1 - 10 }) do
 		for k = 0, 3 do W3(h, "CanopyPillar", "trim", px, 7.5, z0 + 14 + k * (d - 28) / 3, 2.6, 14, 2.6, WHITE, "Concrete", { collide = true }) end
 	end
-	-- Deckenleuchten (Neon) in drei Reihen
 	for _, lx in ipairs({ cx - 18, cx, cx + 18 }) do
 		for k = 0, 4 do W3(h, "Deckenlicht", "trim", lx, 13.9, z0 + 10 + k * (d - 20) / 4, 0.2, 1.6, 1.6, { 255, 250, 230 }, "Neon", { shape = "Cylinder", roll = 90 }) end
 	end
-	-- Zapfsäulen-Inseln: Betonsockel, je vier weiß-rote Säulen mit Display
 	for _, px in ipairs({ cx - 13, cx + 13 }) do
 		W3(h, "Insel", "trim", px, 1.3, cz, 5, 0.6, d - 14, { 190, 188, 182 }, "Concrete", { collide = true })
 		for kk = 0, 3 do
@@ -1241,8 +1270,6 @@ local function canopyAllguth(h, c)
 	end
 end
 
--- Grundstücksausstattung nach Fotos: Rasenstreifen zwischen Gehweg und Tankstelle (nicht an den Einfahrten), Hecke, Büsche,
--- quadratische Logoschilder, Ein-/Ausfahrt-Schilder und das Preis-Totem (Tag "FuelPrice" je Preiszeile für ein späteres Skript).
 local function lotDecor(h, spec)
 	local l, K = spec.lot, 1.4
 	local LAWN, HEDGE, WHITE, RED = { 88, 158, 62 }, { 40, 88, 48 }, { 244, 244, 246 }, { 200, 32, 40 }
@@ -1262,7 +1289,6 @@ local function lotDecor(h, spec)
 		end
 		for bz = sct[1] + 8, sct[2] - 6, 15 do W3(h, "Busch", "bush", lx0 + 2.4, 3.3, bz, 4.4, 4.4, 4.4, HEDGE, "Grass", { shape = "Ball" }) end
 	end
-	-- quadratische Logoschilder (weiß mit rotem A), beidseitig lesbar
 	local function logoSign(x, zc)
 		W3(h, "SchildPfosten", "decor", x, 3.3, zc, 0.4, 4, 0.4, { 80, 82, 86 }, "Metal", { collide = true })
 		W3(h, "LogoSchild", "decor", x, 6.5, zc, 4.6, 4.6, 0.3, WHITE, "SmoothPlastic")
@@ -1272,7 +1298,6 @@ local function lotDecor(h, spec)
 		end
 	end
 	if sections[1] then logoSign(lx0 + 3, sections[1][1] + 12) end
-	-- Ein- und Ausfahrt-Schilder an den Rasenenden
 	local function gateSign(zc, label)
 		W3(h, "SchildPfosten", "decor", l[1] + 4.5, 2.8, zc, 0.4, 3, 0.4, { 80, 82, 86 }, "Metal", { collide = true })
 		W3(h, "FahrtSchild", "decor", l[1] + 4.5, 5.8, zc, 7, 2.6, 0.3, { 36, 70, 110 }, "SmoothPlastic")
@@ -1282,7 +1307,6 @@ local function lotDecor(h, spec)
 	end
 	if sections[1] then gateSign(sections[1][2] - 1, "AUSFAHRT") end -- am Südende des Nordabschnitts, direkt vor der Ausfahrt
 	if sections[2] then gateSign(sections[2][2] - 1, "EINFAHRT") end -- vor der südlichen Einfahrt
-	-- Preis-Totem: Stahlpylon mit rotem Kopf (weißes A, ALLGUTH) und schwarzer Preistafel, an beiden Flachseiten
 	local tx, tz = l[1] + 6, sections[1] and sections[1][2] - 9 or l[2] + 20
 	W3(h, "TotemPylon", "decor", tx, 17.3, tz, 6.2, 32, 1.8, { 70, 74, 80 }, "Metal", { collide = true })
 	local fuels = { { "SUPER", "1,81", "Super" }, { "SUPER E10", "1,75", "E10" }, { "SUPER PLUS", "1,95", "SuperPlus" }, { "DIESEL", "1,69", "Diesel" }, { "AUTOGAS", "0,89", "Autogas" } }
@@ -1301,9 +1325,6 @@ local function lotDecor(h, spec)
 	end
 end
 
--- E-Ladepark an der freien Ostseite des Tankstellen-Grundstücks (simuliert, ohne Ladelogik): n Stellplätze (Tiefe x1-x0, Breite w) mit grünen
--- Bodenfeldern, weißen Linien und Radstoppern; je zwei Stellplätze teilen sich eine Ladesäule am hinteren Rand (Display "EV", zwei Ladekabel),
--- darüber ein Solar-Carport mit Schriftband "E-LADESTATION". Die Säulen tragen den Tag "EVCharger" (Attribute Station, kW) für ein späteres Ladeskript.
 local function evPark(h, spec)
 	local e = spec.ev
 	local x0, x1, z0, n, w = e.x0, e.x1, e.z0, e.n, e.w
@@ -1327,7 +1348,6 @@ local function evPark(h, spec)
 			W3(h, "EVStecker", "trim", px - 1.0, 1.7, zc + sd * 1.4, 0.6, 0.9, 0.6, GREEN, "SmoothPlastic")
 		end
 	end
-	-- Carport: Pfosten an den Stellplatzgrenzen (hinten), dunkles Solardach, weiße Blende mit Schriftzügen, grüne Leuchten
 	for i = 0, n, 2 do W3(h, "EVPfosten", "trim", x1 - 0.8, 5.5, z0 + i * w, 1.2, 9, 1.2, WHITE, "SmoothPlastic", { collide = true }) end
 	W3(h, "EVDach", "trim", cx - 0.25, 10.2, zm, x1 - x0 + 1.5, 0.8, n * w + 2, { 28, 44, 84 }, "SmoothPlastic")
 	W3(h, "EVBlende", "trim", x0 - 1, 10.2, zm, 0.6, 1.6, n * w + 2, WHITE, "SmoothPlastic")
@@ -1337,8 +1357,6 @@ local function evPark(h, spec)
 	for i = 0, n - 1 do W3(h, "EVLicht", "trim", cx, 9.6, z0 + (i + 0.5) * w, 0.2, 1.6, 1.6, { 120, 255, 190 }, "Neon", { shape = "Cylinder", roll = 90 }) end
 end
 
--- Sonderbau (Bank, Wache, Krankenhaus ...) als Platzhalter-Gebäude auf einer Rechteckfläche.
--- spec = { name, x0, z0, x1, z1, facing = "N"|"S"|"E"|"W" (Seite zur Straße), floors, color, canopy = { x0, z0, x1, z1 } }
 function Planner.planSpecial(spec, opts)
 	local o = mergeOpts(opts)
 	local rng = newRng(o.seed + hash(spec.name))
@@ -1378,9 +1396,6 @@ function Planner.planSpecial(spec, opts)
 	return { houses = { h } }
 end
 
--- Mapgrenze: Häuserband rund um die Karte, Fassade zeigt nach innen zur Ringstraße.
--- wall = { inner = {xmin,zmin,xmax,zmax} (Ringaußenkante), outer = {...} (Kartenrand), gates = { N = {{x0,x1},...}, S = ... },
---          specials = { { side, name, x0, x1, floors } } }
 function Planner.planWall(wall, opts)
 	local o = mergeOpts(opts)
 	o.simple, o.setback, o.rear = true, 0, false
@@ -1443,10 +1458,6 @@ return Planner
 end)()
 
 local Blocks = (function()
--- Blocks.lua
--- Häuserblöcke (Kartenkoordinaten in Studs, Ursprung = Siegestor, x = Ost, z = Süd).
--- Außenkante = Straßenrand (Raster-Straßen 57 breit: V1 x=-460, V2 x=-235, H1 z=-285, H2 z=30; Ring 48 breit; Achse 110 breit).
--- reserved = Flächen der Sonderbauten (Specials.lua): dort entfallen Blockrand-Häuser.
 
 local Config = Config
 local T = Config.tankstelle
@@ -1464,9 +1475,6 @@ return {
 end)()
 
 local Specials = (function()
--- Specials.lua
--- Sonderbauten als Platzhalter-Gebäude (richtige Grundfläche, Farbe nach Art). Details und Innenräume kommen später.
--- facing = Seite zur Straße. Koordinaten wie in docs/phase1_bauplan.html.
 
 local Config = Config
 local T = Config.tankstelle
@@ -1474,7 +1482,6 @@ local T = Config.tankstelle
 return {
 	{ name = "Isarbank", x0 = -127, z0 = -385, x1 = -55, z1 = -315, facing = "E", floors = 4, color = { 176, 120, 100 } },
 	{ name = "Parkhaus", x0 = -205, z0 = -250, x1 = -109, z1 = -140, facing = "N", floors = 4, color = { 170, 170, 176 } },
-	-- Shop liegt am Nordende des Schirms (gegenüber der Einfahrt), Glasfront zur Straße
 	{ name = "Tankstellen-Shop", x0 = 78, z0 = -332, x1 = 146, z1 = -298, facing = "W", floors = 1, color = { 250, 250, 250 }, style = "tankstelle", canopy = { 78, -298, 146, -202 }, lot = T.lot, curbGaps = T.gaps, ev = T.ev },
 	{ name = "Tankstellen-Buero-Nord", x0 = 190, z0 = -400, x1 = 234, z1 = -318, facing = "W", floors = 5, color = { 38, 48, 62 }, style = "buero" },
 	{ name = "Tankstellen-Buero-Mitte", x0 = 190, z0 = -302, x1 = 234, z1 = -210, facing = "W", floors = 6, color = { 38, 48, 62 }, style = "buero" },
@@ -1494,23 +1501,20 @@ return {
 end)()
 
 local RoadsPlanner = (function()
--- RoadsPlanner.lua
--- Straßen, Gehwege, Markierungen, Parkbuchten, Plätze, Brücken als Teileliste.
--- Reine Geometrie (keine Roblox-Funktionen). Teile haben dieselben Felder wie die Häuser aus Planner.lua, dazu optional pitch.
 
 local Geo = Geo
 
 local RoadsPlanner = {}
 
 local COLOR = {
-	road = { 84, 90, 96 }, walk = { 168, 172, 174 }, plaza = { 214, 208, 196 }, median = { 118, 150, 98 },
+	road = { 84, 90, 96 }, walk = { 168, 172, 174 }, plaza = { 214, 208, 196 }, median = { 118, 150, 98 }, green = { 104, 148, 84 }, bike = { 176, 66, 58 },
 	dash = { 236, 236, 230 }, deck = { 140, 140, 146 }, rail = { 70, 70, 76 }, tunnel = { 110, 110, 116 },
 }
-local MATERIAL = { road = "Asphalt", walk = "Concrete", plaza = "Concrete", median = "Grass" }
-local TOP = { road = 0.5, walk = 1.0, plaza = 0.5, median = 0.8 }
--- Markierungen stehen 0,1 bis 0,2 Studs über der Fahrbahn (Fahrbahn-Oberkante 0,5 bis 0,62)
+local MATERIAL = { road = "Asphalt", walk = "Concrete", plaza = "Concrete", median = "Grass", green = "Grass", bike = "Asphalt" }
+local TOP = { road = 0.5, walk = 1.0, plaza = 0.5, median = 0.8, green = 1.0, bike = 0.8 }
 local DASH_Y, DASH_H = 0.6, 0.2
-local THICK = { road = 1, walk = 2, plaza = 1, median = 1.8 }
+local THICK = { road = 1, walk = 2, plaza = 1, median = 1.8, green = 1.8, bike = 1.8 }
+local CUT = { walk = true, green = true, bike = true } -- Streifen, die an Kreuzungen unterbrochen werden (Gehwege, Grün- und Radwegstreifen)
 
 local function part(parts, name, kind, x, y, z, sx, sy, sz, yaw, color, material, extra)
 	extra = extra or {}
@@ -1522,7 +1526,6 @@ local function part(parts, name, kind, x, y, z, sx, sy, sz, yaw, color, material
 	}
 end
 
--- Große Fliesen wie am Marienplatz: Fugen alle TILE Studs quer und längs auf eine Platzfläche (Mitte cx, cz; Länge len entlang u, Breite w quer)
 local TILE, JOINT, JOINT_COLOR = 6, 0.18, { 150, 144, 136 }
 local function tileJoints(parts, cx, cz, ux, uz, len, w, top, yaw, seg)
 	local nx, nz = -uz, ux
@@ -1541,7 +1544,6 @@ local function tileJoints(parts, cx, cz, ux, uz, len, w, top, yaw, seg)
 	end
 end
 
--- Segmente aller Straßen mit Verlängerung an Knicken (hw * tan(Knickwinkel / 2)), damit außen keine Lücke bleibt
 local function buildSegments(cfg)
 	local segs = {}
 	for _, road in ipairs(cfg.roads) do
@@ -1574,8 +1576,6 @@ local function buildSegments(cfg)
 	return segs
 end
 
--- Fahrbahnen, die sich überlappen (Kreuzungen, Ecken der Ringstraße), liegen sonst auf exakt gleicher Höhe und flackern (Z-Fighting).
--- Darum bekommt jede Straße eine Stufe (greedy-Färbung); Stufe k hebt die Fahrbahn um k * 0,04 Studs.
 local LEVEL_STEP = 0.04
 local PLAZA_LIFT = 0.2 -- Plätze liegen über allen Fahrbahnen
 local function roadLevels(segs)
@@ -1596,7 +1596,6 @@ function RoadsPlanner.segments(cfg)
 	return buildSegments(cfg)
 end
 
--- Abschnitte (t-Werte) entlang der Linie P + u*t, die in anderen Straßen liegen
 local function crossCuts(segs, self, px, pz, L, margin)
 	local cuts = {}
 	for _, o in ipairs(segs) do
@@ -1634,7 +1633,7 @@ function RoadsPlanner.plan(cfg)
 			local sx, sz = p0x + nx * mid, p0z + nz * mid
 			local cuts = {}
 			local lift = (kind == "road") and LEVEL_STEP * level[seg.id] or (kind == "plaza" and PLAZA_LIFT or 0)
-			if kind == "walk" then cuts = crossCuts(segs, seg, sx, sz, L, 0.05) end
+			if CUT[kind] then cuts = crossCuts(segs, seg, sx, sz, L, 0.05) end
 			for _, bc in ipairs(bridgeCuts) do cuts[#cuts + 1] = bc end
 			for _, sp in ipairs(Geo.subtract({ { 0, L } }, cuts)) do
 				local len = sp[2] - sp[1]
@@ -1646,7 +1645,6 @@ function RoadsPlanner.plan(cfg)
 				end
 			end
 		end
-		-- gestrichelte Mittel-/Spurlinien
 		for _, d in ipairs(seg.prof.dashes) do
 			local sx, sz = p0x + nx * d, p0z + nz * d
 			local cuts = crossCuts(segs, seg, sx, sz, L, 0.5)
@@ -1663,15 +1661,18 @@ function RoadsPlanner.plan(cfg)
 		end
 	end
 
-	-- Parkbuchten: Trennlinien quer zum Parkstreifen
 	for _, b in ipairs(cfg.bays) do
 		local x0, z0, x1, z1 = b[1], b[2], b[3], b[4]
 		local ux, uz, len = Geo.dir(x0, z0, x1, z1)
 		local n = math.floor(len / cfg.bay.length)
 		for k = 0, n do
 			local x, z = x0 + ux * cfg.bay.length * k, z0 + uz * cfg.bay.length * k
-			local sx, sz = (math.abs(ux) > 0.5) and 0.3 or cfg.bay.width, (math.abs(ux) > 0.5) and cfg.bay.width or 0.3
-			part(parts, "BayLine", "dash", x, DASH_Y, z, sx, DASH_H, sz, 0, COLOR.dash, "SmoothPlastic", { collide = false })
+			if math.abs(ux) > 0.999 or math.abs(uz) > 0.999 then
+				local sx, sz = (math.abs(ux) > 0.5) and 0.3 or cfg.bay.width, (math.abs(ux) > 0.5) and cfg.bay.width or 0.3
+				part(parts, "BayLine", "dash", x, DASH_Y, z, sx, DASH_H, sz, 0, COLOR.dash, "SmoothPlastic", { collide = false })
+			else -- schräge Straße (Isar-Allee): Linie quer zur Laufrichtung
+				part(parts, "BayLine", "dash", x, DASH_Y, z, 0.3, DASH_H, cfg.bay.width, Geo.yawOf(ux, uz), COLOR.dash, "SmoothPlastic", { collide = false })
+			end
 		end
 		stats.bays = stats.bays + n
 	end
@@ -1681,7 +1682,6 @@ function RoadsPlanner.plan(cfg)
 		tileJoints(parts, (pl.x0 + pl.x1) / 2, (pl.z0 + pl.z1) / 2, 1, 0, pl.x1 - pl.x0, pl.z1 - pl.z0, TOP.plaza + PLAZA_LIFT, 0)
 	end
 
-	-- Brücken: Deck unter dem Asphalt (Oberkante -0.5), Geländer an beiden Kanten
 	for _, b in ipairs(cfg.bridges) do
 		local r = math.rad(b.yaw)
 		local c, s = math.cos(r), math.sin(r)
@@ -1693,8 +1693,6 @@ function RoadsPlanner.plan(cfg)
 		end
 	end
 
-	-- Isar-Brücken: flach auf Straßenhöhe (Oberkante 0,5), Gehwege und Brüstungen aus Stein; getragen von Pfeilerreihen (Querbalken auf vier Säulen)
-	-- im Flussbett und auf der Kiesbank. Auf den Uferstufen liegt die Brücke frei darüber, an den Enden greift sie ins Gelände.
 	local STONE = { 196, 188, 172 }
 	local function floorAt(x, z) -- Oberkante des Geländes im Flussprofil
 		local y = 0
@@ -1705,8 +1703,6 @@ function RoadsPlanner.plan(cfg)
 		if Geo.polyDist(x, z, cfg.water.bach.pts) < 16 then y = math.min(y, -7) end
 		return y
 	end
-	-- Maximilianbrücke: dünnes Deck auf Straßenhöhe, darunter zwei flache Segmentbögen (aus senkrechten Scheiben unter dem Deck) über einen
-	-- Mittelpfeiler mit Vorköpfen im Fluss, Widerlager an beiden Seiten, Statuen auf Sockeln über dem Pfeiler und klassische Laternen.
 	local function maximilian(b, ux, uz, nx2, nz2)
 		local total = b.wid + 2 * b.walk
 		local BODY = { 200, 190, 168 }
@@ -1720,7 +1716,6 @@ function RoadsPlanner.plan(cfg)
 			x, z = at(0, side * (total / 2 - 0.2))
 			part(parts, "BrueckeGesims", "deck", x, -0.5, z, b.len, 0.7, 1.2, b.yaw, { 176, 166, 146 }, "Concrete", {})
 		end
-		-- Bögen: Spannweite 2 * span / 2 je Bogen, Kämpfer auf -7, Scheitel der Untersicht auf -2,5
 		local a, f = b.span / 2, b.rise
 		local R = (a * a + f * f) / (2 * f)
 		local yc = -2.5
@@ -1748,7 +1743,6 @@ function RoadsPlanner.plan(cfg)
 			local x, z = at(0, sd * (total - 16) / 2)
 			part(parts, "BrueckePfeilerKopf", "deck", x, -11, z, 8, 7, 7, 0, BODY, "Concrete", { shape = "Cylinder", roll = 90 })
 		end
-		-- Statuen auf Sockeln über dem Pfeiler (beide Seiten)
 		local STATUE = { 176, 172, 162 }
 		for _, sd in ipairs({ -1, 1 }) do
 			local x, z = at(0, sd * 25.5)
@@ -1757,7 +1751,6 @@ function RoadsPlanner.plan(cfg)
 			part(parts, "StatueTorso", "deck", x, 12.2, z, 2.6, 2.6, 2, b.yaw, STATUE, "Concrete", { collide = false })
 			part(parts, "StatueKopf", "deck", x, 14.3, z, 1.6, 1.8, 1.6, b.yaw, STATUE, "Concrete", { collide = false })
 		end
-		-- Laternen: Pfosten mit Leuchtkasten (Tag StreetLamp), am Pfeiler und über den Bogenansätzen
 		for _, s in ipairs({ -b.span, 0, b.span }) do
 			for _, sd in ipairs({ -1, 1 }) do
 				local x, z = at(s, sd * 27)
@@ -1814,10 +1807,6 @@ return RoadsPlanner
 end)()
 
 local LightsPlanner = (function()
--- LightsPlanner.lua
--- Straßenlaternen entlang der Gehwege, Ampeln (Mast mit Ausleger, zwei Signalköpfe) und Fußgängerampeln als Teileliste.
--- Reine Geometrie. Die Ampeln werden von Ampel.lua über Tags und Attribute gesteuert.
--- Laternen brauchen die Straßenpläne (Gehwegteile), damit kein Mast auf der Fahrbahn, in einer Kreuzung oder über dem Tunnel steht.
 
 local Geo = Geo
 
@@ -1850,8 +1839,6 @@ local function onWalk(walks, x, z)
 	return false
 end
 
--- Laterne (abgerundet): runder Fuß, zweistufiger konischer Zylindermast, Bogenarm aus vier Zylinderstücken (Viertelkreis, Radius 5),
--- walzenförmiger Kopf mit Leuchtlinse unten (Neon, Tag "StreetLamp") über der Fahrbahn
 local function lamp(parts, x, z, tx, tz, h)
 	local yawT = Geo.yawOf(tx, tz)
 	local top = WALK_TOP + h
@@ -1874,8 +1861,6 @@ local function lamp(parts, x, z, tx, tz, h)
 	part(parts, "LaternenLicht", "lamp", x + tx * (r + 4.8), top + r - 0.8, z + tz * (r + 4.8), 0.25, 1.9, 1.9, 0, WARM, "Neon", { shape = "Cylinder", roll = 90, tag = "StreetLamp", attrs = { Lit = true } })
 end
 
--- Signalkopf mit n Lampen (3: rot/gelb/grün, 2: rot/grün), Mitte (x, y, z), Front zeigt in Richtung (fx, fz): heller Rahmen, schlankes Gehäuse,
--- je Lampe ein rundes Blendenrohr (Zylinder) mit runder Linse davor
 local function head(parts, s, x, y, z, lamps, tag)
 	local yaw = Geo.yawOf(s.fx, s.fz)
 	local n = #lamps
@@ -1905,7 +1890,20 @@ function LightsPlanner.plan(cfg, roadPlan)
 		for _, st in ipairs(seg.prof.strips) do
 			if st[3] == "road" then roadHalf = math.max(roadHalf or 0, math.abs(st[1]), math.abs(st[2])) end
 		end
-		if roadHalf then -- nur Straßen mit Gehweg (Kreisel und Plätze haben keinen)
+		local custom = seg.prof.lamps -- eigene Laternenstreifen (Isar-Allee: zwischen Fahrbahn und Radweg), Arm zeigt zur Fahrbahn
+		if custom then
+			local nx, nz = -seg.uz, seg.ux
+			for _, off in ipairs(custom.offsets) do
+				local t = custom.spacing / 2 + 12
+				while t < seg.len - 30 do
+					local sg = (off > 0) and 1 or -1
+					lamp(parts, seg.ax + seg.ux * t + nx * off, seg.az + seg.uz * t + nz * off, -nx * sg, -nz * sg, L.height)
+					stats.lamps = stats.lamps + 1
+					t = t + custom.spacing
+				end
+			end
+		end
+		if roadHalf and not custom then -- nur Straßen mit Gehweg (Kreisel und Plätze haben keinen)
 			local nx, nz = -seg.uz, seg.ux
 			for _, side in ipairs({ -1, 1 }) do
 				local off = side * (roadHalf + L.inset)
@@ -1949,16 +1947,12 @@ return LightsPlanner
 end)()
 
 local Landmarks = (function()
--- Landmarks.lua
--- Wahrzeichen als Teileliste (reine Geometrie): Siegestor (nach Foto: drei Bögen, Säulen, Attika mit Inschrift, Statue) und
--- Friedensengel (Säule mit goldenem Engel in einem Springbrunnenbecken). Teilefelder wie in RoadsPlanner (name, kind, size, pos, yaw, pitch, color, material, collide).
 
 local Geo = Geo
 
 local Landmarks = {}
 
 local function new(parts, cx, cz)
-	-- add(name, x, y, z, sx, sy, sz, color, material, extra): x, z relativ zur Mitte (cx, cz), y absolut; extra = { pitch, collide, text, transparency, shape, roll, yaw }
 	return function(name, x, y, z, sx, sy, sz, color, material, extra)
 		extra = extra or {}
 		parts[#parts + 1] = {
@@ -1969,8 +1963,6 @@ local function new(parts, cx, cz)
 	end
 end
 
--- Siegestor: Breite 64 (quer zur Achse), Tiefe 12, Höhe bis Attika 58, Statue darüber. Mitte = Ursprung, steht auf der Mittelinsel des Kreisverkehrs (siehe siegestorInsel).
--- Öffnungen: Mittelbogen 16 breit (Kämpfer 20, Scheitel 28), Seitenbögen 10 breit (Kämpfer 14, Scheitel 19).
 function Landmarks.siegestor(cfg)
 	local parts = {}
 	local L = cfg.landmarks.siegestor
@@ -1986,7 +1978,6 @@ function Landmarks.siegestor(cfg)
 	pier(-13, -8, "PfeilerMitte")
 	pier(8, 13, "PfeilerMitte")
 	pier(23, 32, "PfeilerAussen")
-	-- Bögen: senkrechte Scheiben, deren Unterkante der Halbkreis bildet
 	local function arch(cx, r, spring, n, name)
 		local w = 2 * r / n
 		for i = 1, n do
@@ -1998,7 +1989,6 @@ function Landmarks.siegestor(cfg)
 	arch(0, 8, 20, 8, "BogenMitte")
 	arch(-18, 5, 14, 6, "BogenSeite")
 	arch(18, 5, 14, 6, "BogenSeite")
-	-- Säulen vor den Pfeilern (an Vorder- und Rückseite), mit Sockel und Kapitell
 	for _, z in ipairs({ -D / 2 - 0.8, D / 2 + 0.8 }) do
 		for _, x in ipairs({ -27.5, -10.5, 10.5, 27.5 }) do
 			add("Saeule", x, y0 + 20, z, 2.4, 36, 2.4, LIGHT, "Concrete")
@@ -2015,7 +2005,6 @@ function Landmarks.siegestor(cfg)
 		{ collide = false, kind = "text", text = { s = "DEM SIEGE GEWEIHT · VOM KRIEG ZERSTÖRT · ZUM FRIEDEN MAHNEND", color = { 60, 56, 50 } } })
 	add("Schrift", 0, y0 + TOP + 8.5, D / 2 + 0.15, 30, 3, 0.2, { 60, 56, 50 }, "SmoothPlastic",
 		{ collide = false, kind = "text", yaw = 180, text = { s = "SIEGESTOR", color = { 60, 56, 50 } } })
-	-- Statue (Bavaria mit Lanze) auf Sockel
 	local yt = y0 + TOP + 16
 	add("StatueSockel", 0, yt + 2, 0, 14, 4, 8, STONE, "Concrete")
 	add("StatueRock", 0, yt + 8, 0, 5, 8, 4, BRONZE, "Metal")
@@ -2026,7 +2015,6 @@ function Landmarks.siegestor(cfg)
 	return parts
 end
 
--- Mittelinsel des Kreisverkehrs um das Siegestor: Rasenscheibe, Kranz aus Randsteinen, Natursteinplatte unter dem Tor.
 function Landmarks.siegestorInsel(cfg)
 	local parts = {}
 	local L = cfg.landmarks.siegestor
@@ -2044,9 +2032,6 @@ function Landmarks.siegestorInsel(cfg)
 	return parts
 end
 
--- Friedensengel: rundes Becken mit Wasser und Strahlen, gestufter Sockel mit Reliefs und Urnen, kannelierte Säule, korinthisches Kapitell
--- und der goldene Engel: wallendes Gewand, Flügel aus je fünf Federn, erhobener rechter Arm mit Ölzweig, linke Hand mit kleiner Nike.
--- Der Engel blickt nach Westen (zur Maximilianstraße).
 function Landmarks.friedensengel(cfg)
 	local parts = {}
 	local L = cfg.landmarks.friedensengel
@@ -2059,7 +2044,6 @@ function Landmarks.friedensengel(cfg)
 	end
 	vcyl("Rondell", 0, y0 + 0.45, 0, 0.9, 62, STONE, "Concrete")
 	local yb = y0 + 0.9
-	-- Beckenrand: 24 Steinblöcke auf einem Kreis (Radius 18), tangential gedreht
 	for i = 0, 23 do
 		local a = math.rad(i * 15)
 		local tx, tz = -math.sin(a), math.cos(a)
@@ -2099,7 +2083,6 @@ function Landmarks.friedensengel(cfg)
 	for _, cx in ipairs({ -5.2, 5.2 }) do for _, cz in ipairs({ -5.2, 5.2 }) do add("Volute", cx, yk + 6, cz, 2.2, 2.2, 2.2, BRONZE, "Metal", { shape = "Ball", collide = false }) end end
 	vcyl("Trommel", 0, yk + 11, 0, 6, 6.5, BRONZE, "Metal")
 	vcyl("EngelSockel", 0, yk + 14.4, 0, 0.8, 8, BRONZE, "Metal", { collide = false })
-	-- Engel (Maßeinheit k = 1,9 Studs, damit er aus der Ferne als goldene Figur zu erkennen ist). Vorne ist -x, rechts (aus Sicht der Figur) ist -z.
 	local ya = yk + 14.8
 	local k = 1.9
 	local function G(name, x, y, z, sx, sy, sz, extra) add(name, x * k, ya + y * k, z * k, sx * k, sy * k, sz * k, GOLD, "Metal", extra) end
@@ -2127,7 +2110,6 @@ function Landmarks.friedensengel(cfg)
 		local a = math.rad(i * 45)
 		ball("EngelKranz", -0.05 + 1.1 * math.cos(a), 12.1, 1.1 * math.sin(a), 0.55)
 	end
-	-- Flügel: je fünf Federn in einem Fächer, nach hinten (+x) geneigt
 	local lens = { 7, 6.6, 5.9, 5, 4 }
 	for _, side in ipairs({ -1, 1 }) do
 		ball("EngelFluegelAnsatz", 0.9, 9.4, side * 0.9, 1.5)
@@ -2138,7 +2120,6 @@ function Landmarks.friedensengel(cfg)
 			G("EngelFluegel", 0.9 + dx * l / 2, 9.4 + dy * l / 2, side * 0.9 + dz * l / 2, 0.4, l, 1.25, { pitch = side * pd, roll = -12, collide = false })
 		end
 	end
-	-- rechter Arm erhoben mit Ölzweig
 	limb("EngelArm", { 0, 9.3, -1.55 }, { -0.9, 10.0, -2.9 }, 0.85)
 	limb("EngelArm", { -0.9, 10.0, -2.9 }, { -1.4, 12.0, -3.1 }, 0.75)
 	ball("EngelHand", -1.4, 12.2, -3.1, 0.9)
@@ -2147,18 +2128,15 @@ function Landmarks.friedensengel(cfg)
 		local t = (i + 1) / 7
 		ball("EngelBlatt", -1.4 - 0.5 * t, 12.3 + 2.6 * t, -3.1 - 0.2 * t + ((i % 2 == 0) and -0.45 or 0.45), 0.6)
 	end
-	-- linker Arm nach vorn, auf der Hand eine kleine Nike
 	limb("EngelArm", { 0, 9.3, 1.55 }, { -0.7, 8.4, 2.4 }, 0.85)
 	limb("EngelArm", { -0.7, 8.4, 2.4 }, { -2.0, 8.9, 2.5 }, 0.75)
 	ball("EngelHand", -2.0, 8.9, 2.5, 0.9)
 	gcyl("EngelNike", 9.7, 1.2, 0.5, -2.1) -- kleine Figur: Körper, Kopf, Flügel
 	for _, sd in ipairs({ -1, 1 }) do G("EngelNikeFluegel", -1.95, 9.9, 2.5 + sd * 0.3, 0.1, 1.2, 0.5, { pitch = sd * 30, collide = false }) end
 	ball("EngelNikeKopf", -2.1, 10.5, 2.5, 0.5)
-	-- Wasserstrahlen am Sockel
 	for _, a in ipairs({ { 4.5, 0 }, { -4.5, 0 }, { 0, 4.5 }, { 0, -4.5 } }) do
 		add("Wasserstrahl", a[1], yb + 4, a[2], 0.9, 8, 0.9, { 240, 248, 255 }, "SmoothPlastic", { collide = false, transparency = 0.5 })
 	end
-	-- Treppe vom Ende der Maximilianstraße (x = Terrasse - 14) zur Terrasse: vier Stufen, Wangenmauern
 	local t = cfg.terrace
 	local sx0 = t.x0 - 14 - L.x
 	for i = 1, 4 do
@@ -2170,8 +2148,6 @@ function Landmarks.friedensengel(cfg)
 	return parts
 end
 
--- Ziffernblatt mit Rand, 12 Strichen, römischen Ziffern an den Viertelstunden und zwei Zeigern (10:10). face = "W", "E", "N" oder "S"
--- (Blickrichtung der Fläche). add = Teile-Erzeuger mit Koordinaten relativ zur Kirchenmitte.
 local function clock(add, x, y, z, R, face)
 	local WHITE, DARK, GOLD = { 246, 242, 230 }, { 36, 34, 32 }, { 214, 176, 70 }
 	local nx = (face == "W") and -1 or ((face == "E") and 1 or 0)
@@ -2181,7 +2157,6 @@ local function clock(add, x, y, z, R, face)
 	local sgn = (face == "W" or face == "S") and 1 or -1 -- Richtung "rechts" aus Sicht des Betrachters entlang z (x-Flächen) bzw. x (z-Flächen)
 	if face == "N" then sgn = -1 end
 	local function pos(dy, dr) return x + (onX and 0 or dr), y + dy, z + (onX and dr or 0) end
-	-- Rand und Scheibe (Zylinder, Achse in Flächennormale)
 	local function disc(name, dia, thick, off, color, mat)
 		local ox, oy, oz = x + nx * off, y, z + nz * off
 		if onX then add(name, ox, oy, oz, thick, dia, dia, color, mat, { shape = "Cylinder", collide = false })
@@ -2221,8 +2196,6 @@ local function clock(add, x, y, z, R, face)
 	add("UhrGold", x + nx * 1.7, y, z + nz * 1.7, 1.4, 1.4, 1.4, GOLD, "Metal", { shape = "Ball", collide = false })
 end
 
--- Zwiebelhaube: 28 dünne, sich überlappende Scheiben (Schritt 1,6 Studs) folgen einer glatten Kurve (Hals, runder Bauch, geschwungene Spitze),
--- darauf Laterne, kleine Kappe, Spitze und Kreuz. Der Bauch ist die Scheibe "Kuppel", alle anderen heißen "KuppelRing".
 local function onion(add, x, y, z, color)
 	local GOLD = { 214, 176, 70 }
 	local H, N = 43, 27
@@ -2243,9 +2216,6 @@ local function onion(add, x, y, z, color)
 	add("Kreuz", x, y + 72, z, 6, 1.2, 1.2, GOLD, "Metal", { collide = false })
 end
 
--- Frauenkirche (nach Fotos, nahe am Originalmaßstab von etwa 4 Studs je Meter): langes Backsteinschiff mit hohen Spitzbogenfenstern,
--- riesiges steiles Ziegeldach mit Gauben, zwei sehr hohe Türme mit Glockenstuben, Uhren und grünen Zwiebelhauben am Westende,
--- Hauptportal mit Rosette. Steht auf dem Kirchplatz.
 function Landmarks.frauenkirche(cfg)
 	local parts = {}
 	local L = cfg.landmarks.frauenkirche
@@ -2259,7 +2229,6 @@ function Landmarks.frauenkirche(cfg)
 	add("Schiff", 0, yb + wallH / 2, 0, len, wallH, 2 * hw, BRICK, "Brick", { collide = true })
 	add("Gesims", 0, yb + wallH + 1, 0, len + 3, 2, 2 * hw + 3, BAND, "Concrete")
 	add("Sockelband", 0, yb + 2, 0, len + 2, 4, 2 * hw + 2, { 128, 120, 112 }, "Concrete")
-	-- hohe Spitzbogenfenster mit Steingewände, Sohlbank und Strebepfeilern dazwischen
 	local first = -len / 2 + 70
 	local n = math.floor((len / 2 - 20 - first) / 22) + 1
 	for i = 0, n - 1 do
@@ -2275,7 +2244,6 @@ function Landmarks.frauenkirche(cfg)
 			add("StrebepfeilerKappe", wx + 11, yb + wallH + 2, sd * (hw + 2), 5, 4, 5, { 176, 150, 124 }, "Concrete")
 		end
 	end
-	-- Satteldach: Platten mit Überstand, Ziegelreihen, First, Gauben; Giebelstufen am Ostende mit Rosette
 	local run = hw + 3
 	local slope = math.sqrt(run * run + rise * rise)
 	local ang = math.deg(math.atan2(rise, run))
@@ -2303,7 +2271,6 @@ function Landmarks.frauenkirche(cfg)
 		add("Giebel", len / 2 - 0.8, yb + wallH + (k - 0.5) * rise / steps + 2, 0, 1.6, rise / steps, 2 * hw * (1 - (k - 1) / steps), BRICK, "Brick", { collide = true })
 	end
 	add("Chorrosette", len / 2 + 0.2, yb + wallH + 22, 0, 0.6, 18, 18, { 70, 86, 110 }, "Glass", { shape = "Cylinder", collide = false, kind = "glass" })
-	-- Türme: je 48 breit, Untergeschoss aus Backstein, Glockengeschoss etwas schmaler mit Schallöffnungen, Achteck, Zwiebelhaube
 	local tw, tx = 48, -len / 2 + 24
 	local H1 = 110
 	for _, sd in ipairs({ -1, 1 }) do
@@ -2321,7 +2288,6 @@ function Landmarks.frauenkirche(cfg)
 			add("Turmfenster", tx - tw / 2 - 0.3, yb + yy, tz, 0.8, 18, 5, { 40, 44, 52 }, "Glass", { collide = false, kind = "glass" })
 			add("Turmfenster", tx, yb + yy, tz + sd * (tw / 2 + 0.3), 5, 18, 0.8, { 40, 44, 52 }, "Glass", { collide = false, kind = "glass" })
 		end
-		-- Schallöffnungen im Glockengeschoss: zwei hohe Bögen je Außenseite
 		local by = yb + H - 26
 		for _, o in ipairs({ -8, 8 }) do
 			add("Schallloch", tx - tw2 / 2 - 0.3, by, tz + o, 0.8, 30, 8, { 30, 32, 38 }, "Glass", { collide = false, kind = "glass" })
@@ -2331,7 +2297,6 @@ function Landmarks.frauenkirche(cfg)
 		end
 		clock(add, tx - tw2 / 2, yb + H - 70, tz, 11, "W")
 		clock(add, tx, yb + H - 70, tz + sd * (tw2 / 2), 11, sd < 0 and "N" or "S")
-		-- Achteck (zwei gegeneinander gedrehte Quadrate) als Übergang zur Haube
 		local oct = 34
 		add("Achteck", tx, yb + H + 11, tz, oct, 22, oct, BRICK2, "Brick", { collide = true })
 		add("Achteck", tx, yb + H + 11.02, tz, oct, 22, oct, BRICK2, "Brick", { collide = true, yaw = 45 })
@@ -2342,7 +2307,6 @@ function Landmarks.frauenkirche(cfg)
 		end
 		onion(add, tx, yb + H + 23, tz, GREEN)
 	end
-	-- Hauptportal mit Spitzbogen, Stufen und Rosette über dem Westportal
 	add("Portal", -len / 2 - 0.4, yb + 14, 0, 1, 28, 14, { 56, 40, 32 }, "Wood", { collide = false })
 	add("PortalRahmen", -len / 2 - 0.8, yb + 15, 0, 0.8, 32, 20, BAND, "Concrete", { collide = false })
 	add("PortalSpitze", -len / 2 - 0.8, yb + 33, 0, 0.8, 8, 10, BAND, "Concrete", { collide = false })
@@ -2352,7 +2316,6 @@ function Landmarks.frauenkirche(cfg)
 	return parts
 end
 
--- Chinesischer Turm: fünf Stockwerke aus Holz mit weit ausladenden Dächern, Säulenumgang unten, vergoldete Spitze
 function Landmarks.chinesischerTurm(cfg)
 	local parts = {}
 	local L = cfg.landmarks.turm
@@ -2399,12 +2362,6 @@ return Landmarks
 end)()
 
 local Ampel = (function()
--- Ampel.lua
--- Schaltet alle Ampeln der Karte (Tag "TrafficLight", Attribute Group/Axis/Lamp) und die Fußgängerampeln (Tag "PedLight").
--- Kreuzungen: Achse NS grün, gelb, Räumzeit, dann Querstraße grün, gelb, Räumzeit. Jede Kreuzung startet versetzt.
--- Feuerwache (Gruppen "Wache_*"): grün für den Verkehr, bis workspace:SetAttribute("WacheAlarm", true) gesetzt wird.
--- Dann gelb, rot und der Verkehr steht; mit SetAttribute("WacheAlarm", false) wieder grün.
--- Als eigenes Script in ServerScriptService (das Plugin legt es an) oder direkt per Ampel.start() im Test-Script.
 
 local Ampel = {}
 
@@ -2419,7 +2376,6 @@ Ampel.config = {
 local ON = { Red = { 235, 40, 40 }, Yellow = { 255, 190, 30 }, Green = { 60, 220, 90 } }
 local DIM = { Red = { 90, 20, 20 }, Yellow = { 100, 74, 12 }, Green = { 20, 80, 36 } }
 
--- Zustand einer Kreuzung zur Zeit t (Sekunden) -> Farbe für NS und EW
 function Ampel.junction(c, t)
 	local phases = {
 		{ c.green, "Green", "Red" }, { c.yellow, "Yellow", "Red" }, { c.clear, "Red", "Red" },
@@ -2435,7 +2391,6 @@ function Ampel.junction(c, t)
 	return "Red", "Red"
 end
 
--- Feuerwache: state = { mode = "Green" | "Yellow" | "Red", since = t }. Gibt die Farbe zurück (ändert state).
 function Ampel.wache(c, state, alarm, t)
 	if alarm and state.mode == "Green" then state.mode, state.since = "Yellow", t end
 	if state.mode == "Yellow" and t - state.since >= c.yellow then state.mode, state.since = "Red", t end
@@ -2511,11 +2466,6 @@ return Ampel
 end)()
 
 local TerrainPlanner = (function()
--- TerrainPlanner.lua
--- Liste von Terrain-Operationen (Grundfläche, Parks, Hügel, Terrasse, Isar, Bach).
--- Reine Daten, die Builder.lua mit Terrain:FillBlock / FillCylinder ausführt. Reihenfolge ist wichtig.
--- Alle Blöcke sind achsparallel (keine Drehung): so hängt das Ergebnis nicht davon ab, wie Roblox gedrehte Blöcke füllt.
--- Op: { op = "block" | "cylinder", material, pos = {x,y,z}, size = {x,y,z} | height, radius }
 
 local Geo = Geo
 
@@ -2525,8 +2475,6 @@ local function block(ops, material, x, y, z, sx, sy, sz, tag)
 	ops[#ops + 1] = { op = "block", material = material, pos = { Geo.round3(x), Geo.round3(y), Geo.round3(z) }, size = { Geo.round3(sx), Geo.round3(sy), Geo.round3(sz) }, yaw = 0, tag = tag }
 end
 
--- Wasserlauf: entlang der Mittellinie in dünnen, achsparallelen Scheiben. Pro Scheibe erst die Schichten ausheben (Böschung),
--- danach Wasser bis zur Wasserlinie einfüllen. Die Scheibenbreite folgt der Laufrichtung: Breite / |Richtungsanteil|.
 local STEP = 8
 function TerrainPlanner.riverSamples(pts)
 	local out = {}
@@ -2543,7 +2491,6 @@ end
 
 local function river(ops, rv)
 	local samples = TerrainPlanner.riverSamples(rv.pts)
-	-- Uferstufen vorab mit Sand/Gras füllen; das Ausheben unten lässt davon nur den Ring zwischen den Stufenkanten stehen
 	for _, f in ipairs(rv.fills or {}) do
 		for _, sm in ipairs(samples) do
 			local alongZ = math.abs(sm.uz) >= math.abs(sm.ux)
@@ -2576,7 +2523,6 @@ function TerrainPlanner.plan(cfg)
 	local ops = {}
 	local G = cfg.groundTop
 	local m, depth, tile = cfg.map, 20, 512
-	-- 1. Boden in Kacheln (ein riesiger Block wäre unhandlich)
 	local x = m.xmin
 	while x < m.xmax do
 		local w = math.min(tile, m.xmax - x)
@@ -2588,11 +2534,9 @@ function TerrainPlanner.plan(cfg)
 		end
 		x = x + w
 	end
-	-- 2. Grasflächen (oberste 4 Studs)
 	for _, p in ipairs(cfg.parks) do
 		block(ops, "Grass", (p.x0 + p.x1) / 2, G - 2, (p.z0 + p.z1) / 2, p.x1 - p.x0, 4, p.z1 - p.z0)
 	end
-	-- 3. Hügel (gestapelte Zylinder) und Terrasse, Höhen relativ zum Boden
 	for _, h in ipairs(cfg.hills) do
 		for _, ly in ipairs(h.layers) do
 			ops[#ops + 1] = { op = "cylinder", material = "Grass", pos = { h.x, G + (ly[2] + ly[3]) / 2, h.z }, height = ly[3] - ly[2], radius = ly[1] }
@@ -2600,7 +2544,6 @@ function TerrainPlanner.plan(cfg)
 	end
 	local t = cfg.terrace
 	block(ops, "Grass", (t.x0 + t.x1) / 2, G + t.height / 2, (t.z0 + t.z1) / 2, t.x1 - t.x0, t.height, t.z1 - t.z0)
-	-- 4. Isar und Bach
 	cfg.water.isar.name, cfg.water.bach.name = "isar", "bach"
 	river(ops, cfg.water.isar)
 	river(ops, cfg.water.bach)
@@ -2612,10 +2555,6 @@ return TerrainPlanner
 end)()
 
 local Garden = (function()
--- Garden.lua
--- Grünanlagen und Ausschmückung als Teileliste (reine Geometrie): Hofgarten (Wege, Dianatempel, Brunnen, Beete, Hecken, Arkaden),
--- Englischer Garten (Bäume, Wege, Bachweg), Monopteros-Tempel, Uferwege/Kiesbänke/Büsche an der Isar und der Vorplatz von Prinz Eins.
--- Teilefelder wie in den anderen Planern (name, kind, size, pos, yaw, pitch, roll, color, material, collide, shape, text, transparency, tag, attrs).
 
 local Geo = Geo
 local TerrainPlanner = TerrainPlanner
@@ -2647,7 +2586,6 @@ local function emitter(parts)
 	end
 end
 
--- Oberkante des Geländes am Punkt (Hügel, Terrasse, Uferstufen der Isar)
 local function groundY(cfg, x, z)
 	for _, h in ipairs(cfg.hills) do
 		local d, y = math.sqrt((x - h.x) ^ 2 + (z - h.z) ^ 2), 0
@@ -2675,19 +2613,18 @@ local function inRoad(segs, x, z, m)
 	return false
 end
 
--- Baum: Stamm, ein bis zwei Kugelkronen
-local function tree(add, rng, x, y, z, scale)
+local function tree(add, rng, x, y, z, scale, prefix)
+	prefix = prefix or ""
 	local h = (6 + 5 * rng()) * scale
 	local cw = (9 + 6 * rng()) * scale
 	local g = GREENS[math.floor(rng() * #GREENS) + 1]
-	add("Stamm", "tree", x, y + h / 2, z, 1.4, h, 1.4, BARK, "Wood", { collide = true })
-	add("Krone", "tree", x, y + h + cw * 0.35, z, cw, cw, cw, g, "Grass", { shape = "Ball" })
+	add(prefix .. "Stamm", "tree", x, y + h / 2, z, 1.4, h, 1.4, BARK, "Wood", { collide = true })
+	add(prefix .. "Krone", "tree", x, y + h + cw * 0.35, z, cw, cw, cw, g, "Grass", { shape = "Ball" })
 	if rng() < 0.6 then
-		add("Krone", "tree", x + (rng() - 0.5) * 4, y + h + cw * 0.15, z + (rng() - 0.5) * 4, cw * 0.75, cw * 0.75, cw * 0.75, GREENS[math.floor(rng() * #GREENS) + 1], "Grass", { shape = "Ball" })
+		add(prefix .. "Krone", "tree", x + (rng() - 0.5) * 4, y + h + cw * 0.15, z + (rng() - 0.5) * 4, cw * 0.75, cw * 0.75, cw * 0.75, GREENS[math.floor(rng() * #GREENS) + 1], "Grass", { shape = "Ball" })
 	end
 end
 
--- Bank: Sitzfläche, Lehne, zwei Beine; yaw = Blickrichtung wie bei Teilen (lokale x-Achse läuft entlang der Bank)
 local function bench(add, x, y, z, yaw)
 	local r = math.rad(yaw)
 	local nx, nz = math.sin(r), math.cos(r) -- lokale z-Richtung
@@ -2709,7 +2646,6 @@ local function disc(add, name, x, y, z, dia, h, color, material, extra)
 	add(name, "decor", x, y, z, h, dia, dia, color, material, extra)
 end
 
--- Rundpavillon: Stufen, Säulen auf einem Kreis, Gebälkring, Dach
 local function pavilion(add, x, base, z, columns, radius, colHeight, dome)
 	disc(add, "TempelSockel", x, base - 1, z, radius * 2 + 9, 3, STONE, "Concrete", { collide = true }) -- Fundament gegen Lücken zum Gelände
 	disc(add, "TempelStufe", x, base + 0.5, z, radius * 2 + 9, 1, STONE, "Concrete", { collide = true })
@@ -2727,7 +2663,6 @@ local function pavilion(add, x, base, z, columns, radius, colHeight, dome)
 	if dome then add("Kuppel", "decor", x, y0 + colHeight + 3.2, z, dome, dome, dome, { 150, 160, 150 }, "Metal", { shape = "Ball", collide = true }) end
 end
 
--- Springbrunnen: Becken, Wasser, Mittelsäule, Strahl
 local function fountain(add, x, z, r)
 	disc(add, "Brunnenbecken", x, 0.7, z, r * 2, 1.4, STONE, "Concrete", { collide = true })
 	disc(add, "Brunnenwasser", x, 1.15, z, r * 2 - 3, 0.4, { 120, 170, 210 }, "SmoothPlastic", { transparency = 0.45 })
@@ -2739,7 +2674,6 @@ local function hofgarten(cfg, add, rng, free)
 	local p
 	for _, q in ipairs(cfg.parks) do if q.name == "Hofgarten" then p = q end end
 	local cx, cz = (p.x0 + p.x1) / 2, (p.z0 + p.z1) / 2
-	-- Wege: Hauptachsen, Randwege, Platz in der Mitte
 	strip(add, "WegHof", p.x0 + 6, cz, p.x1 - 6, cz, 8, 0, 0, GRAVEL)
 	strip(add, "WegHof", cx, p.z0 + 8, cx, p.z1 - 6, 8, 0, 0.04, GRAVEL)
 	strip(add, "WegHof", p.x0 + 8, p.z0 + 16, p.x0 + 8, p.z1 - 16, 5, 0, 0.02, GRAVEL)
@@ -2751,7 +2685,6 @@ local function hofgarten(cfg, add, rng, free)
 		disc(add, "Brunnenplatz", x, 0.1, cz, 26, 0.5, SAND, "Pavement")
 		fountain(add, x, cz, 10)
 	end
-	-- Blumenbeete in den vier Vierteln (rot, gelb, lila, weiß im Wechsel)
 	local colors = { { 200, 60, 70 }, { 240, 200, 60 }, { 150, 80, 170 }, { 240, 240, 236 } }
 	local k = 0
 	for _, qx in ipairs({ -1, 1 }) do
@@ -2764,24 +2697,20 @@ local function hofgarten(cfg, add, rng, free)
 			end
 		end
 	end
-	-- Hecken entlang der Hauptachse, Lücken an Brunnen und Platz
 	for x = p.x0 + 24, p.x1 - 24, 16 do
 		if math.abs(x - cx) > 30 and math.abs(x - fx[1]) > 18 and math.abs(x - fx[2]) > 18 then
 			for _, sd in ipairs({ -1, 1 }) do add("Hecke", "decor", x, 1.2, cz + sd * 7.5, 14, 2.4, 1.6, HEDGE, "Grass", { collide = true }) end
 		end
 	end
-	-- Arkaden an der Nordkante: Rückwand, Säulen, Dach
 	add("ArkadenWand", "decor", cx, 4.5, p.z0 - 0.5, p.x1 - p.x0 - 20, 9, 1, { 214, 196, 160 }, "Concrete", { collide = true })
 	for x = p.x0 + 10, p.x1 - 10, 10 do add("ArkadenSaeule", "decor", x, 4.5, p.z0 + 3, 1.8, 9, 1.8, { 226, 214, 184 }, "Concrete", { collide = true }) end
 	add("ArkadenDach", "decor", cx, 9.4, p.z0 + 1.5, p.x1 - p.x0 - 20, 0.8, 7, { 170, 90, 70 }, "Concrete", { collide = true })
-	-- Bänke an den Hauptwegen
 	for x = p.x0 + 36, p.x1 - 36, 44 do
 		if math.abs(x - cx) > 34 and math.abs(x - fx[1]) > 20 and math.abs(x - fx[2]) > 20 then
 			bench(add, x, 0, cz - 6, 180)
 			bench(add, x, 0, cz + 6, 0)
 		end
 	end
-	-- Bäume in lockerem Raster, nicht auf Wegen, Beeten, Hecken, Plätzen
 	local n = 0
 	for x = p.x0 + 14, p.x1 - 14, 26 do
 		for z = p.z0 + 18, p.z1 - 12, 26 do
@@ -2796,7 +2725,6 @@ local function hofgarten(cfg, add, rng, free)
 			end
 		end
 	end
-	-- Baumreihen an den Randwegen
 	for z = p.z0 + 24, p.z1 - 24, 20 do
 		for _, x in ipairs({ p.x0 + 16, p.x1 - 16 }) do
 			if free(x, z) then tree(add, rng, x, 0, z, 0.9) n = n + 1 end
@@ -2808,7 +2736,6 @@ end
 local function monopteros(cfg, add)
 	local h = cfg.hills[1]
 	pavilion(add, h.x, 8, h.z, 9, 11, 12, nil)
-	-- Aufgang von Westen: breite Stufen über beide Terrassen des Hügels
 	strip(add, "WegMonopteros", h.x - 70, h.z, h.x - 44, h.z, 7, 0, 0.06, GRAVEL)
 	strip(add, "WegMonopteros", h.x - 44, h.z, h.x - 30, h.z, 7, 4, 0.06, GRAVEL)
 	strip(add, "WegMonopteros", h.x - 30, h.z, h.x - 17, h.z, 7, 8, 0.06, GRAVEL)
@@ -2823,7 +2750,6 @@ local function englischerGarten(cfg, add, rng, free)
 	strip(add, "WegEG", 520, p.z0 + 10, 520, p.z1 - 10, 8, 0, 0, GRAVEL)
 	strip(add, "WegEG", p.x0 + 8, h.z, h.x - 70, h.z, 6, 0, 0.02, GRAVEL)
 	strip(add, "WegEG", 520, 270, p.x1 - 60, 270, 6, 0, 0.02, GRAVEL)
-	-- Weg am Bach entlang (Westufer, 20 Studs Abstand)
 	local bs = TerrainPlanner.riverSamples(cfg.water.bach.pts)
 	for i = 1, #bs, 2 do
 		local s = bs[i]
@@ -2833,12 +2759,10 @@ local function englischerGarten(cfg, add, rng, free)
 			if free(x, z) then add("WegBach", "path", x, 0.1, z, 17, 0.5, 4, SAND, "Pavement", { yaw = Geo.yawOf(s.ux, s.uz) }) end
 		end
 	end
-	-- Bänke am Hügel und am Hauptweg
 	for _, z in ipairs({ p.z0 + 60, 140, 200, 240 }) do
 		bench(add, 513, 0, z, 270)
 		bench(add, 527, 0, z, 90)
 	end
-	-- Bäume: dicht im Westen am Bach, lichter um den Monopteros-Hügel und zum Fluss hin
 	local n = 0
 	for x = p.x0 + 8, p.x1 - 8, 17 do
 		for z = p.z0 + 8, p.z1 - 8, 17 do
@@ -2857,7 +2781,6 @@ local function englischerGarten(cfg, add, rng, free)
 	return n
 end
 
--- Uferwege, Bänke, Büsche und Findlinge an beiden Ufern der Isar
 local function isarBank(cfg, add, rng, bridges)
 	local rv = cfg.water.isar
 	local samples = TerrainPlanner.riverSamples(rv.pts)
@@ -2904,7 +2827,6 @@ local function isarBank(cfg, add, rng, bridges)
 	return n
 end
 
--- Prinz Eins: gepflasterter Vorplatz, roter Teppich mit Absperrpfosten, Vordach, Leuchtschild, Terrassentische mit Schirmen
 local function club(cfg, add, spec)
 	local x0, x1, z1 = spec.x0, spec.x1, spec.z1
 	local cx = (x0 + x1) / 2
@@ -2917,7 +2839,6 @@ local function club(cfg, add, spec)
 		end
 	end
 	for _, sd in ipairs({ -5, 5 }) do add("Absperrseil", "decor", cx + sd, 3.1, z1 + 2 + 6.5, 0.2, 0.2, 13, { 120, 20, 40 }, "Fabric") end
-	-- Vordach auf zwei Stützen, Leuchtschild darüber
 	add("Vordach", "decor", cx, 12.6, z1 + 6, 18, 0.6, 12, { 40, 32, 60 }, "Metal")
 	for _, sd in ipairs({ -8.4, 8.4 }) do add("VordachStuetze", "decor", cx + sd, 6.5, z1 + 11.4, 0.6, 12, 0.6, GOLD, "Metal", { collide = true }) end
 	add("TuerRahmen", "decor", cx, 6, z1 + 0.2, 10, 11, 0.5, GOLD, "Metal")
@@ -2925,7 +2846,6 @@ local function club(cfg, add, spec)
 	add("Leuchtschild", "decor", cx, 18.5, z1 + 0.3, 26, 5.4, 0.6, { 26, 18, 44 }, "SmoothPlastic")
 	for _, dy in ipairs({ -2.8, 2.8 }) do add("Neonleiste", "decor", cx, 18.5 + dy, z1 + 0.7, 26, 0.3, 0.3, { 255, 60, 180 }, "Neon") end
 	add("Schrift", "text", cx, 18.5, z1 + 0.65, 22, 3.6, 0.2, { 255, 255, 255 }, "SmoothPlastic", { yaw = 180, text = { s = "PRINZ EINS", color = { 255, 255, 255 } } })
-	-- Terrassentische mit Schirmen links und rechts
 	local umb = { { 120, 60, 170 }, { 240, 240, 236 } }
 	local t = 0
 	for _, gx in ipairs({ x0 - 2, x1 - 18 }) do
@@ -2946,8 +2866,6 @@ local function club(cfg, add, spec)
 	end
 end
 
--- Eisbachwelle: stehende Welle im Bach (Walze aus Schaum, Tag "Eisbachwelle"/"SurfZone" für den späteren Surf-Mechanismus), Ufermauern,
--- Zuschauerdeck mit Bänken am Westufer, Fußgängerbrücke flussaufwärts und Schild.
 local function eisbach(cfg, add)
 	local pts = cfg.water.bach.pts
 	local zc = cfg.landmarks.eisbach.z
@@ -2997,12 +2915,10 @@ local function eisbach(cfg, add)
 	add("Schrift", "text", tx2, 3.4, tz2, 8.4, 1.8, 0.2, { 255, 255, 255 }, "SmoothPlastic", { yaw = signYaw, text = { s = "EISBACHWELLE", color = { 255, 255, 255 } } })
 end
 
--- Biergarten um den Chinesischen Turm: Kiesfläche, Ausschank mit Schild, Bierbänke in Reihen, Kastanien am Rand
 local function biergarten(cfg, add, rng, free)
 	local b, t = cfg.landmarks.biergarten, cfg.landmarks.turm
 	local cx, cz = (b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2
 	add("BiergartenKies", "plaza", cx, 0, cz, b.x1 - b.x0, 0.5, b.z1 - b.z0, { 214, 204, 176 }, "Pavement")
-	-- Ausschank am Nordrand
 	local kx, kz = b.x0 + 24, b.z0 + 8
 	add("AusschankWand", "decor", kx, 5.2, kz, 40, 10, 12, { 240, 236, 226 }, "SmoothPlastic", { collide = true })
 	add("AusschankDach", "decor", kx, 10.9, kz, 43, 0.8, 15, { 196, 84, 48 }, "Slate", { collide = true })
@@ -3010,7 +2926,6 @@ local function biergarten(cfg, add, rng, free)
 	add("AusschankTheke", "decor", kx, 2.2, kz + 7, 38, 1.4, 1.6, { 140, 104, 70 }, "Wood", { collide = true })
 	add("BiergartenSchild", "decor", kx, 8.2, kz + 6.3, 18, 2.6, 0.3, { 36, 90, 60 }, "SmoothPlastic")
 	add("Schrift", "text", kx, 8.2, kz + 6.55, 16.4, 2, 0.2, { 255, 255, 255 }, "SmoothPlastic", { yaw = 180, text = { s = "BIERGARTEN", color = { 255, 255, 255 } } })
-	-- Bierbänke in Reihen, um den Turm herum ausgespart
 	local sets = 0
 	for x = b.x0 + 8, b.x1 - 8, 13 do
 		for z = b.z0 + 24, b.z1 - 6, 11 do
@@ -3021,7 +2936,6 @@ local function biergarten(cfg, add, rng, free)
 			end
 		end
 	end
-	-- Kastanien rund um die Fläche (Süd- und Ostkante, West- und Nordkante teilweise)
 	local trees = 0
 	for x = b.x0 + 4, b.x1 - 4, 14 do
 		for _, z in ipairs({ b.z1 + 3 }) do
@@ -3034,6 +2948,17 @@ local function biergarten(cfg, add, rng, free)
 		end
 	end
 	return { sets = sets, trees = trees }
+end
+
+local function alleeTrees(cfg, add, rng)
+	local a = cfg.allee
+	local nx, nz = -a.uz, a.ux -- Normale nach Westen (zur Isar)
+	local n, t = 0, a.trees.from
+	while t <= a.trees.to do
+		tree(add, rng, a.ax + a.ux * t + nx * a.trees.off, 1.0, a.az + a.uz * t + nz * a.trees.off, 1.1, "Allee")
+		n, t = n + 1, t + a.trees.step
+	end
+	return n
 end
 
 function Garden.plan(cfg, roadPlan, specials)
@@ -3062,6 +2987,7 @@ function Garden.plan(cfg, roadPlan, specials)
 	stats.biergarten = biergarten(cfg, add, rng, free)
 	eisbach(cfg, add)
 	stats.bank = isarBank(cfg, add, rng, cfg.isarBridges)
+	stats.alleeTrees = alleeTrees(cfg, add, rng)
 	for _, sp in ipairs(specials or {}) do
 		if sp.name == "Prinz-Eins" then club(cfg, add, sp) end
 	end
@@ -3073,9 +2999,6 @@ return Garden
 end)()
 
 local WallPlanner = (function()
--- WallPlanner.lua
--- Mapgrenze: durchgehendes Häuserband (60 tief, ca. 74-110 hoch) rund um die Ringstraße, Fassade zur Straße.
--- Lücken für Querriegel (Nord), Feldherrnhalle (Süd) und die zwei Flusstore (Brückenhäuser mit Gitter).
 
 local Planner = Planner
 local Geo = Geo
@@ -3093,7 +3016,6 @@ function WallPlanner.plan(cfg, opts)
 		for _, g in ipairs(list) do gates[side][#gates[side] + 1] = g end
 	end
 	local plan = Planner.planWall({ inner = cfg.ring, outer = cfg.map, gates = gates, specials = cfg.wall.specials }, o)
-	-- Flusstore: Gebäude über dem Wasser (ab Höhe 22) und ein Gitter an der Kartenkante
 	local parts = {}
 	for _, g in ipairs(cfg.wall.riverGates) do
 		local north = g.side == "N"
@@ -3112,9 +3034,6 @@ return WallPlanner
 end)()
 
 local Builder = (function()
--- Builder.lua
--- Wandelt die Pläne (Teilelisten, Terrain-Operationen) in Roblox-Instanzen um. Läuft im Studio.
--- Die Roblox-Aufrufe hier sind in der Cloud-Session nur gegen eine Attrappe getestet, nicht gegen echtes Roblox.
 
 local CollectionService = game:GetService("CollectionService")
 local Workspace = game:GetService("Workspace")
@@ -3172,14 +3091,12 @@ local function buildPart(spec, origin)
 	return p
 end
 
--- Gibt dem Studio zwischendurch Luft, sonst friert es bei vielen tausend Teilen ein.
 local count = 0
 local function breathe(every)
 	count = count + 1
 	if count % every == 0 then task.wait() end
 end
 
--- Liste von Teilen unter parent anlegen
 function Builder.buildParts(parts, parent, origin)
 	for _, spec in ipairs(parts) do
 		buildPart(spec, origin).Parent = parent
@@ -3187,7 +3104,6 @@ function Builder.buildParts(parts, parent, origin)
 	end
 end
 
--- Häuser: je Haus ein Model (PrimaryPart = Body); plan.houses und die Hinterhäuser plan.inner
 function Builder.build(plan, parent, origin)
 	for _, list in ipairs({ plan.houses, plan.inner or {} }) do
 		for _, h in ipairs(list) do
@@ -3208,7 +3124,6 @@ end
 
 function Builder.applyTerrain(ops, origin)
 	local terrain = Workspace.Terrain
-	-- Keine Gras-Büschel (ragen sonst durch Wege und Straßen), Wasser deckend genug, dass man es von oben als Wasser sieht
 	pcall(function()
 		terrain.Decoration = false
 		terrain.WaterTransparency = 0.45
@@ -3226,7 +3141,6 @@ function Builder.applyTerrain(ops, origin)
 	end
 end
 
--- Tatsächliche Höhe der Terrain-Oberkante: Strahl von oben auf mehrere ebene Stellen, Median. 0, wenn nichts getroffen wird.
 function Builder.measureGround(origin)
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Include
@@ -3241,7 +3155,6 @@ function Builder.measureGround(origin)
 	return math.floor(ys[math.ceil(#ys / 2)] * 2 + 0.5) / 2 -- auf 0,5 gerundet
 end
 
--- Anzahl Wasser-Zellen in einem kleinen Würfel um center (nil, wenn das Auslesen nicht klappt)
 function Builder.countWater(center)
 	local ok, n = pcall(function()
 		local region = Region3.new(center - Vector3.new(16, 20, 16), center + Vector3.new(16, 8, 16)):ExpandToGrid(4)
@@ -3259,7 +3172,6 @@ function Builder.countWater(center)
 	return ok and n or nil
 end
 
--- Notlösung, falls das Terrain-Wasser fehlt: halbdurchsichtige blaue Platten entlang der Mittellinie (nicht schwimmbar)
 function Builder.waterFallback(pts, halfWidth, y, origin)
 	local folder = Builder.container("WasserErsatz")
 	for i = 1, #pts - 1 do
@@ -3282,8 +3194,6 @@ function Builder.clearTerrain()
 	Workspace.Terrain:Clear()
 end
 
--- Ordner Workspace.Map.<path...>; ein vorhandener letzter Ordner wird ersetzt (Neu-Bauen möglich).
--- Legt das Ampel-Skript in ServerScriptService an (Plugin darf Source setzen), ersetzt ein vorhandenes
 function Builder.installController(source)
 	local sss = game:GetService("ServerScriptService")
 	local old = sss:FindFirstChild("AmpelSteuerung")
@@ -3321,11 +3231,6 @@ return Builder
 end)()
 
 local BuildAll = (function()
--- BuildAll.lua
--- Baut die Karte in einem Rutsch oder schrittweise. Aufruf (Command Bar, Edit-Modus):
---   require(game.ServerStorage.MapBuilder.BuildAll).run()
---   require(game.ServerStorage.MapBuilder.BuildAll).run({ steps = { "roads" } })
--- Optionen: steps (Standard alle), origin (Vector3, Position des Siegestors), seed, only (Blocknamen für "houses"), clearTerrain (true/false)
 
 local Config = Config
 local Blocks = Blocks
@@ -3380,6 +3285,12 @@ local STEPS = {
 				houses, parts = houses + st.houses, parts + st.parts
 			end
 		end
+		if next(only) == nil or only.IsarAllee then
+			local plan = Planner.planAllee(Config, { seed = opts.seed or 1 })
+			Builder.build(plan, Builder.container("Gebaeude", "IsarAllee"), origin)
+			local st = Planner.stats(plan)
+			houses, parts = houses + st.houses, parts + st.parts
+		end
 		if next(only) == nil then
 			local folder = Builder.container("Gebaeude", "Sonderbauten")
 			for _, spec in ipairs(Specials) do
@@ -3403,12 +3314,11 @@ local STEPS = {
 
 BuildAll.order = { "terrain", "roads", "lights", "landmarks", "gardens", "houses", "wall" }
 
--- Nach dem Terrain: echte Bodenhöhe messen (alles weitere wird daran ausgerichtet) und prüfen, ob Wasser da ist.
 local function afterTerrain(base)
 	local ground = Builder.measureGround(base)
 	print(string.format("[boden] Terrain-Oberkante gemessen: %.1f, alle weiteren Teile werden daran ausgerichtet", ground))
 	local pts = Config.water.isar.pts
-	local mid = pts[8]
+	local mid = pts[math.ceil(#pts / 2)]
 	local water = Builder.countWater(base + Vector3.new(mid[1], Config.water.isar.waterTop - 2, mid[2]))
 	if water == nil then
 		print("[wasser] Auslesen nicht möglich, bitte im Studio nachsehen")

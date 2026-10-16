@@ -94,7 +94,7 @@ local function add(h, name, kind, lx, ly, lz, sx, sy, sz, color, material, extra
 		yaw = (h.yaw + (extra.yaw or 0)) % 360, pitch = extra.pitch or 0,
 		color = color, material = material,
 		collide = extra.collide == true,
-		lit = extra.lit, tag = extra.tag, text = extra.text,
+		lit = extra.lit, tag = extra.tag, text = extra.text, shape = extra.shape, roll = extra.roll, transparency = extra.transparency,
 		lpos = { lx, ly, lz },
 	}
 	h.parts[#h.parts + 1] = part
@@ -108,6 +108,95 @@ local function onFace(h, face, u, d)
 	if face == "+x" then return h.width / 2 + d, u, -90 end
 	return -h.width / 2 - d, u, 90
 end
+
+-- Backsteinkirche der Isar-Allee (neuromanisch): Turm vorn mit Zifferblatt, Glockenstube und Kupferhelm, Mittelschiff mit Satteldach, zwei Seitenschiffe,
+-- runde Apsis, Rundbogenfenster, Rosette und Portal. Lokal wie die Häuser: x entlang der Fassade, z in die Tiefe (Fassade zeigt zur Allee), y absolut.
+local function planChurch(h, o)
+	local y0 = o.floorY
+	local BRICK, DARK, STONE, ROOF, COPPER, GOLD = { 150, 72, 54 }, { 128, 58, 44 }, { 208, 200, 184 }, { 74, 82, 88 }, { 94, 152, 130 }, { 220, 180, 70 }
+	local DOOR, GLASSC, SLIT = { 62, 44, 34 }, { 70, 92, 112 }, { 30, 26, 24 }
+	local function box(name, kind, lx, y, lz, sx, sy, sz, color, mat, extra) add(h, name, kind, lx, y, lz, sx, sy, sz, color, mat or "Brick", extra) end
+	local function disc(name, lx, y, lz, thick, dia, color, mat, extra) -- Zylinder mit Achse entlang der Tiefe (z): Zifferblatt, Rosette, Bögen an der Front
+		extra = extra or {}
+		extra.shape, extra.yaw = "Cylinder", 90
+		box(name, "trim", lx, y, lz, thick, dia, dia, color, mat or "Concrete", extra)
+	end
+	local function frontWin(u, yb, w, hgt, zw) -- Rundbogenfenster in der Wandebene lz = zw
+		local ph = hgt - w / 2
+		box("Glass", "glass", u, yb + ph / 2, zw - 0.2, w, ph, 0.3, GLASSC, "Glass", { tag = "HouseWindow", lit = false })
+		disc("GlassBogen", u, yb + ph, zw - 0.2, 0.3, w, GLASSC, "Glass", { tag = "HouseWindow", lit = false })
+		box("Sill", "trim", u, yb - 0.3, zw - 0.5, w + 1.6, 0.6, 1.0, STONE, "Concrete")
+	end
+	local function sideWin(sg, xw, lz, yb, w, hgt) -- Rundbogenfenster in der Wandebene lx = xw (sg = +-1: Blickrichtung)
+		local ph = hgt - w / 2
+		box("Glass", "glass", xw + sg * 0.2, yb + ph / 2, lz, 0.3, ph, w, GLASSC, "Glass", { tag = "HouseWindow", lit = false })
+		box("GlassBogen", "glass", xw + sg * 0.2, yb + ph, lz, 0.3, w, w, GLASSC, "Glass", { shape = "Cylinder", tag = "HouseWindow", lit = false })
+		box("Sill", "trim", xw + sg * 0.5, yb - 0.3, lz, 1.0, 0.6, w + 1.6, STONE, "Concrete")
+	end
+	-- Turm und Glockenstube
+	box("Body", "body", 0, y0 + 31, 9, 18, 62, 18, BRICK, "Brick", { collide = true })
+	for _, yy in ipairs({ 14, 44, 62 }) do box("Gurt", "trim", 0, y0 + yy, 9, 18.8, 0.9, 18.8, STONE, "Concrete") end
+	for _, sd in ipairs({ -1, 1 }) do for _, dz in ipairs({ 0.2, 17.8 }) do box("Eckquader", "trim", sd * 9, y0 + 31, dz, 1.2, 62, 1.2, DARK, "Brick") end end
+	box("Glockenstube", "body", 0, y0 + 71, 9, 16, 18, 16, BRICK, "Brick", { collide = true })
+	for _, u in ipairs({ -3.6, 3.6 }) do -- Schallöffnungen in den vier Wänden
+		box("Schallloch", "trim", u, y0 + 71.5, 0.9, 3, 9, 0.6, SLIT, "SmoothPlastic")
+		box("Schallloch", "trim", u, y0 + 71.5, 17.1, 3, 9, 0.6, SLIT, "SmoothPlastic")
+		box("Schallloch", "trim", -8.1, y0 + 71.5, 9 + u, 0.6, 9, 3, SLIT, "SmoothPlastic")
+		box("Schallloch", "trim", 8.1, y0 + 71.5, 9 + u, 0.6, 9, 3, SLIT, "SmoothPlastic")
+	end
+	box("Kranzgesims", "trim", 0, y0 + 80.6, 9, 17.6, 1.2, 17.6, STONE, "Concrete")
+	for _, sd in ipairs({ -1, 1 }) do
+		for _, dz in ipairs({ 1.2, 16.8 }) do -- Ecktürmchen
+			box("Fiale", "trim", sd * 7.4, y0 + 85, dz, 8, 1.8, 1.8, STONE, "Concrete", { shape = "Cylinder", roll = 90 })
+			box("FialeKopf", "trim", sd * 7.4, y0 + 89.6, dz, 2.4, 2.4, 2.4, COPPER, "Metal", { shape = "Ball" })
+		end
+	end
+	for i = 0, 17 do -- Turmhelm: 18 überlappende Scheiben, Kegel mit geschwungener Spitze
+		local t = i / 17
+		local d = 13.8 * (1 - t) ^ 1.15 + 1.1
+		box("Turmhelm", "roof", 0, y0 + 81.8 + t * 40, 9, 2.6, d, d, COPPER, "Metal", { shape = "Cylinder", roll = 90 })
+	end
+	box("Turmkugel", "trim", 0, y0 + 123.4, 9, 2.4, 2.4, 2.4, GOLD, "Metal", { shape = "Ball" })
+	box("Turmkreuz", "trim", 0, y0 + 127, 9, 0.8, 6, 0.8, GOLD, "Metal")
+	box("Turmkreuz", "trim", 0, y0 + 128, 9, 3.6, 0.8, 0.8, GOLD, "Metal")
+	-- Zifferblatt (10:10), Portal mit Rundbogen und Stufe, Rosette, Fenster
+	disc("UhrRand", 0, y0 + 52, -0.25, 0.5, 9.2, STONE, "Concrete")
+	disc("Uhr", 0, y0 + 52, -0.55, 0.3, 7.8, { 246, 242, 230 }, "SmoothPlastic")
+	for _, hd in ipairs({ { 300, 2.2 }, { 60, 3.2 } }) do -- Zeiger (roll dreht um die Tiefenachse, positiv = im Uhrzeigersinn von vorn gesehen)
+		local phi = math.rad(hd[1])
+		box("Uhrzeiger", "trim", -(hd[2] / 2) * math.sin(phi), y0 + 52 + (hd[2] / 2) * math.cos(phi), -0.85, 0.5, hd[2], 0.3, { 30, 28, 26 }, "Metal", { roll = hd[1] })
+	end
+	for _, sd in ipairs({ -1, 1 }) do
+		box("Uhrstrich", "trim", 0, y0 + 52 + sd * 3.1, -0.85, 0.4, 0.9, 0.3, { 30, 28, 26 }, "Metal")
+		box("Uhrstrich", "trim", sd * 3.1, y0 + 52, -0.85, 0.9, 0.4, 0.3, { 30, 28, 26 }, "Metal")
+	end
+	box("PortalRahmen", "trim", 0, y0 + 5.2, -0.15, 8, 10.4, 0.6, STONE, "Concrete")
+	disc("PortalBogen", 0, y0 + 10.4, -0.15, 0.6, 8, STONE, "Concrete")
+	box("Portal", "door", 0, y0 + 4.8, -0.5, 5.6, 9.6, 0.5, DOOR, "Wood", { tag = "HouseDoor" })
+	disc("PortalTuerBogen", 0, y0 + 9.6, -0.5, 0.5, 5.6, DOOR, "Wood")
+	box("Stufe", "trim", 0, y0 + 0.3, -1.0, 10, 0.6, 1.6, STONE, "Concrete")
+	disc("RosetteRand", 0, y0 + 24, -0.3, 0.6, 8, STONE, "Concrete")
+	disc("Rosette", 0, y0 + 24, -0.55, 0.3, 6.6, GLASSC, "Glass", { tag = "HouseWindow", lit = false })
+	for _, r in ipairs({ 0, 45, 90, 135 }) do box("RosetteSteg", "trim", 0, y0 + 24, -0.8, 6.6, 0.45, 0.25, STONE, "Concrete", { roll = r }) end
+	for _, u in ipairs({ -3.8, 3.8 }) do frontWin(u, y0 + 33, 2.4, 9, 0) end
+	for _, sd in ipairs({ -1, 1 }) do sideWin(sd, sd * 9, 9, y0 + 30, 2.6, 10) end
+	-- Seitenschiffe (vorn bündig mit dem Turm), Mittelschiff mit Satteldach (Platten um die Tiefenachse geneigt)
+	for _, sd in ipairs({ -1, 1 }) do
+		box("Seitenschiff", "body", sd * 15, y0 + 8, 21, 8, 16, 42, BRICK, "Brick", { collide = true })
+		for _, lz in ipairs({ 8, 17, 26, 35 }) do sideWin(sd, sd * 19, lz, y0 + 4, 3.2, 9) end
+		frontWin(sd * 14.5, y0 + 4, 3.2, 9, 0)
+		for _, lz in ipairs({ 3, 12.5, 21.5, 30.5, 39.5 }) do box("Strebepfeiler", "trim", sd * 19.6, y0 + 6, lz, 1.6, 12, 1.6, DARK, "Brick") end
+		box("Seitendach", "roof", sd * 15.4, y0 + 19.4, 21, 44, 0.8, math.sqrt(8.8 ^ 2 + 7.2 ^ 2) + 0.8, ROOF, "Metal", { yaw = 90, pitch = sd * math.deg(math.atan2(7.2, 8.8)) })
+		for _, lz in ipairs({ 22, 30, 38 }) do sideWin(sd, sd * 11, lz, y0 + 24.4, 3.2, 5.4) end
+		box("Hauptdach", "roof", sd * 5.8, y0 + 37, 30, 34, 0.8, math.sqrt(11.6 ^ 2 + 14 ^ 2) + 0.8, ROOF, "Metal", { yaw = 90, pitch = sd * math.deg(math.atan2(14, 11.6)) })
+	end
+	box("Mittelschiff", "body", 0, y0 + 15, 30, 22, 30, 32, BRICK, "Brick", { collide = true })
+	box("First", "trim", 0, y0 + 44.3, 30, 34, 0.8, 1.4, ROOF, "Metal")
+	for i = 0, 4 do box("Giebelstufe", "trim", 0, y0 + 31.4 + 2.8 * i, 46.4, 22 - 4.4 * i, 2.8, 1.2, BRICK, "Brick") end
+	box("Apsis", "body", 0, y0 + 11, 46, 22, 19, 19, BRICK, "Brick", { shape = "Cylinder", roll = 90, collide = true })
+	box("ApsisDach", "roof", 0, y0 + 22, 46, 19, 19, 19, COPPER, "Metal", { shape = "Ball" })
+end
+
 
 local FRAME = { 70, 62, 56 }
 local GLASS = { 70, 92, 112 }
@@ -485,6 +574,29 @@ function Planner.planBlock(block, opts)
 	return plan
 end
 
+
+-- Häuserzeile der Isar-Allee (Ostseite): gerade, wie die Allee gegen Nord geneigt, Fassaden zur Allee; dazwischen die Backsteinkirche (allee.church = s-Bereich).
+-- Zeilenlaufrichtung nach Norden; Haus-z (in den Block hinein) zeigt nach Osten.
+function Planner.planAllee(cfg, opts)
+	local o = mergeOpts(opts)
+	local a = cfg.allee
+	local rng = newRng(o.seed + hash("IsarAllee"))
+	local ex, ez = a.uz, -a.ux
+	local off = cfg.profiles.allee.half + o.setback
+	local function P(s, d) return a.ax + a.ux * s + ex * d, a.az + a.uz * s + ez * d end
+	local yaw = math.deg(math.atan2(ex, ez))
+	local sx, sz = P(a.rowTo, off)
+	local len = a.rowTo - a.rowFrom
+	local t0, t1 = a.rowTo - a.church[2], a.rowTo - a.church[1]
+	local side = { name = "A", yaw = yaw, sx = sx, sz = sz, ux = -a.ux, uz = -a.uz, len = len, ranges = { { 0, t0 }, { t1, len } } }
+	local plan = { houses = {} }
+	planSides("IsarAllee", { side }, o, rng, plan, o.depth)
+	local cx, cz = P((a.church[1] + a.church[2]) / 2, off)
+	local h = { side = "A", index = 0, simple = o.simple, ox = cx, oz = cz, yaw = yaw, width = a.church[2] - a.church[1], depth = 56, parts = {}, name = "Kirche_IsarAllee" }
+	planChurch(h, o)
+	plan.houses[#plan.houses + 1] = h
+	return plan
+end
 
 -- ===== Sonderbauten nach Fotovorlagen (Feuerwache 4 Schwabing, Polizeiinspektion, Klinikum) =====
 local DARKG = { 58, 60, 64 }

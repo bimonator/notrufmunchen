@@ -8,8 +8,8 @@ local C = {}
 -- egal wie Roblox die 4-Studs-Zellen ausrichtet. BuildAll misst die echte Höhe nach dem Bau und richtet alles daran aus.
 C.groundTop = -2
 
-C.map = { xmin = -745, zmin = -556, xmax = 1160, zmax = 494 }
-C.ring = { xmin = -685, zmin = -496, xmax = 1100, zmax = 434 } -- Außenkante der Ringstraße = Innenkante der Mapgrenze
+C.map = { xmin = -745, zmin = -556, xmax = 1260, zmax = 494 } -- Osten um 100 Studs erweitert (Isar-Allee)
+C.ring = { xmin = -685, zmin = -496, xmax = 1200, zmax = 434 } -- Außenkante der Ringstraße = Innenkante der Mapgrenze
 
 -- Querschnitte: strips = { von, bis, Art } quer zur Straße (positiv = links der Fahrtrichtung, Normale n = (-uz, ux)).
 -- dashes = Versatz der gestrichelten Linien. underground = Streifen entfällt im Tunnelbereich.
@@ -22,6 +22,11 @@ C.profiles = {
 			{ -55, -43, "walk" }, { -43, -34, "road" }, { -34, -6, "road" }, { -6, 6, "median" },
 			{ 6, 34, "road" }, { 34, 43, "road" }, { 43, 55, "walk" },
 		},
+	},
+	-- Isar-Allee, von der Isar (+) zu den Häusern (-): Gehweg am Ufer, Bäume, roter Radweg, Laternenstreifen, Straße mit Parkstreifen, Gehweg vor den Häusern
+	allee = {
+		half = 35.5, dashes = { -8.5 }, lamps = { offsets = { 3.5 }, spacing = 48 },
+		strips = { { -35.5, -27.5, "walk" }, { -27.5, 1.5, "road" }, { 1.5, 5.5, "green" }, { 5.5, 13.5, "bike" }, { 13.5, 25.5, "green" }, { 25.5, 33.5, "walk" } }, -- Ufergehweg 8 breit, endet 3 Studs vor der Böschungskante
 	},
 	approach86 = { half = 43, dashes = {}, strips = { { -43, 43, "road" } } }, -- Zulauf der Achse zum Kreisverkehr (ohne Mittelstreifen)
 	kreisel24 = { half = 12, dashes = {}, strips = { { -12, 12, "road" } } },
@@ -39,7 +44,7 @@ end
 
 -- Fahrtrichtung der Raster-Straßen: V nach Norden, H nach Osten, damit die Parkseite (positiv) östlich bzw. südlich liegt.
 C.roads = {
-	{ name = "Ring", closed = true, profile = "std48", pts = { { -661, -472 }, { 1076, -472 }, { 1076, 410 }, { -661, 410 } } },
+	{ name = "Ring", closed = true, profile = "std48", pts = { { -661, -472 }, { 1176, -472 }, { 1176, 410 }, { -661, 410 } } },
 	-- Leopoldstraße / Ludwigstraße: läuft oben in den Kreisverkehr um das Siegestor (Mittelradius 68, Insel Radius 52)
 	{ name = "AchseNord", profile = "axis110", pts = { { 0, -472 }, { 0, -84 } } },
 	{ name = "ZulaufNord", profile = "approach86", pts = { { 0, -84 }, { 0, -60 } } },
@@ -51,9 +56,11 @@ C.roads = {
 	{ name = "H1", profile = "raster57", pts = { { -661, -285 }, { 0, -285 } } },
 	{ name = "H2", profile = "raster57", pts = { { -661, 30 }, { -61, 30 } } },
 	{ name = "Diagonale", profile = "std48", pts = { { 61, 30 }, { 290, 36 }, { 455, -77 }, { 605, -212 }, { 770, -347 }, { 790, -472 } } },
-	{ name = "Isarspange", profile = "std48", pts = { { 455, -77 }, { 700, -60 }, { 780, -40 }, { 1012, 3 }, { 1030, 70 }, { 1076, 210 } } },
+	{ name = "Isarspange", profile = "std48", pts = { { 455, -77 }, { 700, -60 }, { 780, -40 }, { 1012, 3 }, { 1030, 70 }, { 1055, 140 }, { 1110, 190 }, { 1176, 210 } } },
 	{ name = "V3", profile = "std48", pts = { { 300, -472 }, { 300, 32 } } },
 	{ name = "KirchplatzNord", profile = "std48", pts = { { -550, 30 }, { -550, 140 } } }, -- endet am Kirchplatz der Frauenkirche
+	-- Isar-Allee: gerade, parallel zur (geraden) Isar am Ostufer; Mittellinie 127,5 Studs östlich der Isar-Mitte, endet am Knick der Isarspange
+	{ name = "IsarAllee", profile = "allee", pts = { { 1072.5, -472 }, { 1012, 3 } } },
 	{ name = "Maximilianstrasse", profile = "std48", pts = { { 395, 410 }, { 395, 298 }, { 876, 298 } } }, -- vom Ring zur Maximilianbrücke und den Stufen zum Friedensengel
 	{ name = "Fussgaengerzone", profile = "plaza40", pts = { { -200, 254 }, { -55, 254 } } },
 }
@@ -74,6 +81,22 @@ C.bays = {
 	{ -446, -448, -446, -317 }, { -446, -253, -446, -211 }, { -446, -89, -446, -3 },
 	{ -221, -448, -221, -317 }, { -221, -253, -221, -3 },
 }
+
+-- Isar-Allee (Ostufer): Straße IsarAllee von Norden (Ring) nach Süden (Isarspange); Parameter s = Abstand vom Nordende entlang der Mittellinie.
+-- Fassadenlinie der Häuserzeile = Gehwegkante der Häuser (35,5 östlich der Mittellinie) + Abstand 2; Zeile von s = 28 bis 436, die Kirche steht bei s = 190 bis 244.
+-- Parkbuchten liegen 23 Studs östlich der Mittellinie.
+C.allee = { road = "IsarAllee", rowFrom = 28, rowTo = 436, church = { 190, 244 }, bay = { from = 40, to = 430, off = 23 }, trees = { from = 40, to = 440, step = 24, off = 19.5 } }
+do
+	local r
+	for _, rd in ipairs(C.roads) do if rd.name == "IsarAllee" then r = rd end end
+	local ax, az, bx, bz = r.pts[1][1], r.pts[1][2], r.pts[2][1], r.pts[2][2]
+	local l = math.sqrt((bx - ax) ^ 2 + (bz - az) ^ 2)
+	local ux, uz = (bx - ax) / l, (bz - az) / l
+	local ex, ez = uz, -ux -- Osten (quer zur Straße, Gegenrichtung der Normalen)
+	local b = C.allee.bay
+	C.bays[#C.bays + 1] = { ax + ux * b.from + ex * b.off, az + uz * b.from + ez * b.off, ax + ux * b.to + ex * b.off, az + uz * b.to + ez * b.off }
+	C.allee.ux, C.allee.uz, C.allee.len, C.allee.ax, C.allee.az = ux, uz, l, ax, az
+end
 
 C.plazas = {
 	{ name = "Odeonsplatz", x0 = -140, z0 = 296, x1 = 140, z1 = 386 },
@@ -99,7 +122,7 @@ C.isarBridges = {
 
 C.water = {
 	isar = {
-		pts = { { 945, -556 }, { 945, -472 }, { 930, -330 }, { 915, -200 }, { 895, -90 }, { 885, 0 }, { 850, 100 }, { 800, 200 }, { 750, 300 }, { 705, 390 }, { 695, 410 }, { 670, 494 } },
+		pts = { { 945, -556 }, { 945, -472 }, { 885, 0 }, { 850, 100 }, { 800, 200 }, { 750, 300 }, { 705, 390 }, { 695, 410 }, { 670, 494 } },
 		-- Böschung in drei Stufen: Uferweg (Oberkante -4, Breite 30), Kiesbank auf Wasserhöhe (-8, Breite 24), dann Wasser bis -14.
 		layers = { { 0, -4, 90 }, { -4, -8, 60 }, { -8, -12, 36 }, { -12, -14, 30 } }, waterTop = -8,
 		fills = { { -18, -12, 36, "Sand" }, { -12, -8, 60, "Sand" }, { -8, -4, 90, "Grass" } }, -- Sandbett, Kiesbank und Gras-Uferweg (vor dem Ausheben eingefüllt)

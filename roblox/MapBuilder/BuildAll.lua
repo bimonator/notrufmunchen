@@ -57,6 +57,12 @@ local STEPS = {
 				houses, parts = houses + st.houses, parts + st.parts
 			end
 		end
+		if next(only) == nil or only.IsarAllee then
+			local plan = Planner.planAllee(Config, { seed = opts.seed or 1 })
+			Builder.build(plan, Builder.container("Gebaeude", "IsarAllee"), origin)
+			local st = Planner.stats(plan)
+			houses, parts = houses + st.houses, parts + st.parts
+		end
 		if next(only) == nil then
 			local folder = Builder.container("Gebaeude", "Sonderbauten")
 			for _, spec in ipairs(Specials) do
@@ -85,7 +91,7 @@ local function afterTerrain(base)
 	local ground = Builder.measureGround(base)
 	print(string.format("[boden] Terrain-Oberkante gemessen: %.1f, alle weiteren Teile werden daran ausgerichtet", ground))
 	local pts = Config.water.isar.pts
-	local mid = pts[8]
+	local mid = pts[math.ceil(#pts / 2)]
 	local water = Builder.countWater(base + Vector3.new(mid[1], Config.water.isar.waterTop - 2, mid[2]))
 	if water == nil then
 		print("[wasser] Auslesen nicht möglich, bitte im Studio nachsehen")

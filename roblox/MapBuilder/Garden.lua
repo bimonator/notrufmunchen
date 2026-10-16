@@ -62,14 +62,15 @@ local function inRoad(segs, x, z, m)
 end
 
 -- Baum: Stamm, ein bis zwei Kugelkronen
-local function tree(add, rng, x, y, z, scale)
+local function tree(add, rng, x, y, z, scale, prefix)
+	prefix = prefix or ""
 	local h = (6 + 5 * rng()) * scale
 	local cw = (9 + 6 * rng()) * scale
 	local g = GREENS[math.floor(rng() * #GREENS) + 1]
-	add("Stamm", "tree", x, y + h / 2, z, 1.4, h, 1.4, BARK, "Wood", { collide = true })
-	add("Krone", "tree", x, y + h + cw * 0.35, z, cw, cw, cw, g, "Grass", { shape = "Ball" })
+	add(prefix .. "Stamm", "tree", x, y + h / 2, z, 1.4, h, 1.4, BARK, "Wood", { collide = true })
+	add(prefix .. "Krone", "tree", x, y + h + cw * 0.35, z, cw, cw, cw, g, "Grass", { shape = "Ball" })
 	if rng() < 0.6 then
-		add("Krone", "tree", x + (rng() - 0.5) * 4, y + h + cw * 0.15, z + (rng() - 0.5) * 4, cw * 0.75, cw * 0.75, cw * 0.75, GREENS[math.floor(rng() * #GREENS) + 1], "Grass", { shape = "Ball" })
+		add(prefix .. "Krone", "tree", x + (rng() - 0.5) * 4, y + h + cw * 0.15, z + (rng() - 0.5) * 4, cw * 0.75, cw * 0.75, cw * 0.75, GREENS[math.floor(rng() * #GREENS) + 1], "Grass", { shape = "Ball" })
 	end
 end
 
@@ -422,6 +423,18 @@ local function biergarten(cfg, add, rng, free)
 	return { sets = sets, trees = trees }
 end
 
+-- Isar-Allee: eine Baumreihe im Grünstreifen zwischen Radweg und Uferweg
+local function alleeTrees(cfg, add, rng)
+	local a = cfg.allee
+	local nx, nz = -a.uz, a.ux -- Normale nach Westen (zur Isar)
+	local n, t = 0, a.trees.from
+	while t <= a.trees.to do
+		tree(add, rng, a.ax + a.ux * t + nx * a.trees.off, 1.0, a.az + a.uz * t + nz * a.trees.off, 1.1, "Allee")
+		n, t = n + 1, t + a.trees.step
+	end
+	return n
+end
+
 function Garden.plan(cfg, roadPlan, specials)
 	local parts = {}
 	local add = emitter(parts)
@@ -448,6 +461,7 @@ function Garden.plan(cfg, roadPlan, specials)
 	stats.biergarten = biergarten(cfg, add, rng, free)
 	eisbach(cfg, add)
 	stats.bank = isarBank(cfg, add, rng, cfg.isarBridges)
+	stats.alleeTrees = alleeTrees(cfg, add, rng)
 	for _, sp in ipairs(specials or {}) do
 		if sp.name == "Prinz-Eins" then club(cfg, add, sp) end
 	end

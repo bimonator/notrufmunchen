@@ -329,6 +329,64 @@ do -- Stilvarianten: alle fünf kommen vor
 	print(string.format("Varianten: plain %d, palazzo %d, erker %d, jugend %d, modern %d", seen.plain or 0, seen.palazzo or 0, seen.erker or 0, seen.jugend or 0, seen.modern or 0))
 end
 print(string.format("Gesamt: %d Häuser, %d Teile, Grundfläche %.0f Studs²", totalHouses, totalParts, totalArea))
+-- ===== Isar-Allee: Häuserzeile mit Backsteinkirche =====
+do
+	local Config = require("Config")
+	local RoadsPlanner = require("RoadsPlanner")
+	local segs = RoadsPlanner.segments(Config)
+	local plan = Planner.planAllee(Config, { seed = 1 })
+	local a = Config.allee
+	local nx, nz = -a.uz, a.ux
+	local half = Config.profiles.allee.half
+	local function across(x, z) return (x - a.ax) * nx + (z - a.az) * nz end
+	local function along(x, z) return (x - a.ax) * a.ux + (z - a.az) * a.uz end
+	local houses, church = 0, nil
+	local order = {}
+	for _, h in ipairs(plan.houses) do
+		if string.find(h.name, "Kirche", 1, true) then church = h else houses = houses + 1 end
+		order[#order + 1] = { s = along(h.ox, h.oz), w = h.width, name = h.name }
+		for _, p in ipairs(h.parts) do -- Erker, Balkone und Markisen dürfen über den Gehweg ragen (bis -27,5 = Fahrbahnrand), nie in die Fahrbahn
+			check(across(p.pos[1], p.pos[3]) <= -28, "Allee: " .. h.name .. "/" .. p.name .. " liegt in der Straße (" .. across(p.pos[1], p.pos[3]) .. ")")
+		end
+		local body = bodyOf(h)
+		local r, c, s = math.rad(h.yaw), 0, 0
+		c, s = math.cos(r), math.sin(r)
+		for _, lx in ipairs({ -h.width / 2, h.width / 2 }) do
+			for _, lz in ipairs({ 0, h.depth }) do -- Eckpunkte des Grundrisses in Weltkoordinaten: keine liegt in einer anderen Straße
+				local x, z = h.ox + lx * c + lz * s, h.oz - lx * s + lz * c
+				for _, sg in ipairs(segs) do
+					local rc = sg.rect
+					local dx, dz = x - rc.ax, z - rc.az
+					local aa, bb = dx * rc.ux + dz * rc.uz, dx * rc.nx + dz * rc.nz
+					check(not (aa > rc.s0 and aa < rc.s1 and math.abs(bb) < rc.w), "Allee: " .. h.name .. " liegt in der Straße " .. sg.road.name)
+				end
+			end
+		end
+		check(body ~= nil, "Allee: " .. h.name .. " ohne Body")
+	end
+	check(houses >= 10 and houses <= 12, "Allee: Häuser " .. houses)
+	table.sort(order, function(p, q) return p.s < q.s end)
+	for i = 2, #order do
+		check(order[i].s - order[i - 1].s >= (order[i].w + order[i - 1].w) / 2 - 0.05, "Allee: " .. order[i].name .. " überlappt " .. order[i - 1].name)
+	end
+	check(order[1].s - order[1].w / 2 >= a.rowFrom - 0.5 and order[#order].s + order[#order].w / 2 <= a.rowTo + 0.5, "Allee: Zeile außerhalb des Bereichs")
+	check(church ~= nil, "Allee: Kirche fehlt")
+	if church then
+		local maxY, helm, hands, bricks, windows = 0, 0, 0, 0, 0
+		for _, p in ipairs(church.parts) do
+			maxY = math.max(maxY, p.pos[2] + p.size[2] / 2)
+			if p.name == "Turmhelm" then helm = helm + 1 end
+			if p.name == "Uhrzeiger" then hands = hands + 1 end
+			if p.material == "Brick" and p.color[1] > 120 and p.color[1] < 170 and p.color[2] < 90 then bricks = bricks + 1 end
+			if p.tag == "HouseWindow" then windows = windows + 1 end
+		end
+		check(maxY > 110 and maxY < 140, "Kirche: Höhe " .. maxY)
+		check(helm == 18 and hands == 2 and bricks >= 8 and windows >= 20, "Kirche: Helm " .. helm .. ", Zeiger " .. hands .. ", Ziegel " .. bricks .. ", Fenster " .. windows)
+		check(math.abs(along(church.ox, church.oz) - (a.church[1] + a.church[2]) / 2) < 0.5, "Kirche: Lage in der Zeile")
+	end
+	print(string.format("Isar-Allee: %d Häuser, Kirche mit %d Teilen", houses, church and #church.parts or 0))
+end
+
 if failures > 0 then
 	print(failures .. " FEHLER")
 	error("Tests fehlgeschlagen")

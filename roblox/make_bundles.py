@@ -12,6 +12,8 @@ ORDER = ["Geo", "Config", "Planner", "Blocks", "Specials", "RoadsPlanner", "Ligh
 def read(name):
     with open(os.path.join(here, "MapBuilder", name + ".lua"), encoding="utf-8") as f:
         text = f.read().rstrip() + "\n"
+    # reine Kommentarzeilen entfallen im Bundle (Roblox-Scripts sind auf ca. 200 000 Zeichen begrenzt); die Originale bleiben in MapBuilder/
+    text = "".join(l for l in text.splitlines(True) if not l.lstrip().startswith("--"))
     # require(script and script.Parent.X or "X") -> lokale Variable X
     return re.sub(r'require\(script and script\.Parent\.(\w+) or "\w+"\)', r"\1", text)
 
@@ -32,13 +34,13 @@ script = """-- MapBuilder_Script.lua  (automatisch erzeugt mit make_bundles.py, 
 -- WAS GEBAUT WIRD (Schritte, in dieser Reihenfolge; Output zeigt je Schritt eine Zeile):
 --   terrain    Boden, Parks, Hügel (Monopteros), Terrasse (Friedensengel), Isar mit 3-stufiger Böschung, Bach
 --   roads      Ring, Leopoldstraße/Ludwigstraße (Achse, rund um das Siegestor ein Kreisverkehr), Schwabinger Raster, Diagonale, Isarspange,
---              Maximilianstraße, Kreisel, Fußgängerzone mit Fliesen, Parkbuchten, 4 Brücken über die Isar (flach, auf Säulen),
+--              Maximilianstraße, Isar-Allee (Ostufer: Straße mit Parkstreifen, Laternen, roter Radweg, Baumreihe, Ufergehweg), Kreisel, Fußgängerzone mit Fliesen, Parkbuchten, 4 Brücken über die Isar (flach, auf Säulen),
 --              Maximilianbrücke (zwei Bögen, Statuen)
 --   lights     270 Laternen (runder Mast, Bogenarm, Leuchtkopf), 13 Ampelmasten (Rundmast, Ausleger, Linsenköpfe mit Blenden)
 --   landmarks  Siegestor auf Mittelinsel, Friedensengel (Engel mit Flügeln, Ölzweig, Nike; rundes Becken), Frauenkirche (runde Zwiebelhauben),
 --              Chinesischer Turm
 --   gardens    Hofgarten, Englischer Garten, Monopteros-Tempel, Biergarten, Eisbachwelle, Isar-Uferwege, Prinz-Eins-Vorplatz
---   houses     7 Häuserblöcke mit Rück- und Hinterhäusern, 13 Sonderbauten (Feuerwache, Polizeiwache mit Hof, Klinikum,
+--   houses     7 Häuserblöcke mit Rück- und Hinterhäusern, Isar-Allee-Zeile mit Backsteinkirche, 13 Sonderbauten (Feuerwache, Polizeiwache mit Hof, Klinikum,
 --              Tankstelle mit Schirm, Shop und E-Ladepark (8 Plätze, 4 Ladesäulen), Bank, Parkhaus, ...)
 --   wall       Häuserband um die Karte (Mapgrenze) mit Toren und Flusstoren
 --
@@ -50,6 +52,7 @@ script = """-- MapBuilder_Script.lua  (automatisch erzeugt mit make_bundles.py, 
 --   Spawns      Polizeihof: 4 Flächen mit Tag VehicleSpawn (Attribut Team = Polizei).
 --   Fenster     Tag HouseWindow, Attribut Lit = leuchtet nachts (Tag-Nacht-Skript folgt). Laternen: Tag StreetLamp.
 --   Eisbachwelle  Tags Eisbachwelle und SurfZone (Surf-Skript folgt).
+--   Isar-Allee  Ostufer der Isar zwischen Ring Nord und Isarspange (Karte nach Osten um 100 Studs erweitert), 11 Häuser + Backsteinkirche.
 --   Alle Maße   in Config (weiter unten im Text, Block "local Config = (function()"): Straßen, Isar, Brücken, Tankstelle, Gärten.
 --
 -- OUTPUT-ZEILEN, auf die du achten kannst: [boden] (Bodenhöhe), [wasser] ok, [roads], [lights], [landmarks], [gardens], [houses], [wall].

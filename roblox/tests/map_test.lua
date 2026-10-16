@@ -21,7 +21,7 @@ local road = RoadsPlanner.plan(Config)
 local parts, segs = road.parts, road.segments
 print(string.format("Straßen: %d Teile, %d Segmente, %d Parkbuchten, %d Strichlinien", #parts, #segs, road.stats.bays, road.stats.dashes))
 
-check(road.stats.bays >= 125 and road.stats.bays <= 150, "Parkbuchten " .. road.stats.bays)
+check(road.stats.bays >= 125 and road.stats.bays <= 175, "Parkbuchten " .. road.stats.bays)
 -- keine Parkbuchten vor den Tankstellen-Einfahrten
 for _, b in ipairs(Config.bays) do
 	if b[1] == 38.5 and b[3] == 38.5 then
@@ -321,7 +321,7 @@ for _, p in ipairs(lights.parts) do
 		masts = masts + 1
 		local onWalkPart, onAsphalt = false, false
 		for _, w in ipairs(parts) do
-			if w.kind == "walk" and Geo.inPart(p.pos[1], p.pos[3], w, 0) then onWalkPart = true end
+			if (w.kind == "walk" or w.kind == "green") and Geo.inPart(p.pos[1], p.pos[3], w, 0) then onWalkPart = true end
 			if (w.kind == "road" or w.kind == "median") and w.pos[2] > -3 and Geo.inPart(p.pos[1], p.pos[3], w, 0) then onAsphalt = true end
 		end
 		check(onWalkPart, "Mast ohne Gehweg: " .. p.name .. " bei " .. p.pos[1] .. "," .. p.pos[3])
@@ -581,6 +581,57 @@ do
 			check(not (wave.pos[1] > sp.x0 - 10 and wave.pos[1] < sp.x1 + 10 and wave.pos[3] > sp.z0 - 10 and wave.pos[3] < sp.z1 + 10), "Welle zu nah an " .. sp.name)
 		end
 	end
+end
+
+-- ===== Isar-Allee (Ostufer): Straße, Radweg, Laternen, Bäume, Parkbuchten =====
+do
+	local a = Config.allee
+	local nx, nz = -a.uz, a.ux -- Normale nach Westen (zur Isar)
+	local function across(x, z) return (x - a.ax) * nx + (z - a.az) * nz end
+	local function along(x, z) return (x - a.ax) * a.ux + (z - a.az) * a.uz end
+	local half = Config.profiles.allee.half
+	for t = 0, a.len, 40 do -- parallel zur Isar, Gehwegkante hinter der Böschungskante
+		local d = Geo.polyDist(a.ax + a.ux * t, a.az + a.uz * t, Config.water.isar.pts)
+		check(math.abs(d - 126.5) < 3, "Allee nicht parallel zur Isar: " .. d)
+		check(d - 33.5 >= Config.water.isar.layers[1][3] + 2.5, "Allee-Gehweg zu nah an der Isar-Böschung: " .. (d - 33.5))
+	end
+	local kinds = {}
+	for _, p in ipairs(parts) do
+		if p.seg and segs[p.seg].road.name == "IsarAllee" then kinds[p.kind] = (kinds[p.kind] or 0) + 1 end
+		if p.kind == "bike" then check(p.color[1] > 150 and p.color[2] < 90 and p.color[3] < 90, "Radweg nicht rot") end
+	end
+	check(kinds.road and kinds.bike and kinds.green and kinds.walk, "Allee: Streifen fehlen")
+	local lt = LightsPlanner.plan(Config, road)
+	local lampT = {}
+	for _, p in ipairs(lt.parts) do
+		if p.name == "LaternenMast" and math.abs(across(p.pos[1], p.pos[3]) - 3.5) < 0.2 and along(p.pos[1], p.pos[3]) > 0 and along(p.pos[1], p.pos[3]) < a.len then lampT[#lampT + 1] = along(p.pos[1], p.pos[3]) end
+	end
+	table.sort(lampT)
+	check(#lampT >= 8, "Allee: Laternen " .. #lampT)
+	for i = 2, #lampT do check(math.abs(lampT[i] - lampT[i - 1] - 48) < 0.5, "Allee: Laternenabstand " .. (lampT[i] - lampT[i - 1])) end
+	local Garden = require("Garden")
+	local gp = Garden.plan(Config, road, require("Specials")).parts
+	local trunks, treeT = 0, {}
+	for _, p in ipairs(gp) do
+		if p.name == "AlleeStamm" then
+			trunks = trunks + 1
+			treeT[#treeT + 1] = along(p.pos[1], p.pos[3])
+			check(math.abs(across(p.pos[1], p.pos[3]) - 19.5) < 0.2, "Allee: Baum nicht im Grünstreifen")
+		end
+	end
+	table.sort(treeT)
+	check(trunks == math.floor((a.trees.to - a.trees.from) / a.trees.step) + 1, "Allee: Bäume " .. trunks)
+	for i = 2, #treeT do check(math.abs(treeT[i] - treeT[i - 1] - a.trees.step) < 0.5, "Allee: Baumabstand") end
+	for _, tl in ipairs(treeT) do for _, ll in ipairs(lampT) do check(math.abs(tl - ll) > 3, "Allee: Baum und Laterne zu nah") end end
+	local bayLines = 0
+	for _, p in ipairs(parts) do
+		if p.name == "BayLine" and along(p.pos[1], p.pos[3]) > 0 and along(p.pos[1], p.pos[3]) < a.len and math.abs(across(p.pos[1], p.pos[3]) + a.bay.off) < 0.2 then
+			bayLines = bayLines + 1
+			check(p.yaw ~= 0 and math.abs(p.size[3] - Config.bay.width) < 1e-6, "Allee: Parklinie nicht quer zur Straße")
+		end
+	end
+	check(bayLines >= 20, "Allee: Parklinien " .. bayLines)
+	check(Config.ring.xmax == 1200 and Config.map.xmax == 1260, "Karte nicht nach Osten erweitert")
 end
 
 print(string.format("Wand: Höhe %d bis %d", minH, maxH))

@@ -89,7 +89,20 @@ function LightsPlanner.plan(cfg, roadPlan)
 		for _, st in ipairs(seg.prof.strips) do
 			if st[3] == "road" then roadHalf = math.max(roadHalf or 0, math.abs(st[1]), math.abs(st[2])) end
 		end
-		if roadHalf then -- nur Straßen mit Gehweg (Kreisel und Plätze haben keinen)
+		local custom = seg.prof.lamps -- eigene Laternenstreifen (Isar-Allee: zwischen Fahrbahn und Radweg), Arm zeigt zur Fahrbahn
+		if custom then
+			local nx, nz = -seg.uz, seg.ux
+			for _, off in ipairs(custom.offsets) do
+				local t = custom.spacing / 2 + 12
+				while t < seg.len - 30 do
+					local sg = (off > 0) and 1 or -1
+					lamp(parts, seg.ax + seg.ux * t + nx * off, seg.az + seg.uz * t + nz * off, -nx * sg, -nz * sg, L.height)
+					stats.lamps = stats.lamps + 1
+					t = t + custom.spacing
+				end
+			end
+		end
+		if roadHalf and not custom then -- nur Straßen mit Gehweg (Kreisel und Plätze haben keinen)
 			local nx, nz = -seg.uz, seg.ux
 			for _, side in ipairs({ -1, 1 }) do
 				local off = side * (roadHalf + L.inset)
