@@ -109,3 +109,12 @@ assert "Ampel.start()" in lua.eval("game:GetService('ServerScriptService'):FindF
 lua.execute("clicked()")
 assert lua.eval("count(game:GetService('ServerScriptService'), 'Script')") == 1, "Ampel-Skript doppelt"
 print("Plugin-Test bestanden (Knopf, Ampel-Skript einmalig)")
+
+# Modul-Bundle (für MCP/Skripte): require liefert run(), nur ein Schritt lässt sich bauen
+lua = new_runtime()
+with open(os.path.join(here, "..", "MapBuilder_Modul.lua"), encoding="utf-8") as f:
+    lua.execute("MB = (function(...)\n" + f.read() + "\nend)()")
+assert lua.eval("type(MB.run) == 'function' and type(MB.AMPEL_SOURCE) == 'string' and #MB.order >= 10"), "Modul liefert run/AMPEL_SOURCE nicht"
+lua.execute("MB.run({ steps = { 'bus' }, controllerSource = MB.AMPEL_SOURCE })")
+assert lua.eval("count(workspace_, 'Part')") > 150, "Modul: Schritt bus hat nichts gebaut"
+print("Modul-Test bestanden (require, einzelner Schritt)")

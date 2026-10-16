@@ -96,6 +96,8 @@ local ORIGIN = Vector3.new(0, 0, 0) -- Position des Siegestors
 
 """ + LOADER + body(MAIN) + "BuildAll.run({ steps = STEPS, only = ONLY, origin = ORIGIN, afterBuild = Ampel.start })\n"
 
+AMPEL_SOURCE_LUA = "local AMPEL_SOURCE = [==[\nlocal Ampel = (function()\n" + read("Ampel") + "\nend)()\nAmpel.start()\n]==]\n"
+
 plugin = """-- MapBuilder_Plugin.lua  (automatisch erzeugt mit make_bundles.py, nicht von Hand ändern)
 -- Dauerhaft bauen: in Workspace ein Script anlegen, alles einfügen. Darunter zwei ModuleScripts "Teil1" und "Teil2" mit den Texten aus
 -- MapBuilder_Teil1.lua und MapBuilder_Teil2.lua anlegen. Dann Rechtsklick auf das Script > "Als lokales Plugin speichern" (die
@@ -103,13 +105,7 @@ plugin = """-- MapBuilder_Plugin.lua  (automatisch erzeugt mit make_bundles.py, 
 -- Der Knopf baut im Edit-Modus, die Objekte bleiben im Projekt erhalten (Strg+Z macht es rückgängig).
 local ORIGIN = Vector3.new(0, 0, 0) -- Position des Siegestors
 
-""" + LOADER + body(MAIN) + """local AMPEL_SOURCE = [==[
-local Ampel = (function()
-""" + read("Ampel") + """
-end)()
-Ampel.start()
-]==]
-
+""" + LOADER + body(MAIN) + """""" + AMPEL_SOURCE_LUA + """
 local toolbar = plugin:CreateToolbar("Notruf München")
 local button = toolbar:CreateButton("Karte bauen", "Terrain, Straßen, Ampeln, Laternen, Häuser und Mapgrenze bauen", "")
 button.Click:Connect(function()
@@ -117,7 +113,18 @@ button.Click:Connect(function()
 end)
 """
 
-files = [("MapBuilder_Script.lua", script), ("MapBuilder_Plugin.lua", plugin)]
+modul = """-- MapBuilder_Modul.lua  (automatisch erzeugt mit make_bundles.py, nicht von Hand ändern)
+-- ModuleScript "MapBuilder" (z. B. in ServerStorage) mit den Kindern "Teil1" und "Teil2". Für das Bauen aus Skripten/MCP, ohne Script oder Plugin:
+--   local MB = require(game.ServerStorage.MapBuilder)
+--   MB.run({ controllerSource = MB.AMPEL_SOURCE })              -- alles bauen (Edit-Modus), legt AmpelSteuerung in ServerScriptService an
+--   MB.run({ steps = { "stachus" }, clearTerrain = false })    -- nur einzelne Schritte (Namen siehe BuildAll.order)
+local ORIGIN = Vector3.new(0, 0, 0) -- Position des Siegestors
+
+""" + LOADER + body(MAIN) + AMPEL_SOURCE_LUA + """
+return { run = BuildAll.run, order = BuildAll.order, BuildAll = BuildAll, Ampel = Ampel, AMPEL_SOURCE = AMPEL_SOURCE }
+"""
+
+files = [("MapBuilder_Script.lua", script), ("MapBuilder_Plugin.lua", plugin), ("MapBuilder_Modul.lua", modul)]
 before = []
 for name, names in PARTS:
     files.append(("MapBuilder_%s.lua" % name, part_module(name, names, before)))
