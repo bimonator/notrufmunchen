@@ -63,6 +63,20 @@ local STEPS = {
 			local st = Planner.stats(plan)
 			houses, parts = houses + st.houses, parts + st.parts
 		end
+		if next(only) == nil or only.IsarWestufer then
+			local plan = Planner.planWestbank(Config, { seed = opts.seed or 1 })
+			local folder = Builder.container("Gebaeude", "IsarWestufer")
+			Builder.build(plan, folder, origin)
+			Builder.buildParts(plan.parts, folder, origin)
+			local st = Planner.stats(plan)
+			houses, parts = houses + st.houses, parts + st.parts + #plan.parts
+		end
+		if next(only) == nil or only.SiegestorEcken then
+			local plan = Planner.planCorners(Config, { seed = opts.seed or 1 })
+			Builder.build(plan, Builder.container("Gebaeude", "SiegestorEcken"), origin)
+			local st = Planner.stats(plan)
+			houses, parts = houses + st.houses, parts + st.parts
+		end
 		if next(only) == nil then
 			local folder = Builder.container("Gebaeude", "Sonderbauten")
 			for _, spec in ipairs(Specials) do

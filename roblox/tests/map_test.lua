@@ -54,7 +54,8 @@ for _, p in ipairs(parts) do
 			local t = -p.size[1] / 2 + 0.5 + (p.size[1] - 1) * k / steps
 			local x, z = p.pos[1] + ux * t, p.pos[3] + uz * t
 			for _, s in ipairs(segs) do
-				if s.id ~= p.seg and inSeg(x, z, s, 0.5) then hit = s.road.name break end
+				local own = segs[p.seg] -- Nachbarsegmente derselben Straße mit kleinem Knick (Ellipse) überlappen am Knick nur unmerklich
+				if s.id ~= p.seg and not (s.road == own.road and s.ux * own.ux + s.uz * own.uz > 0.95) and inSeg(x, z, s, 0.5) then hit = s.road.name break end
 			end
 			if hit then break end
 		end
@@ -531,8 +532,6 @@ do
 	local fk, tm = Landmarks.frauenkirche(Config), Landmarks.chinesischerTurm(Config)
 	local function count(list, name) local n = 0 for _, p in ipairs(list) do if p.name == name then n = n + 1 end end return n end
 	local maxY, minX, maxX, minZ, maxZ = 0, 1e9, -1e9, 1e9, -1e9
-	local pl
-	for _, q in ipairs(Config.plazas) do if q.name == "Kirchplatz" then pl = q end end
 	for _, p in ipairs(fk) do
 		maxY = math.max(maxY, p.pos[2] + p.size[2] / 2)
 		if p.collide ~= false and p.name ~= "Dach" and p.name ~= "First" and p.name ~= "Sockel" then
@@ -540,7 +539,7 @@ do
 			minZ, maxZ = math.min(minZ, p.pos[3] - p.size[3] / 2), math.max(maxZ, p.pos[3] + p.size[3] / 2)
 		end
 	end
-	check(pl ~= nil and minX >= pl.x0 and maxX <= pl.x1 and minZ >= pl.z0 and maxZ <= pl.z1, "Frauenkirche passt nicht auf den Kirchplatz: " .. minX .. ".." .. maxX .. ", " .. minZ .. ".." .. maxZ)
+	check(#Config.plazas == 0, "Plätze sollen vorerst entfernt sein")
 	check(maxX - minX >= 380 and maxZ - minZ >= 145, "Frauenkirche zu klein: " .. (maxX - minX) .. " x " .. (maxZ - minZ))
 	check(count(fk, "Kuppel") == 2 and count(fk, "KuppelRing") == 54 and count(fk, "Uhr") == 4 and count(fk, "Dach") == 2, "Frauenkirche: Hauben/Uhren/Dach")
 	check(count(fk, "Uhrzeiger") == 8 and count(fk, "Uhrstrich") == 48 and count(fk, "Uhrziffer") == 16, "Frauenkirche: Ziffernblätter unvollständig")
@@ -552,8 +551,8 @@ do
 	-- keine Straße führt mehr durch die Kirche (Kreisel entfällt), die Fußgängerzone beginnt hinter dem Chor
 	for _, rd in ipairs(Config.roads) do
 		check(rd.name ~= "Kreisel" and rd.name ~= "KreiselWest", "Kreisel-Straße noch vorhanden: " .. rd.name)
-		if rd.name == "Fussgaengerzone" then check(rd.pts[1][1] >= maxX, "Fußgängerzone beginnt in der Kirche") end
-		if rd.name == "KirchplatzNord" then check(rd.pts[2][2] <= pl.z0, "Straße ragt in den Kirchplatz") end
+		check(rd.name ~= "Fussgaengerzone", "Fußgängerzone soll entfernt sein")
+		if rd.name == "KirchplatzNord" then check(rd.pts[2][2] <= minZ, "Straße ragt in die Kirche") end
 	end
 	local bg = Config.landmarks.biergarten
 	check(count(tm, "TurmDach") == 5 and count(tm, "TurmSaeule") == 8, "Chinesischer Turm: Dächer/Säulen")
@@ -601,6 +600,31 @@ do
 			end
 		end
 	end
+end
+
+-- ===== Gerundete Gehwegecken und Gehweg um den Kreisverkehr am Siegestor =====
+do
+	local rounds, boxes, asph = 0, 0, 0
+	for _, p in ipairs(parts) do
+		if p.name == "GehwegEckeRund" then rounds = rounds + 1 end
+		if p.name == "GehwegEcke" then boxes = boxes + 1 end
+		if p.name == "EckAsphalt" then asph = asph + 1 end
+		if p.kind == "corner" then
+			for _, o in ipairs(parts) do -- Eckstücke liegen auf keiner Fahrbahn (nur der Asphalt in der Rundung füllt den Rest)
+				if o.kind == "road" and p.name ~= "EckAsphalt" and Geo.inPart(p.pos[1], p.pos[3], o, 0.5) then check(false, "Gehwegecke auf der Fahrbahn bei " .. p.pos[1] .. "," .. p.pos[3]) break end
+			end
+		end
+	end
+	check(road.stats.corners >= 30 and rounds == road.stats.corners and boxes == 2 * road.stats.corners and asph == road.stats.corners, "Gehwegecken: " .. road.stats.corners .. " (" .. rounds .. "/" .. boxes .. "/" .. asph .. ")")
+	local ringWalks = 0
+	for _, p in ipairs(parts) do
+		if p.kind == "walk" and p.seg and segs[p.seg].road.name == "SiegestorKreisel" then
+			ringWalks = ringWalks + 1
+			local r = math.sqrt(p.pos[1] ^ 2 + p.pos[3] ^ 2)
+			check(r > 80 and r < 91, "Kreisverkehr-Gehweg liegt nicht außen: r = " .. r)
+		end
+	end
+	check(ringWalks >= 8, "Kreisverkehr: Gehwegteile " .. ringWalks)
 end
 
 -- ===== Isar-Allee (Ostufer): Straße, Radweg, Laternen, Bäume, Parkbuchten =====

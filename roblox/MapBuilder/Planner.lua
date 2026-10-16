@@ -595,6 +595,55 @@ function Planner.planAllee(cfg, opts)
 	local h = { side = "A", index = 0, simple = o.simple, ox = cx, oz = cz, yaw = yaw, width = a.church[2] - a.church[1], depth = 56, parts = {}, name = "Kirche_IsarAllee" }
 	planChurch(h, o)
 	plan.houses[#plan.houses + 1] = h
+	-- Hintergärten: Rasen hinter jedem Haus bis zur Ringstraße (höchstens 40 tief), bei genug Platz zwei Bäume
+	local ringInner = cfg.ring.xmax - 48
+	for _, hh in ipairs(plan.houses) do
+		if hh ~= h then
+			local avail = (ringInner - 3 - (hh.ox + hh.depth * math.sin(math.rad(hh.yaw)))) / math.sin(math.rad(hh.yaw))
+			local g = math.min(avail, 40)
+			if g >= 10 then
+				add(hh, "Hintergarten", "garden", 0, 0, hh.depth + 0.5 + g / 2, hh.width - 1, 1, g, { 96, 150, 72 }, "Grass")
+				if g >= 24 then
+					for _, sd in ipairs({ -1, 1 }) do
+						local lx, lz = sd * hh.width / 4, hh.depth + g / 2 + 2 * sd
+						add(hh, "HintergartenStamm", "tree", lx, 4, lz, 1.4, 7, 1.4, { 96, 70, 48 }, "Wood", { collide = true })
+						add(hh, "HintergartenKrone", "tree", lx, 11, lz, 9, 9, 9, { 74, 128, 62 }, "Grass", { shape = "Ball" })
+					end
+				end
+			end
+		end
+	end
+	return plan
+end
+
+-- Häuserzeile am Westufer der Isar gegenüber der Allee (cfg.westbank): Fassade zum Fluss, davor Ufergehweg und Baumstreifen mit Bäumen alle treeStep Studs.
+-- Liefert Häuser und freie Teile (plan.parts, Weltkoordinaten). Der Park dahinter liegt in cfg.parks, seine Bäume setzt Garden.
+function Planner.planWestbank(cfg, opts)
+	local o = mergeOpts(opts)
+	local a, w = cfg.allee, cfg.westbank
+	local rng = newRng(o.seed + hash("IsarWestufer"))
+	local ex, ez = a.uz, -a.ux -- Osten
+	local function P(s, d) return a.ax + a.ux * s + ex * d, a.az + a.uz * s + ez * d end
+	local yaw = math.deg(math.atan2(-ex, -ez)) % 360
+	local sx, sz = P(w.rowFrom, w.front)
+	local len = w.rowTo - w.rowFrom
+	local plan = { houses = {}, parts = {} }
+	planSides("IsarWest", { { name = "W", yaw = yaw, sx = sx, sz = sz, ux = a.ux, uz = a.uz, len = len } }, o, rng, plan, o.depth)
+	local perp = 127.5 * a.uz -- Querabstand Allee-Mittellinie zur Isar-Mitte
+	local ya = math.deg(math.atan2(-a.uz, a.ux)) % 360 -- Teile längs der Zeile
+	local function strip(name, kind, lo, hi, top, thick, color, mat)
+		local mx, mz = P((w.rowFrom + w.rowTo) / 2, -(perp + (lo + hi) / 2))
+		plan.parts[#plan.parts + 1] = { name = name, kind = kind, size = { len, thick, hi - lo }, pos = { mx, top - thick / 2, mz }, yaw = ya, pitch = 0, color = color, material = mat, collide = true }
+	end
+	strip("WestuferGehweg", "walk", w.walk[1], w.walk[2], 1.0, 2, { 168, 172, 174 }, "Concrete")
+	strip("WestuferGruen", "green", w.green[1], w.green[2], 1.0, 1.8, { 104, 148, 84 }, "Grass")
+	local t = w.rowFrom + w.treeStep / 2
+	while t < w.rowTo do
+		local tx, tz = P(t, -(perp + (w.green[1] + w.green[2]) / 2))
+		plan.parts[#plan.parts + 1] = { name = "WestuferStamm", kind = "tree", size = { 1.4, 8, 1.4 }, pos = { tx, 5, tz }, yaw = 0, pitch = 0, color = { 96, 70, 48 }, material = "Wood", collide = true }
+		plan.parts[#plan.parts + 1] = { name = "WestuferKrone", kind = "tree", size = { 10, 10, 10 }, pos = { tx, 13, tz }, yaw = 0, pitch = 0, color = { 78, 132, 66 }, material = "Grass", collide = false, shape = "Ball" }
+		t = t + w.treeStep
+	end
 	return plan
 end
 
@@ -1094,40 +1143,51 @@ local function lotDecor(h, spec)
 	end
 end
 
--- E-Ladepark an der freien Ostseite des Tankstellen-Grundstücks (simuliert, ohne Ladelogik): n Stellplätze (Tiefe x1-x0, Breite w) mit grünen
--- Bodenfeldern, weißen Linien und Radstoppern; je zwei Stellplätze teilen sich eine Ladesäule am hinteren Rand (Display "EV", zwei Ladekabel),
--- darüber ein Solar-Carport mit Schriftband "E-LADESTATION". Die Säulen tragen den Tag "EVCharger" (Attribute Station, kW) für ein späteres Ladeskript.
-local function evPark(h, spec)
-	local e = spec.ev
-	local x0, x1, z0, n, w = e.x0, e.x1, e.z0, e.n, e.w
-	local z1, zm, cx = z0 + n * w, z0 + n * w / 2, (x0 + x1) / 2
-	local GREEN, WHITE, DARK, CONC = { 40, 168, 110 }, { 244, 244, 246 }, { 24, 28, 34 }, { 190, 188, 182 }
-	for i = 0, n - 1 do
-		local zc = z0 + (i + 0.5) * w
-		W3(h, "EVStellplatz", "decor", cx, 1.03, zc, x1 - x0, 0.06, w - 0.5, { 56, 140, 104 }, "SmoothPlastic")
-		W3(h, "EVRadstopper", "decor", x1 - 1.6, 1.4, zc, 0.8, 0.8, 5, CONC, "Concrete", { collide = true })
-	end
-	for i = 0, n do W3(h, "EVLinie", "dash", cx, 1.08, z0 + i * w, x1 - x0, 0.1, 0.3, WHITE, "SmoothPlastic") end
-	for j = 0, n / 2 - 1 do -- Ladesäule zwischen zwei Stellplätzen
-		local zc, px = z0 + (2 * j + 1) * w, x1 - 3.6
-		W3(h, "EVSockel", "decor", px, 1.3, zc, 3.4, 0.6, 3.4, CONC, "Concrete", { collide = true })
-		W3(h, "EVSaeule", "trim", px, 4.2, zc, 1.8, 6, 2.4, WHITE, "SmoothPlastic", { collide = true, tag = "EVCharger", attrs = { Station = j + 1, kW = 50 } })
-		W3(h, "EVKopf", "trim", px, 7.6, zc, 2.0, 1.4, 2.6, GREEN, "SmoothPlastic")
-		W3(h, "EVDisplay", "text", px - 1.0, 5.8, zc, 2.0, 1.4, 0.2, DARK, "SmoothPlastic", { yaw = 90, text = { s = "EV", color = { 90, 235, 150 } } })
-		for _, sd in ipairs({ -1, 1 }) do
-			W3(h, "EVHalter", "trim", px - 0.2, 5.0, zc + sd * 1.4, 0.9, 1.2, 0.7, DARK, "SmoothPlastic")
-			W3(h, "EVKabel", "trim", px - 1.0, 3.2, zc + sd * 1.4, 3.2, 0.35, 0.35, DARK, "SmoothPlastic", { shape = "Cylinder", roll = 90 })
-			W3(h, "EVStecker", "trim", px - 1.0, 1.7, zc + sd * 1.4, 0.6, 0.9, 0.6, GREEN, "SmoothPlastic")
+-- Kundenparkplätze im freien Südteil des Tankstellen-Grundstücks, gegenüber der schmalen Südseite des Schirms (die Fahrzeuge stehen mit der Front zum Schirm):
+-- eine Reihe Stellplätze quer zur Fahrgasse mit weißen Linien; kinds = "H" Behindertenparkplatz (blau, Rollstuhlsymbol, Schild), "E" E-Ladeplatz (grüne Fläche,
+-- Ladesäule am hinteren Rand, Tag "EVCharger" mit Attributen Station und kW; ohne Überdachung), "N" normaler Platz.
+local function parkingLot(h, spec)
+	local pk = spec.parking
+	local WHITE, BLUE, GREEN, DARK, STEEL = { 244, 244, 246 }, { 36, 84, 170 }, { 40, 168, 110 }, { 24, 28, 34 }, { 80, 82, 86 }
+	local n, w, d, x0, zb = #pk.kinds, pk.w, pk.depth, pk.x0, pk.zBack
+	local zf = zb - d -- Vorderkante der Stellplätze (Nordseite)
+	local zc = (zb + zf) / 2
+	for i = 0, n do W3(h, "StellplatzLinie", "dash", x0 + i * w, 1.07, zc, 0.3, 0.1, d, WHITE, "SmoothPlastic") end
+	local station = 0
+	for i, k in ipairs(pk.kinds) do
+		local cx = x0 + (i - 0.5) * w
+		if k == "E" then
+			station = station + 1
+			W3(h, "EVStellplatz", "decor", cx, 1.03, zc, w - 0.5, 0.06, d - 0.4, { 56, 140, 104 }, "SmoothPlastic")
+			W3(h, "EVSockel", "decor", cx, 1.3, zb - 1.6, 2.6, 0.6, 2.6, { 190, 188, 182 }, "Concrete", { collide = true })
+			W3(h, "EVSaeule", "trim", cx, 4.2, zb - 1.6, 1.8, 6, 1.4, WHITE, "SmoothPlastic", { collide = true, tag = "EVCharger", attrs = { Station = station, kW = 50 } })
+			W3(h, "EVKopf", "trim", cx, 7.6, zb - 1.6, 2.2, 1.4, 1.6, GREEN, "SmoothPlastic")
+			W3(h, "EVDisplay", "text", cx, 5.8, zb - 2.4, 1.6, 1.4, 0.2, DARK, "SmoothPlastic", { text = { s = "EV", color = { 90, 235, 150 } } })
+			W3(h, "EVKabel", "trim", cx + 1.2, 3.2, zb - 2.4, 3.2, 0.35, 0.35, DARK, "SmoothPlastic", { shape = "Cylinder", roll = 90 })
+			W3(h, "EVStecker", "trim", cx + 1.2, 1.7, zb - 2.4, 0.6, 0.9, 0.6, GREEN, "SmoothPlastic")
+		elseif k == "H" then
+			W3(h, "BehindertenStellplatz", "decor", cx, 1.03, zc, w - 0.5, 0.06, d - 0.4, BLUE, "SmoothPlastic")
+			-- Rollstuhlsymbol (weiß, flach auf dem Boden): Kopf, Rumpf, Sitz, Unterschenkel, Rad
+			W3(h, "RollstuhlSymbol", "decor", cx, 1.1, zc - 0.2, 0.9, 0.08, 0.9, WHITE, "SmoothPlastic", { shape = "Cylinder", roll = 90 })
+			W3(h, "RollstuhlSymbol", "decor", cx - 0.2, 1.1, zc + 1.3, 0.7, 0.08, 2.0, WHITE, "SmoothPlastic")
+			W3(h, "RollstuhlSymbol", "decor", cx + 0.8, 1.1, zc + 2.2, 2.0, 0.08, 0.6, WHITE, "SmoothPlastic")
+			W3(h, "RollstuhlSymbol", "decor", cx + 1.7, 1.1, zc + 3.2, 0.6, 0.08, 2.0, WHITE, "SmoothPlastic")
+			W3(h, "RollstuhlSymbol", "decor", cx, 1.1, zc + 3.4, 3.0, 0.08, 3.0, WHITE, "SmoothPlastic", { shape = "Cylinder", roll = 90 })
+			W3(h, "RollstuhlSymbol", "decor", cx, 1.12, zc + 3.4, 2.1, 0.08, 2.1, BLUE, "SmoothPlastic", { shape = "Cylinder", roll = 90 })
+			W3(h, "RollstuhlSchildPfosten", "decor", cx - w / 2 + 0.6, 3.3, zb - 0.8, 0.4, 4.6, 0.4, STEEL, "Metal", { collide = true })
+			W3(h, "RollstuhlSchild", "decor", cx - w / 2 + 0.6, 6.2, zb - 0.8, 3.2, 3.2, 0.3, BLUE, "SmoothPlastic")
+			W3(h, "Schrift", "text", cx - w / 2 + 0.6, 6.2, zb - 1.05, 2.6, 2.6, 0.2, WHITE, "SmoothPlastic", { text = { s = "P", color = WHITE } })
 		end
 	end
-	-- Carport: Pfosten an den Stellplatzgrenzen (hinten), dunkles Solardach, weiße Blende mit Schriftzügen, grüne Leuchten
-	for i = 0, n, 2 do W3(h, "EVPfosten", "trim", x1 - 0.8, 5.5, z0 + i * w, 1.2, 9, 1.2, WHITE, "SmoothPlastic", { collide = true }) end
-	W3(h, "EVDach", "trim", cx - 0.25, 10.2, zm, x1 - x0 + 1.5, 0.8, n * w + 2, { 28, 44, 84 }, "SmoothPlastic")
-	W3(h, "EVBlende", "trim", x0 - 1, 10.2, zm, 0.6, 1.6, n * w + 2, WHITE, "SmoothPlastic")
-	W3(h, "EVBlende", "trim", cx - 0.25, 10.2, z1 + 1, x1 - x0 + 1.5, 1.6, 0.6, WHITE, "SmoothPlastic")
-	W3(h, "EVSchrift", "text", x0 - 1.4, 10.2, zm, 26, 1.2, 0.2, { 40, 168, 110 }, "SmoothPlastic", { yaw = 90, text = { s = "E-LADESTATION", color = { 40, 168, 110 } } })
-	W3(h, "EVSchrift", "text", cx - 0.25, 10.2, z1 + 1.4, 12, 1.2, 0.2, { 40, 168, 110 }, "SmoothPlastic", { yaw = 180, text = { s = "E-LADEN", color = { 40, 168, 110 } } })
-	for i = 0, n - 1 do W3(h, "EVLicht", "trim", cx, 9.6, z0 + (i + 0.5) * w, 0.2, 1.6, 1.6, { 120, 255, 190 }, "Neon", { shape = "Cylinder", roll = 90 }) end
+	-- Hinweis zum Ladeplatz: grünes Schild an einem Pfosten über den drei Ladeplätzen
+	local first, last
+	for i, k in ipairs(pk.kinds) do if k == "E" then first = first or i last = i end end
+	if first then
+		local ex = x0 + (first - 1) * w + (last - first + 1) * w / 2
+		W3(h, "EVSchildPfosten", "decor", ex - 5, 3.3, zf + 0.8, 0.4, 4.6, 0.4, STEEL, "Metal", { collide = true })
+		W3(h, "EVSchild", "decor", ex - 5, 6.4, zf + 0.8, 8, 2.6, 0.3, GREEN, "SmoothPlastic")
+		W3(h, "Schrift", "text", ex - 5, 6.4, zf + 0.55, 7.4, 2, 0.2, WHITE, "SmoothPlastic", { text = { s = "E-LADEN", color = WHITE } })
+	end
 end
 
 -- Sonderbau (Bank, Wache, Krankenhaus ...) als Platzhalter-Gebäude auf einer Rechteckfläche.
@@ -1165,10 +1225,38 @@ function Planner.planSpecial(spec, opts)
 			W3(h, "Auffahrt", "trim", (43.4 + l[1] + 0.4) / 2, 0.91, (g[1] + g[2]) / 2, l[1] + 0.4 - 43.4, 0.3, g[2] - g[1], { 78, 80, 86 }, "Asphalt", { collide = true })
 		end
 		lotDecor(h, spec)
-		if spec.ev then evPark(h, spec) end
+		if spec.parking then parkingLot(h, spec) end
 	end
 	if spec.compound then COMPOUNDS[spec.compound](h, spec, o) end
 	return { houses = { h } }
+end
+
+-- Eckhäuser am Siegestor: je Winkelbereich eine Reihe Fassadenplatten (Häuser gleicher Farbe und Höhe) auf einem Kreis um die Mitte, Front zum Kreisverkehr,
+-- die zusammen ein gebogenes Gebäude ergeben (die Platten stoßen an der Front, hinten überlappen sie sich leicht).
+function Planner.planCorners(cfg, opts)
+	local o = mergeOpts(opts)
+	local C = cfg.siegestorCorners
+	local cx, cz = cfg.landmarks.siegestor.x, cfg.landmarks.siegestor.z
+	local rng = newRng(o.seed + hash("Siegestor-Ecken"))
+	local plan = { houses = {} }
+	for _, rg in ipairs(C.ranges) do
+		local th0, th1 = math.rad(rg.th[1]), math.rad(rg.th[2])
+		local n = math.max(1, math.floor((th1 - th0) * C.r0 / o.targetWidth * 2 + 0.5))
+		local dth = (th1 - th0) / n
+		local color = rng.pick(o.palette)
+		for i = 1, n do
+			local th = th0 + (i - 0.5) * dth
+			local ex, ez = math.cos(th), math.sin(th) -- radial nach außen = Haus-z (in den Block hinein)
+			local h = {
+				side = "Ecke", index = i, simple = o.simple, rear = true, forceFloors = 5, color = color,
+				ox = cx + C.r0 * ex, oz = cz + C.r0 * ez, yaw = math.deg(math.atan2(ex, ez)), width = 2 * C.r0 * math.sin(dth / 2), depth = C.depth, parts = {},
+				name = string.format("Eckhaus_%s_%d", rg.name, i),
+			}
+			planHouse(h, o, rng, false, false)
+			plan.houses[#plan.houses + 1] = h
+		end
+	end
+	return plan
 end
 
 -- Mapgrenze: Häuserband rund um die Karte, Fassade zeigt nach innen zur Ringstraße.

@@ -111,9 +111,25 @@ Das Siegestor steht auf einer runden Mittelinsel (Radius 52, Bordstein). Rundher
 
 Gerade Straße `IsarAllee` parallel zur (jetzt geraden) Isar zwischen Ring Nord und Isarspange; die Karte ist dafür nach Osten um 100 Studs gewachsen (`Config.map.xmax` 1260, Ring 1176). Querschnitt von der Isar zu den Häusern (Studs): Ufergehweg 8, Baumreihe 12 (alle 24 Studs), roter Radweg 8, Laternenstreifen 4 (Laternen alle 48), Straße 20, Parkstreifen 9, Gehweg 8, dann die Häuserzeile. 11 Häuser (um 7,2° gedreht, wie die Isar) und eine neuromanische Backsteinkirche mit Turm (Uhr, Rosette, Kupferhelm, Höhe ca. 128), Seitenschiffen, Satteldach und Apsis. Die Straßenstreifen `green` und `bike` sind neue Arten in `RoadsPlanner`; Parkbuchten laufen auch an schrägen Straßen (Linien quer zur Fahrtrichtung). Einen Kanal gibt es bewusst nicht.
 
-## E-Ladepark (Allguth)
+## Parkplätze an der Allguth-Tankstelle
 
-Auf der freien Ostseite des Grundstücks (`Config.tankstelle.ev`): 8 Stellplätze mit grünen Bodenfeldern, Radstoppern, 4 Ladesäulen (Display „EV“, zwei Kabel) und ein Solar-Carport mit Schriftband „E-LADESTATION“. Die Säulen tragen den Tag `EVCharger` (Attribute `Station`, `kW`), ein Ladeskript kann später daran anknüpfen. Es ist nur die Optik, ohne Ladelogik.
+Im freien Südteil des Grundstücks, gegenüber der schmalen Südseite des Schirms (Fahrzeuge stehen mit der Front zum Schirm): 10 Plätze in einer Reihe (`Config.tankstelle.parking`): 1 Behindertenparkplatz (blau, Rollstuhlsymbol, Schild), 3 Ladeplätze (grün markiert, je eine Ladesäule, Schild „E-LADEN“, **ohne Überdachung**) und 6 normale Plätze mit weißen Linien. Die Säulen tragen den Tag `EVCharger` (Attribute `Station`, `kW`); es ist nur die Optik, ohne Ladelogik.
+
+## Friedensengel-Oval
+
+Die Maximilianstraße endet am Westende eines Straßenovals (`FriedensengelRing`, Superellipse 214 x 124, Mittelpunkt 1013/298) und teilt sich dort in zwei Bögen um die Terrasse; im Osten läuft das Oval wieder zusammen und die `FriedensengelAusfahrt` führt zum Ring. Die Rasen-Insel (Terrasse, 4 hoch) liegt innen, der Friedensengel steht im östlichen Teil (x = 1040), im Westen führen vier Stufen und ein Plattenweg hinauf. Die Isarspange endet an einem verschobenen Ring (Osten +100 gegenüber dem ersten Plan).
+
+## Gehwegecken und Siegestor-Ecken
+
+An allen rechtwinkligen Kreuzungen füllt `RoadsPlanner` das Eck zwischen den beiden unterbrochenen Gehwegen mit einer gerundeten Gehwegecke (Radius 5, `GehwegEcke`, `GehwegEckeRund`, `EckAsphalt`). Um den Kreisverkehr am Siegestor läuft außen ein Gehweg (Radius 80 bis 90). In den beiden Lücken der Häuserreihen (Nordwest, Nordost) stehen gebogene Eckhäuser (`Planner.planCorners`, je vier Fassadenplatten auf dem Kreis, 5 Geschosse, gleiche Farbe) mit Hintergärten (Rasen und Bäume).
+
+## Isar-Allee, Westufer und Hintergärten
+
+Auf der Isarseite gegenüber der Allee steht eine Häuserzeile mit Ufergehweg und Baumreihe (`Planner.planWestbank`) und dahinter ein Park. Die Ost-Häuser der Allee haben Hintergärten (Rasen, bei genug Platz zwei Bäume).
+
+## Entfernte Pflasterflächen
+
+Odeonsplatz, Kirchplatz und Fußgängerzone sind vorerst entfernt (`Config.plazas` ist leer). Die Leopoldstraße bleibt Asphalt; um die Frauenkirche liegt kein Pflaster. Was dort hinkommt, ist noch offen.
 
 ## Hinweise zu Terrain-Einstellungen
 

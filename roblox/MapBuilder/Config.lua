@@ -29,7 +29,7 @@ C.profiles = {
 		strips = { { -35.5, -27.5, "walk" }, { -27.5, 1.5, "road" }, { 1.5, 5.5, "green" }, { 5.5, 13.5, "bike" }, { 13.5, 25.5, "green" }, { 25.5, 33.5, "walk" } }, -- Ufergehweg 8 breit, endet 3 Studs vor der Böschungskante
 	},
 	approach86 = { half = 43, dashes = {}, strips = { { -43, 43, "road" } } }, -- Zulauf der Achse zum Kreisverkehr (ohne Mittelstreifen)
-	kreisel24 = { half = 12, dashes = {}, strips = { { -12, 12, "road" } } },
+	kreisel24 = { half = 22, dashes = {}, strips = { { -22, -12, "walk" }, { -12, 12, "road" } } }, -- Fahrbahn 24 breit, außen ein Gehweg (10) rund um den Kreisverkehr
 	plaza40 = { half = 20, dashes = {}, strips = { { -20, 20, "plaza" } } },
 }
 
@@ -38,6 +38,17 @@ local function circle(cx, cz, r, n)
 	for i = 0, n - 1 do
 		local a = 2 * math.pi * i / n
 		pts[#pts + 1] = { cx + r * math.cos(a), cz + r * math.sin(a) }
+	end
+	return pts
+end
+
+-- Superellipse |x/a|^p + |z/b|^p = 1 (p = 2 Ellipse, größer = abgerundetes Rechteck); n Punkte, Start im Osten
+local function superellipse(cx, cz, a, b, p, n)
+	local pts = {}
+	for i = 0, n - 1 do
+		local t = 2 * math.pi * i / n
+		local c, s = math.cos(t), math.sin(t)
+		pts[#pts + 1] = { cx + a * (c < 0 and -1 or 1) * math.abs(c) ^ (2 / p), cz + b * (s < 0 and -1 or 1) * math.abs(s) ^ (2 / p) }
 	end
 	return pts
 end
@@ -61,15 +72,17 @@ C.roads = {
 	{ name = "KirchplatzNord", profile = "std48", pts = { { -550, 30 }, { -550, 140 } } }, -- endet am Kirchplatz der Frauenkirche
 	-- Isar-Allee: gerade, parallel zur (geraden) Isar am Ostufer; Mittellinie 127,5 Studs östlich der Isar-Mitte, endet am Knick der Isarspange
 	{ name = "IsarAllee", profile = "allee", pts = { { 1072.5, -472 }, { 1012, 3 } } },
-	{ name = "Maximilianstrasse", profile = "std48", pts = { { 395, 410 }, { 395, 298 }, { 876, 298 } } }, -- vom Ring zur Maximilianbrücke und den Stufen zum Friedensengel
-	{ name = "Fussgaengerzone", profile = "plaza40", pts = { { -200, 254 }, { -55, 254 } } },
+	{ name = "Maximilianstrasse", profile = "std48", pts = { { 395, 410 }, { 395, 298 }, { 906, 298 } } }, -- vom Ring über die Maximilianbrücke zum Friedensengel-Oval
+	-- Friedensengel-Oval: die Maximilianstraße teilt sich am Westende in zwei Bögen um die Terrasse (wie in München), im Osten wieder zusammen, Ausfahrt zum Ring
+	{ name = "FriedensengelRing", closed = true, profile = "std48", pts = superellipse(1013, 298, 107, 62, 2.6, 64) },
+	{ name = "FriedensengelAusfahrt", profile = "std48", pts = { { 1120, 298 }, { 1176, 298 } } },
 }
 
 -- Parkbuchten: Mittellinie des Parkstreifens, Buchtlänge 16, Breite 9. { x0, z0, x1, z1 }
 C.bay = { length = 16, width = 9 }
 -- Allguth-Tankstelle: Grundstück und Ein-/Ausfahrten (z-Bereiche an der Straße, Einfahrt südlich, Ausfahrt nördlich davon).
 -- Vor den Einfahrten gibt es keine Parkbuchten und die Laternen stehen nicht im Weg (siehe driveways).
-C.tankstelle = { lot = { 57, -336, 180, -150 }, gaps = { { -262, -218 }, { -196, -152 } }, ev = { x0 = 162, x1 = 178, z0 = -290, n = 8, w = 9 } } -- ev: E-Ladepark an der Ostseite (Stellplatzfeld)
+C.tankstelle = { lot = { 57, -336, 180, -150 }, gaps = { { -262, -218 }, { -196, -152 } }, parking = { x0 = 96, zBack = -152, depth = 16, w = 8, kinds = { "H", "E", "E", "E", "N", "N", "N", "N", "N", "N" } } } -- parking: Stellplatzreihe im Südteil (H Behinderte, E Ladeplatz, N normal)
 C.driveways = {}
 for _, g in ipairs(C.tankstelle.gaps) do C.driveways[#C.driveways + 1] = { x0 = 43, x1 = 57, z0 = g[1] - 3, z1 = g[2] + 3 } end
 
@@ -85,6 +98,9 @@ C.bays = {
 -- Isar-Allee (Ostufer): Straße IsarAllee von Norden (Ring) nach Süden (Isarspange); Parameter s = Abstand vom Nordende entlang der Mittellinie.
 -- Fassadenlinie der Häuserzeile = Gehwegkante der Häuser (35,5 östlich der Mittellinie) + Abstand 2; Zeile von s = 28 bis 436, die Kirche steht bei s = 190 bis 244.
 -- Parkbuchten liegen 23 Studs östlich der Mittellinie.
+-- Westufer gegenüber der Allee: Häuserzeile (Fassade 116 Studs westlich der Isar-Mitte, Blick zum Fluss), davor Ufergehweg (Abstand 93 bis 101 von der Isar-Mitte)
+-- und Baumstreifen (101 bis 113), dahinter ein Park (C.parks). rowFrom/rowTo = s-Bereich entlang der Allee-Mittellinie (wie allee.church).
+C.westbank = { rowFrom = 183, rowTo = 370, front = -(127.5 * 0.9921 + 116), walk = { 93, 101 }, green = { 101, 113 }, treeStep = 24 }
 C.allee = { road = "IsarAllee", rowFrom = 28, rowTo = 436, church = { 190, 244 }, bay = { from = 40, to = 430, off = 23 }, trees = { from = 40, to = 440, step = 24, off = 19.5 } }
 do
 	local r
@@ -98,10 +114,8 @@ do
 	C.allee.ux, C.allee.uz, C.allee.len, C.allee.ax, C.allee.az = ux, uz, l, ax, az
 end
 
-C.plazas = {
-	{ name = "Odeonsplatz", x0 = -140, z0 = 296, x1 = 140, z1 = 386 },
-	{ name = "Kirchplatz", x0 = -634, z0 = 140, x1 = -200, z1 = 368 }, -- Platz um die Frauenkirche (Kreisel entfällt)
-}
+-- Gepflasterte Plätze (Odeonsplatz, Kirchplatz, Fußgängerzone) sind vorerst entfernt: die Leopoldstraße bleibt Asphalt, um die Frauenkirche liegt kein Pflaster.
+C.plazas = {}
 
 -- Kleine Brücken (flaches Deck unter der Straße, Länge entlang der Straße, Breite quer, yaw in Grad)
 C.bridges = {
@@ -134,16 +148,45 @@ C.water = {
 	},
 }
 
+-- Eckhäuser am Siegestor: gebogene Gebäude (Fassadenplatten auf dem Kreis um die Mitte, Radius r0 = Außenkante des Gehwegs + Abstand), Winkelbereiche in Grad (z nach Süden)
+C.siegestorCorners = { r0 = 92, depth = 28, ranges = { { name = "Nordwest", th = { 186, 223 } }, { name = "Nordost", th = { 317, 354 } } } }
+
 C.parks = { -- Gras-Oberfläche (Terrain)
+	{ name = "WestuferParkNord", x0 = 700, z0 = -292, x1 = 748, z1 = -200 }, -- Hintergarten der Westufer-Häuser
+	{ name = "WestuferParkSued", x0 = 640, z0 = -200, x1 = 748, z1 = -104 },
+	{ name = "EckgartenNordwest", x0 = -125, z0 = -90, x1 = -57, z1 = 0 }, -- Hintergärten hinter den Eckhäusern am Siegestor
+	{ name = "EckgartenNordost", x0 = 57, z0 = -90, x1 = 125, z1 = 4 },
 	{ name = "Hofgarten", x0 = 60, z0 = 100, x1 = 400, z1 = 290 },
 	{ name = "EnglischerGarten", x0 = 430, z0 = -45, x1 = 700, z1 = 345 },
 	{ name = "Hinterhofpark", x0 = -401.5, z0 = -418, x1 = -293.5, z1 = -343.5 },
 }
 C.hills = { { name = "Monopteros", x = 575, z = 75, layers = { { 44, 0, 4 }, { 30, 4, 8 } } } } -- { Radius, y0, y1 }, nur 8 hoch
-C.terrace = { name = "Friedensengel", x0 = 890, z0 = 250, x1 = 1040, z1 = 346, height = 4 }
+-- Terrasse des Friedensengels: Rasen-Insel in Form der Superellipse (Mitte cx, cz, Halbachsen a, b, Exponent p) innerhalb des Straßenovals, 26 Studs
+-- Abstand zur Mittellinie; x0..z1 = Umgebungsrechteck
+C.terrace = { name = "Friedensengel", cx = 1013, cz = 298, a = 81, b = 36, p = 2.6, x0 = 932, z0 = 262, x1 = 1094, z1 = 334, height = 4, round = true }
 
 -- Straßenlaternen nach Foto: hoher, schlanker grauer Mast mit geschwungenem Ausleger und Kopf über der Fahrbahn.
 C.lamps = { spacing = 64, inset = 2.5, height = 36 }
+-- Laternen am Friedensengel-Oval (die Segmente der Ellipse sind zu kurz für den Abstand von 64): außen und innen alle ca. 50 Studs, nicht an den Einmündungen
+C.extraLamps = {}
+do
+	local a, b, cx, cz, p, n = 107, 62, 1013, 298, 2.6, 11
+	for i = 0, n - 1 do
+		local t = 2 * math.pi * (i + 0.5) / n
+		local c, s = math.cos(t), math.sin(t)
+		local qx, qz = (c < 0 and -1 or 1) * math.abs(c) ^ (2 / p), (s < 0 and -1 or 1) * math.abs(s) ^ (2 / p)
+		local nx, nz = (qx < 0 and -1 or 1) * math.abs(qx) ^ (p - 1) / a, (qz < 0 and -1 or 1) * math.abs(qz) ^ (p - 1) / b -- Gradient der Superellipse
+		local l = math.sqrt(nx * nx + nz * nz)
+		nx, nz = nx / l, nz / l
+		local px, pz = cx + a * qx, cz + b * qz
+		if math.abs(px - (cx - a)) > 30 and math.abs(px - (cx + a)) > 30 then
+			for _, sd in ipairs({ -1, 1 }) do
+				local off = sd * (14 + C.lamps.inset)
+				C.extraLamps[#C.extraLamps + 1] = { px + nx * off, pz + nz * off, -nx * sd, -nz * sd }
+			end
+		end
+	end
+end
 
 -- Ampeln nach Foto: grauer Mast mit Ausleger über die Fahrbahn (arm = Richtung zur Straße), je ein Signalkopf am Ausleger und am Mast.
 -- Standort Mast, Blickrichtung des Kopfes (f) zum ankommenden Verkehr. Rechtsverkehr: Achse Süd-Richtung fährt auf der Westseite.
@@ -163,7 +206,7 @@ C.pedSignals = {} -- die Fußgängerampeln am Siegestor entfallen (Kreisverkehr)
 -- Wahrzeichen: Siegestor steht auf dem Tunneldeckel (Mitte = Ursprung), Friedensengel in der Mitte der Terrasse
 C.landmarks = {
 	siegestor = { x = 0, z = 0, baseY = 1.4, islandR = 52, ringR = 68 }, -- steht auf der Mittelinsel des Kreisverkehrs
-	friedensengel = { x = 965, z = 298, baseY = 3.7 },
+	friedensengel = { x = 1040, z = 298, baseY = 3.7 }, -- im östlichen Teil der Insel, der Blick geht nach Westen die Maximilianstraße hinunter
 	frauenkirche = { x0 = -610, x1 = -215, z = 254, baseY = 0.7, width = 150, wallH = 72, roofRise = 62, towerH = 210 }, -- auf dem Kirchplatz, Türme im Westen
 	turm = { x = 573, z = 224, baseY = 0.2 }, -- Chinesischer Turm im Englischen Garten, Biergarten rundherum
 	biergarten = { x0 = 532, z0 = 186, x1 = 614, z1 = 262 },

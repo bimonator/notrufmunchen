@@ -43,7 +43,7 @@ local function groundY(cfg, x, z)
 		if y > 0 then return y end
 	end
 	local t = cfg.terrace
-	if x >= t.x0 and x <= t.x1 and z >= t.z0 and z <= t.z1 then return t.height end
+	if math.abs((x - t.cx) / t.a) ^ t.p + math.abs((z - t.cz) / t.b) ^ t.p <= 1 then return t.height end
 	local d, y = Geo.polyDist(x, z, cfg.water.isar.pts), 0
 	for _, ly in ipairs(cfg.water.isar.layers) do
 		if d < ly[3] then y = ly[2] end
@@ -433,6 +433,36 @@ local function alleeTrees(cfg, add, rng)
 	return n
 end
 
+-- Hintergärten hinter den Eckhäusern am Siegestor: je drei Bäume (Nordwest, an der x-Achse gespiegelt für Nordost)
+local function eckBaeume(cfg, add, rng)
+	local n = 0
+	for _, sd in ipairs({ -1, 1 }) do
+		for _, q in ipairs({ { 108, -80 }, { 116, -62 }, { 96, -86 } }) do
+			tree(add, rng, sd * q[1], 0, q[2], 1.0, "Eck")
+			n = n + 1
+		end
+	end
+	return n
+end
+
+-- Park hinter den Westufer-Häusern: lockere Baumgruppen auf dem Rasen (Raster 24, versetzt), nicht auf Straßen und mit Abstand zu den Hausrückseiten
+local function westPark(cfg, add, rng, free)
+	local n = 0
+	for x = 652, 730, 26 do
+		for z = -190, -110, 26 do
+			local tx, tz = x + (rng() - 0.5) * 12, z + (rng() - 0.5) * 12
+			if free(tx, tz) and tx < 738 then tree(add, rng, tx, 0, tz, 1.1, "West") n = n + 1 end
+		end
+	end
+	for x = 706, 736, 20 do
+		for z = -282, -214, 24 do
+			local tx, tz = x + (rng() - 0.5) * 8, z + (rng() - 0.5) * 8
+			if free(tx, tz) then tree(add, rng, tx, 0, tz, 1.0, "West") n = n + 1 end
+		end
+	end
+	return n
+end
+
 function Garden.plan(cfg, roadPlan, specials)
 	local parts = {}
 	local add = emitter(parts)
@@ -460,6 +490,8 @@ function Garden.plan(cfg, roadPlan, specials)
 	eisbach(cfg, add)
 	stats.bank = isarBank(cfg, add, rng, cfg.isarBridges)
 	stats.alleeTrees = alleeTrees(cfg, add, rng)
+	stats.eckTrees = eckBaeume(cfg, add, rng)
+	stats.westTrees = westPark(cfg, add, rng, free)
 	for _, sp in ipairs(specials or {}) do
 		if sp.name == "Prinz-Eins" then club(cfg, add, sp) end
 	end

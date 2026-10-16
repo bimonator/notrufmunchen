@@ -263,18 +263,25 @@ do
 	check(pillars == 8 and roundRoofs == 2 and arcs >= 12, "Schirm: Stützen " .. pillars .. ", Rundungen " .. roundRoofs .. ", Bogenstücke " .. arcs)
 	check(totemH >= 30, "Totem zu niedrig " .. totemH)
 	check(logoA == 0, "altes Dach-A noch vorhanden")
-	-- E-Ladepark (Ostseite des Grundstücks): 8 Stellplätze, 4 Ladesäulen (Tag EVCharger), Schriftband, alles östlich vom Schirm und innerhalb des Grundstücks
-	local ev, stalls, chargers, evText = lot.ev, 0, 0, 0
+	-- Parkplätze im Südteil (gegenüber der schmalen Südseite des Schirms): 10 Plätze = 1 Behinderten-, 3 Lade- und 6 normale Plätze; die Ladeplätze haben je eine Säule
+	-- (Tag EVCharger) und keine Überdachung; alle Teile liegen im Grundstück südlich des Schirms
+	local pk = lot.parking
+	local kindsN = { H = 0, E = 0, N = 0 }
+	for _, k in ipairs(pk.kinds) do kindsN[k] = kindsN[k] + 1 end
+	local stalls, handi, chargers, lines, signs = 0, 0, 0, 0, 0
 	for _, p in ipairs(tank) do
-		if string.sub(p.name, 1, 2) == "EV" then
-			check(p.pos[1] - p.size[1] / 2 >= lot.canopy[3] + 1 and p.pos[1] + p.size[1] / 2 <= lot.lot[3], "E-Ladepark: " .. p.name .. " liegt nicht zwischen Schirm und Grundstücksrand")
-			check(p.pos[3] - p.size[3] / 2 >= lot.z1 - 40 and p.pos[3] + p.size[3] / 2 <= lot.canopy[4], "E-Ladepark: " .. p.name .. " liegt nicht neben dem Schirm")
-		end
 		if p.name == "EVStellplatz" then stalls = stalls + 1 end
+		if p.name == "BehindertenStellplatz" then handi = handi + 1 end
 		if p.tag == "EVCharger" then chargers = chargers + 1 end
-		if p.name == "EVSchrift" and p.text and p.text.s ~= "" then evText = evText + 1 end
+		if p.name == "StellplatzLinie" then lines = lines + 1 end
+		if p.name == "EVSchild" or p.name == "RollstuhlSchild" then signs = signs + 1 end
+		if p.name == "StellplatzLinie" or p.name == "EVStellplatz" or p.name == "BehindertenStellplatz" or p.name == "EVSaeule" then
+			check(p.pos[3] - p.size[3] / 2 >= lot.canopy[4] + 20 and p.pos[3] + p.size[3] / 2 <= lot.lot[4] and p.pos[1] - p.size[1] / 2 >= lot.lot[1] + 20 and p.pos[1] + p.size[1] / 2 <= lot.lot[3], "Parkplatz: " .. p.name .. " liegt nicht im Südteil des Grundstücks")
+		end
+		check(string.sub(p.name, 1, 2) ~= "EV" or (p.name ~= "EVDach" and p.name ~= "EVPfosten" and p.name ~= "EVBlende"), "Ladeplätze dürfen keine Überdachung haben")
 	end
-	check(ev and stalls == ev.n and chargers == ev.n / 2 and evText == 2, "E-Ladepark: Stellplätze " .. stalls .. ", Säulen " .. chargers .. ", Schriftzüge " .. evText)
+	check(kindsN.H == 1 and kindsN.E == 3 and kindsN.N == 6, "Plätze nach Art: " .. kindsN.H .. "/" .. kindsN.E .. "/" .. kindsN.N)
+	check(stalls == 3 and handi == 1 and chargers == 3 and lines == #pk.kinds + 1 and signs == 2, "Parkplätze: Ladeplätze " .. stalls .. ", Behinderten " .. handi .. ", Säulen " .. chargers .. ", Linien " .. lines .. ", Schilder " .. signs)
 	local offices = 0
 	for _, sp in ipairs(Specials) do if sp.style == "buero" then offices = offices + 1 end end
 	check(offices == 3, "Hintergrundgebäude " .. offices)
@@ -385,6 +392,82 @@ do
 		check(math.abs(along(church.ox, church.oz) - (a.church[1] + a.church[2]) / 2) < 0.5, "Kirche: Lage in der Zeile")
 	end
 	print(string.format("Isar-Allee: %d Häuser, Kirche mit %d Teilen", houses, church and #church.parts or 0))
+end
+
+-- ===== Eckhäuser am Siegestor =====
+do
+	local Config = require("Config")
+	local RoadsPlanner = require("RoadsPlanner")
+	local segs = RoadsPlanner.segments(Config)
+	local plan = Planner.planCorners(Config, { seed = 1 })
+	local bodies = {}
+	for _, block in ipairs(Blocks) do
+		for _, h in ipairs(Planner.planBlock(block, { seed = 1 }).houses) do bodies[#bodies + 1] = { Planner.aabb(bodyOf(h)) } end
+	end
+	for _, sp in ipairs(Specials) do bodies[#bodies + 1] = { sp.x0, 0, sp.z0, sp.x1, 0, sp.z1 } end
+	local names = {}
+	for _, h in ipairs(plan.houses) do
+		names[#names + 1] = h.name
+		local r, c, s = math.rad(h.yaw), 0, 0
+		c, s = math.cos(r), math.sin(r)
+		local cxs = Config.landmarks.siegestor
+		for _, lx in ipairs({ -h.width / 2, 0, h.width / 2 }) do
+			for _, lz in ipairs({ 0, h.depth }) do
+				local x, z = h.ox + lx * c + lz * s, h.oz - lx * s + lz * c
+				for _, sg in ipairs(segs) do
+					local rc = sg.rect
+					local dx, dz = x - rc.ax, z - rc.az
+					local aa, bb = dx * rc.ux + dz * rc.uz, dx * rc.nx + dz * rc.nz
+					check(not (aa > rc.s0 and aa < rc.s1 and math.abs(bb) < rc.w), "Eckhaus " .. h.name .. " liegt in der Straße " .. sg.road.name)
+				end
+				for _, b in ipairs(bodies) do
+					check(not (x > b[1] - 0.3 and x < b[4] + 0.3 and z > b[3] - 0.3 and z < b[6] + 0.3), "Eckhaus " .. h.name .. " überlappt ein Gebäude bei " .. x .. "," .. z)
+				end
+				if lz == 0 then check(math.abs(math.sqrt((x - cxs.x) ^ 2 + (z - cxs.z) ^ 2) - 92) < 1.2, "Eckhaus-Fassade nicht auf dem Kreis") end
+			end
+		end
+	end
+	check(#plan.houses >= 6 and #plan.houses <= 10, "Eckhäuser: " .. #plan.houses)
+end
+
+-- ===== Westufer der Isar gegenüber der Allee: Häuserzeile, Ufergehweg, Baumreihe =====
+do
+	local Config = require("Config")
+	local Geo = require("Geo")
+	local RoadsPlanner = require("RoadsPlanner")
+	local segs = RoadsPlanner.segments(Config)
+	local plan = Planner.planWestbank(Config, { seed = 1 })
+	local houses = #plan.houses
+	check(houses >= 5 and houses <= 7, "Westufer: Häuser " .. houses)
+	local isar = Config.water.isar
+	for _, h in ipairs(plan.houses) do
+		local r, c, s = math.rad(h.yaw), 0, 0
+		c, s = math.cos(r), math.sin(r)
+		for _, lx in ipairs({ -h.width / 2, h.width / 2 }) do
+			for _, lz in ipairs({ -3, h.depth }) do -- Eckpunkte inkl. Erker/Vordächer: nicht in der Böschung, nicht in Straßen
+				local x, z = h.ox + lx * c + lz * s, h.oz - lx * s + lz * c
+				check(Geo.polyDist(x, z, isar.pts) > isar.layers[1][3] + 20, "Westufer: " .. h.name .. " zu nah an der Isar (" .. Geo.polyDist(x, z, isar.pts) .. ")")
+				for _, sg in ipairs(segs) do
+					local rc = sg.rect
+					local dx, dz = x - rc.ax, z - rc.az
+					local aa, bb = dx * rc.ux + dz * rc.uz, dx * rc.nx + dz * rc.nz
+					check(not (aa > rc.s0 and aa < rc.s1 and math.abs(bb) < rc.w), "Westufer: " .. h.name .. " liegt in der Straße " .. sg.road.name)
+				end
+			end
+		end
+	end
+	local trunks, walk = 0, false
+	for _, p in ipairs(plan.parts) do
+		if p.name == "WestuferStamm" then
+			trunks = trunks + 1
+			check(Geo.polyDist(p.pos[1], p.pos[3], isar.pts) > isar.layers[1][3] + 3, "Westufer: Baum in der Böschung")
+		end
+		if p.name == "WestuferGehweg" then
+			walk = true
+			check(Geo.polyDist(p.pos[1], p.pos[3], isar.pts) > isar.layers[1][3] + 3, "Westufer: Gehweg in der Böschung")
+		end
+	end
+	check(trunks >= 6 and walk, "Westufer: Bäume " .. trunks)
 end
 
 if failures > 0 then

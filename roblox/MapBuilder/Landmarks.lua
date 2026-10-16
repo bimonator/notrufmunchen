@@ -106,7 +106,7 @@ function Landmarks.friedensengel(cfg)
 		extra = extra or {}
 		add(name, x, y, z, h, d, d, color, mat, { shape = "Cylinder", roll = 90, collide = extra.collide ~= false, transparency = extra.transparency })
 	end
-	vcyl("Rondell", 0, y0 + 0.45, 0, 0.9, 62, STONE, "Concrete")
+	vcyl("Rondell", 0, y0 + 0.45, 0, 0.9, 56, STONE, "Concrete")
 	local yb = y0 + 0.9
 	-- Beckenrand: 24 Steinblöcke auf einem Kreis (Radius 18), tangential gedreht
 	for i = 0, 23 do
@@ -207,15 +207,18 @@ function Landmarks.friedensengel(cfg)
 	for _, a in ipairs({ { 4.5, 0 }, { -4.5, 0 }, { 0, 4.5 }, { 0, -4.5 } }) do
 		add("Wasserstrahl", a[1], yb + 4, a[2], 0.9, 8, 0.9, { 240, 248, 255 }, "SmoothPlastic", { collide = false, transparency = 0.5 })
 	end
-	-- Treppe vom Ende der Maximilianstraße (x = Terrasse - 14) zur Terrasse: vier Stufen, Wangenmauern
+	-- Aufgang an der Westkante der Insel: vier Stufen vom inneren Gehweg des Ovals (Oberkante 1) hinauf zur Terrasse (Oberkante 4), Wangenmauern, Plattenweg zum Rondell
 	local t = cfg.terrace
-	local sx0 = t.x0 - 14 - L.x
+	local sx0 = t.x0 - 12 - L.x
 	for i = 1, 4 do
-		add("TerrassenStufe", sx0 + (i - 0.5) * 3.5, i / 2 - 0.2, 0, 3.5, i + 0.4, 24, STONE, "Concrete")
+		local top = 1 + 0.75 * i
+		add("TerrassenStufe", sx0 + (i - 1) * 3 + (12 - (i - 1) * 3 + 0.5) / 2, top / 2, 0, 12 - (i - 1) * 3 + 0.5, top, 24, STONE, "Concrete")
 	end
 	for _, sd in ipairs({ -1, 1 }) do
-		add("TerrassenWange", sx0 + 7, 1.8, sd * 12.8, 14, 4.4, 1.6, STONE, "Concrete")
+		add("TerrassenWange", sx0 + 6, 2.2, sd * 12.8, 12, 4.4, 1.6, STONE, "Concrete")
 	end
+	local pw0, pw1 = t.x0 + 0.5 - L.x, -28
+	add("Plattenweg", (pw0 + pw1) / 2, 4.05, 0, pw1 - pw0, 0.2, 10, { 214, 208, 196 }, "Concrete", { collide = false })
 	return parts
 end
 

@@ -105,7 +105,8 @@ end
 local function crossCuts(segs, self, px, pz, L, margin)
 	local cuts = {}
 	for _, o in ipairs(segs) do
-		if o.id ~= self.id then
+		-- benachbarte Segmente derselben Straße mit kleinem Knick (Ellipse, Kurven) schneiden sich nicht gegenseitig: sonst reißt der Gehweg an jedem Knick auf
+		if o.id ~= self.id and not (o.road == self.road and o.ux * self.ux + o.uz * self.uz > 0.95) then
 			local lo, hi = Geo.within(px, pz, self.ux, self.uz, L, o.rect, margin)
 			if lo then cuts[#cuts + 1] = { lo, hi } end
 		end
@@ -183,6 +184,65 @@ function RoadsPlanner.plan(cfg)
 			end
 		end
 		stats.bays = stats.bays + n
+	end
+
+	-- Gerundete Gehwegecken: wo zwei Straßen rechtwinklig aufeinandertreffen, sind beide Gehwege am Eck unterbrochen und lassen ein Loch (Gehwegbreite x Gehwegbreite).
+	-- Pro Ecke: zwei Rechtecke füllen das Loch bis auf einen Viertelkreis (Radius 5) an der Straßenecke, den eine runde Scheibe füllt (abgerundeter Bordstein).
+	local function walkSide(seg, dirx, dirz) -- Gehwegstreifen von seg auf der Seite der Richtung (dirx, dirz): Abstände (innen, außen) zur Mittellinie
+		local sideSign = ((-seg.uz) * dirx + seg.ux * dirz) > 0 and 1 or -1
+		for _, st in ipairs(seg.prof.strips) do
+			if st[3] == "walk" and st[1] * sideSign > 0 and st[2] * sideSign > 0 then return math.min(math.abs(st[1]), math.abs(st[2])), math.max(math.abs(st[1]), math.abs(st[2])) end
+		end
+	end
+	local function inRect(r, x, z)
+		local dx, dz = x - r.ax, z - r.az
+		local u, v = dx * r.ux + dz * r.uz, dx * r.nx + dz * r.nz
+		return u > r.s0 and u < r.s1 and math.abs(v) < r.w
+	end
+	stats.corners = 0
+	for i = 1, #segs do
+		for j = i + 1, #segs do
+			local A, B = segs[i], segs[j]
+			if A.road ~= B.road and math.abs(A.ux * B.ux + A.uz * B.uz) < 0.05 then
+				local dx, dz = B.ax - A.ax, B.az - A.az
+				local ta, tb = dx * A.ux + dz * A.uz, -(dx * B.ux + dz * B.uz) -- Schnittpunkt der Mittellinien (Straßen stehen senkrecht)
+				if ta > -0.5 and ta < A.len + 0.5 and tb > -0.5 and tb < B.len + 0.5 then
+					local px, pz = A.ax + A.ux * ta, A.az + A.uz * ta
+					for _, sa in ipairs({ -1, 1 }) do
+						for _, sb in ipairs({ -1, 1 }) do
+							local ea = { sa * A.ux, sa * A.uz }
+							local eb = { sb * B.ux, sb * B.uz }
+							local da0, da1 = walkSide(A, eb[1], eb[2]) -- Gehweg von A auf der Seite von B
+							local db0, db1 = walkSide(B, ea[1], ea[2])
+							if da0 and db0 then
+								local extA = (sa > 0) and (A.len - ta) or ta
+								local extB = (sb > 0) and (B.len - tb) or tb
+								local qx = px + ea[1] * (db0 + db1) / 2 + eb[1] * (da0 + da1) / 2
+								local qz = pz + ea[2] * (db0 + db1) / 2 + eb[2] * (da0 + da1) / 2
+								local free = extA >= db1 - 0.5 and extB >= da1 - 0.5
+								for _, C in ipairs(segs) do
+									if free and C.road ~= A.road and C.road ~= B.road and inRect(C.rect, qx, qz) then free = false end
+								end
+								if free then
+									local R = math.min(5, (db1 - db0) / 2, (da1 - da0) / 2)
+									local function at(u, v) return px + ea[1] * u + eb[1] * v, pz + ea[2] * u + eb[2] * v end
+									local yaw = Geo.yawOf(A.ux, A.uz)
+									local x1, z1 = at((db0 + R + db1) / 2, (da0 + da1) / 2)
+									part(parts, "GehwegEcke", "corner", x1, 0, z1, db1 - db0 - R, 2, da1 - da0, yaw, COLOR.walk, MATERIAL.walk, { seg = A.id })
+									local x2, z2 = at(db0 + R / 2, (da0 + R + da1) / 2)
+									part(parts, "GehwegEcke", "corner", x2, 0, z2, R, 2, da1 - da0 - R, yaw, COLOR.walk, MATERIAL.walk, { seg = A.id })
+									local x3, z3 = at(db0 + R, da0 + R)
+									part(parts, "GehwegEckeRund", "corner", x3, 0, z3, 2, 2 * R, 2 * R, 0, COLOR.walk, MATERIAL.walk, { seg = A.id, shape = "Cylinder", roll = 90 })
+									local x4, z4 = at(db0 + R / 2, da0 + R / 2) -- Asphalt in der Rundung (zwischen Scheibe und Straßenecke), sonst blitzt der Boden durch
+									part(parts, "EckAsphalt", "corner", x4, 0, z4, R, 1, R, yaw, COLOR.road, MATERIAL.road, { seg = A.id })
+									stats.corners = stats.corners + 1
+								end
+							end
+						end
+					end
+				end
+			end
+		end
 	end
 
 	for _, pl in ipairs(cfg.plazas) do

@@ -10,14 +10,14 @@
 -- WAS GEBAUT WIRD (Schritte, in dieser Reihenfolge; Output zeigt je Schritt eine Zeile):
 --   terrain    Boden, Parks, Hügel (Monopteros), Terrasse (Friedensengel), Isar mit 3-stufiger Böschung, Bach
 --   roads      Ring, Leopoldstraße/Ludwigstraße (Achse, rund um das Siegestor ein Kreisverkehr), Schwabinger Raster, Diagonale, Isarspange,
---              Maximilianstraße, Isar-Allee (Ostufer: Straße mit Parkstreifen, Laternen, roter Radweg, Baumreihe, Ufergehweg), Kreisel, Fußgängerzone mit Fliesen, Parkbuchten, 4 Brücken über die Isar (flach, auf Säulen),
+--              Maximilianstraße, Isar-Allee (Ostufer: Straße mit Parkstreifen, Laternen, roter Radweg, Baumreihe, Ufergehweg), Friedensengel-Oval, Kreisverkehr, gerundete Gehwegecken, Parkbuchten, 4 Brücken über die Isar (flach, auf Säulen),
 --              Maximilianbrücke (zwei Bögen, Statuen)
 --   lights     270 Laternen (runder Mast, Bogenarm, Leuchtkopf), 13 Ampelmasten (Rundmast, Ausleger, Linsenköpfe mit Blenden)
 --   landmarks  Siegestor auf Mittelinsel, Friedensengel (Engel mit Flügeln, Ölzweig, Nike; rundes Becken), Frauenkirche (runde Zwiebelhauben),
 --              Chinesischer Turm
 --   gardens    Hofgarten, Englischer Garten, Monopteros-Tempel, Biergarten, Eisbachwelle, Isar-Uferwege, Prinz-Eins-Vorplatz
---   houses     7 Häuserblöcke mit Rück- und Hinterhäusern, Isar-Allee-Zeile mit Backsteinkirche, 13 Sonderbauten (Feuerwache, Polizeiwache mit Hof, Klinikum,
---              Tankstelle mit Schirm, Shop und E-Ladepark (8 Plätze, 4 Ladesäulen), Bank, Parkhaus, ...)
+--   houses     7 Häuserblöcke mit Rück- und Hinterhäusern, Isar-Allee-Zeile mit Backsteinkirche, Westufer-Zeile, gebogene Eckhäuser am Siegestor, 13 Sonderbauten (Feuerwache, Polizeiwache mit Hof, Klinikum,
+--              Tankstelle mit Schirm, Shop und Parkplätzen (3 Ladeplätze, 1 Behindertenparkplatz), Bank, Parkhaus, ...)
 --   wall       Häuserband um die Karte (Mapgrenze) mit Toren und Flusstoren
 --
 -- WAS FUNKTIONIERT WIE:
@@ -171,7 +171,7 @@ C.profiles = {
 		strips = { { -35.5, -27.5, "walk" }, { -27.5, 1.5, "road" }, { 1.5, 5.5, "green" }, { 5.5, 13.5, "bike" }, { 13.5, 25.5, "green" }, { 25.5, 33.5, "walk" } }, -- Ufergehweg 8 breit, endet 3 Studs vor der Böschungskante
 	},
 	approach86 = { half = 43, dashes = {}, strips = { { -43, 43, "road" } } }, -- Zulauf der Achse zum Kreisverkehr (ohne Mittelstreifen)
-	kreisel24 = { half = 12, dashes = {}, strips = { { -12, 12, "road" } } },
+	kreisel24 = { half = 22, dashes = {}, strips = { { -22, -12, "walk" }, { -12, 12, "road" } } }, -- Fahrbahn 24 breit, außen ein Gehweg (10) rund um den Kreisverkehr
 	plaza40 = { half = 20, dashes = {}, strips = { { -20, 20, "plaza" } } },
 }
 
@@ -180,6 +180,16 @@ local function circle(cx, cz, r, n)
 	for i = 0, n - 1 do
 		local a = 2 * math.pi * i / n
 		pts[#pts + 1] = { cx + r * math.cos(a), cz + r * math.sin(a) }
+	end
+	return pts
+end
+
+local function superellipse(cx, cz, a, b, p, n)
+	local pts = {}
+	for i = 0, n - 1 do
+		local t = 2 * math.pi * i / n
+		local c, s = math.cos(t), math.sin(t)
+		pts[#pts + 1] = { cx + a * (c < 0 and -1 or 1) * math.abs(c) ^ (2 / p), cz + b * (s < 0 and -1 or 1) * math.abs(s) ^ (2 / p) }
 	end
 	return pts
 end
@@ -200,12 +210,13 @@ C.roads = {
 	{ name = "V3", profile = "std48", pts = { { 300, -472 }, { 300, 32 } } },
 	{ name = "KirchplatzNord", profile = "std48", pts = { { -550, 30 }, { -550, 140 } } }, -- endet am Kirchplatz der Frauenkirche
 	{ name = "IsarAllee", profile = "allee", pts = { { 1072.5, -472 }, { 1012, 3 } } },
-	{ name = "Maximilianstrasse", profile = "std48", pts = { { 395, 410 }, { 395, 298 }, { 876, 298 } } }, -- vom Ring zur Maximilianbrücke und den Stufen zum Friedensengel
-	{ name = "Fussgaengerzone", profile = "plaza40", pts = { { -200, 254 }, { -55, 254 } } },
+	{ name = "Maximilianstrasse", profile = "std48", pts = { { 395, 410 }, { 395, 298 }, { 906, 298 } } }, -- vom Ring über die Maximilianbrücke zum Friedensengel-Oval
+	{ name = "FriedensengelRing", closed = true, profile = "std48", pts = superellipse(1013, 298, 107, 62, 2.6, 64) },
+	{ name = "FriedensengelAusfahrt", profile = "std48", pts = { { 1120, 298 }, { 1176, 298 } } },
 }
 
 C.bay = { length = 16, width = 9 }
-C.tankstelle = { lot = { 57, -336, 180, -150 }, gaps = { { -262, -218 }, { -196, -152 } }, ev = { x0 = 162, x1 = 178, z0 = -290, n = 8, w = 9 } } -- ev: E-Ladepark an der Ostseite (Stellplatzfeld)
+C.tankstelle = { lot = { 57, -336, 180, -150 }, gaps = { { -262, -218 }, { -196, -152 } }, parking = { x0 = 96, zBack = -152, depth = 16, w = 8, kinds = { "H", "E", "E", "E", "N", "N", "N", "N", "N", "N" } } } -- parking: Stellplatzreihe im Südteil (H Behinderte, E Ladeplatz, N normal)
 C.driveways = {}
 for _, g in ipairs(C.tankstelle.gaps) do C.driveways[#C.driveways + 1] = { x0 = 43, x1 = 57, z0 = g[1] - 3, z1 = g[2] + 3 } end
 
@@ -218,6 +229,7 @@ C.bays = {
 	{ -221, -448, -221, -317 }, { -221, -253, -221, -3 },
 }
 
+C.westbank = { rowFrom = 183, rowTo = 370, front = -(127.5 * 0.9921 + 116), walk = { 93, 101 }, green = { 101, 113 }, treeStep = 24 }
 C.allee = { road = "IsarAllee", rowFrom = 28, rowTo = 436, church = { 190, 244 }, bay = { from = 40, to = 430, off = 23 }, trees = { from = 40, to = 440, step = 24, off = 19.5 } }
 do
 	local r
@@ -231,10 +243,7 @@ do
 	C.allee.ux, C.allee.uz, C.allee.len, C.allee.ax, C.allee.az = ux, uz, l, ax, az
 end
 
-C.plazas = {
-	{ name = "Odeonsplatz", x0 = -140, z0 = 296, x1 = 140, z1 = 386 },
-	{ name = "Kirchplatz", x0 = -634, z0 = 140, x1 = -200, z1 = 368 }, -- Platz um die Frauenkirche (Kreisel entfällt)
-}
+C.plazas = {}
 
 C.bridges = {
 	{ name = "B0", x = 640, z = -257, len = 56, wid = 48, yaw = 39.3 },
@@ -262,15 +271,40 @@ C.water = {
 	},
 }
 
+C.siegestorCorners = { r0 = 92, depth = 28, ranges = { { name = "Nordwest", th = { 186, 223 } }, { name = "Nordost", th = { 317, 354 } } } }
+
 C.parks = { -- Gras-Oberfläche (Terrain)
+	{ name = "WestuferParkNord", x0 = 700, z0 = -292, x1 = 748, z1 = -200 }, -- Hintergarten der Westufer-Häuser
+	{ name = "WestuferParkSued", x0 = 640, z0 = -200, x1 = 748, z1 = -104 },
+	{ name = "EckgartenNordwest", x0 = -125, z0 = -90, x1 = -57, z1 = 0 }, -- Hintergärten hinter den Eckhäusern am Siegestor
+	{ name = "EckgartenNordost", x0 = 57, z0 = -90, x1 = 125, z1 = 4 },
 	{ name = "Hofgarten", x0 = 60, z0 = 100, x1 = 400, z1 = 290 },
 	{ name = "EnglischerGarten", x0 = 430, z0 = -45, x1 = 700, z1 = 345 },
 	{ name = "Hinterhofpark", x0 = -401.5, z0 = -418, x1 = -293.5, z1 = -343.5 },
 }
 C.hills = { { name = "Monopteros", x = 575, z = 75, layers = { { 44, 0, 4 }, { 30, 4, 8 } } } } -- { Radius, y0, y1 }, nur 8 hoch
-C.terrace = { name = "Friedensengel", x0 = 890, z0 = 250, x1 = 1040, z1 = 346, height = 4 }
+C.terrace = { name = "Friedensengel", cx = 1013, cz = 298, a = 81, b = 36, p = 2.6, x0 = 932, z0 = 262, x1 = 1094, z1 = 334, height = 4, round = true }
 
 C.lamps = { spacing = 64, inset = 2.5, height = 36 }
+C.extraLamps = {}
+do
+	local a, b, cx, cz, p, n = 107, 62, 1013, 298, 2.6, 11
+	for i = 0, n - 1 do
+		local t = 2 * math.pi * (i + 0.5) / n
+		local c, s = math.cos(t), math.sin(t)
+		local qx, qz = (c < 0 and -1 or 1) * math.abs(c) ^ (2 / p), (s < 0 and -1 or 1) * math.abs(s) ^ (2 / p)
+		local nx, nz = (qx < 0 and -1 or 1) * math.abs(qx) ^ (p - 1) / a, (qz < 0 and -1 or 1) * math.abs(qz) ^ (p - 1) / b -- Gradient der Superellipse
+		local l = math.sqrt(nx * nx + nz * nz)
+		nx, nz = nx / l, nz / l
+		local px, pz = cx + a * qx, cz + b * qz
+		if math.abs(px - (cx - a)) > 30 and math.abs(px - (cx + a)) > 30 then
+			for _, sd in ipairs({ -1, 1 }) do
+				local off = sd * (14 + C.lamps.inset)
+				C.extraLamps[#C.extraLamps + 1] = { px + nx * off, pz + nz * off, -nx * sd, -nz * sd }
+			end
+		end
+	end
+end
 
 C.signals = {
 	{ name = "Achse_RingNord", x = 45, z = -445, fx = 0, fz = 1, ax = -1, az = 0 }, { name = "Achse_RingNord", x = -58, z = -456, fx = -1, fz = 0, ax = 0, az = -1 },
@@ -286,7 +320,7 @@ C.pedSignals = {} -- die Fußgängerampeln am Siegestor entfallen (Kreisverkehr)
 
 C.landmarks = {
 	siegestor = { x = 0, z = 0, baseY = 1.4, islandR = 52, ringR = 68 }, -- steht auf der Mittelinsel des Kreisverkehrs
-	friedensengel = { x = 965, z = 298, baseY = 3.7 },
+	friedensengel = { x = 1040, z = 298, baseY = 3.7 }, -- im östlichen Teil der Insel, der Blick geht nach Westen die Maximilianstraße hinunter
 	frauenkirche = { x0 = -610, x1 = -215, z = 254, baseY = 0.7, width = 150, wallH = 72, roofRise = 62, towerH = 210 }, -- auf dem Kirchplatz, Türme im Westen
 	turm = { x = 573, z = 224, baseY = 0.2 }, -- Chinesischer Turm im Englischen Garten, Biergarten rundherum
 	biergarten = { x0 = 532, z0 = 186, x1 = 614, z1 = 262 },
@@ -866,6 +900,52 @@ function Planner.planAllee(cfg, opts)
 	local h = { side = "A", index = 0, simple = o.simple, ox = cx, oz = cz, yaw = yaw, width = a.church[2] - a.church[1], depth = 56, parts = {}, name = "Kirche_IsarAllee" }
 	planChurch(h, o)
 	plan.houses[#plan.houses + 1] = h
+	local ringInner = cfg.ring.xmax - 48
+	for _, hh in ipairs(plan.houses) do
+		if hh ~= h then
+			local avail = (ringInner - 3 - (hh.ox + hh.depth * math.sin(math.rad(hh.yaw)))) / math.sin(math.rad(hh.yaw))
+			local g = math.min(avail, 40)
+			if g >= 10 then
+				add(hh, "Hintergarten", "garden", 0, 0, hh.depth + 0.5 + g / 2, hh.width - 1, 1, g, { 96, 150, 72 }, "Grass")
+				if g >= 24 then
+					for _, sd in ipairs({ -1, 1 }) do
+						local lx, lz = sd * hh.width / 4, hh.depth + g / 2 + 2 * sd
+						add(hh, "HintergartenStamm", "tree", lx, 4, lz, 1.4, 7, 1.4, { 96, 70, 48 }, "Wood", { collide = true })
+						add(hh, "HintergartenKrone", "tree", lx, 11, lz, 9, 9, 9, { 74, 128, 62 }, "Grass", { shape = "Ball" })
+					end
+				end
+			end
+		end
+	end
+	return plan
+end
+
+function Planner.planWestbank(cfg, opts)
+	local o = mergeOpts(opts)
+	local a, w = cfg.allee, cfg.westbank
+	local rng = newRng(o.seed + hash("IsarWestufer"))
+	local ex, ez = a.uz, -a.ux -- Osten
+	local function P(s, d) return a.ax + a.ux * s + ex * d, a.az + a.uz * s + ez * d end
+	local yaw = math.deg(math.atan2(-ex, -ez)) % 360
+	local sx, sz = P(w.rowFrom, w.front)
+	local len = w.rowTo - w.rowFrom
+	local plan = { houses = {}, parts = {} }
+	planSides("IsarWest", { { name = "W", yaw = yaw, sx = sx, sz = sz, ux = a.ux, uz = a.uz, len = len } }, o, rng, plan, o.depth)
+	local perp = 127.5 * a.uz -- Querabstand Allee-Mittellinie zur Isar-Mitte
+	local ya = math.deg(math.atan2(-a.uz, a.ux)) % 360 -- Teile längs der Zeile
+	local function strip(name, kind, lo, hi, top, thick, color, mat)
+		local mx, mz = P((w.rowFrom + w.rowTo) / 2, -(perp + (lo + hi) / 2))
+		plan.parts[#plan.parts + 1] = { name = name, kind = kind, size = { len, thick, hi - lo }, pos = { mx, top - thick / 2, mz }, yaw = ya, pitch = 0, color = color, material = mat, collide = true }
+	end
+	strip("WestuferGehweg", "walk", w.walk[1], w.walk[2], 1.0, 2, { 168, 172, 174 }, "Concrete")
+	strip("WestuferGruen", "green", w.green[1], w.green[2], 1.0, 1.8, { 104, 148, 84 }, "Grass")
+	local t = w.rowFrom + w.treeStep / 2
+	while t < w.rowTo do
+		local tx, tz = P(t, -(perp + (w.green[1] + w.green[2]) / 2))
+		plan.parts[#plan.parts + 1] = { name = "WestuferStamm", kind = "tree", size = { 1.4, 8, 1.4 }, pos = { tx, 5, tz }, yaw = 0, pitch = 0, color = { 96, 70, 48 }, material = "Wood", collide = true }
+		plan.parts[#plan.parts + 1] = { name = "WestuferKrone", kind = "tree", size = { 10, 10, 10 }, pos = { tx, 13, tz }, yaw = 0, pitch = 0, color = { 78, 132, 66 }, material = "Grass", collide = false, shape = "Ball" }
+		t = t + w.treeStep
+	end
 	return plan
 end
 
@@ -1325,36 +1405,46 @@ local function lotDecor(h, spec)
 	end
 end
 
-local function evPark(h, spec)
-	local e = spec.ev
-	local x0, x1, z0, n, w = e.x0, e.x1, e.z0, e.n, e.w
-	local z1, zm, cx = z0 + n * w, z0 + n * w / 2, (x0 + x1) / 2
-	local GREEN, WHITE, DARK, CONC = { 40, 168, 110 }, { 244, 244, 246 }, { 24, 28, 34 }, { 190, 188, 182 }
-	for i = 0, n - 1 do
-		local zc = z0 + (i + 0.5) * w
-		W3(h, "EVStellplatz", "decor", cx, 1.03, zc, x1 - x0, 0.06, w - 0.5, { 56, 140, 104 }, "SmoothPlastic")
-		W3(h, "EVRadstopper", "decor", x1 - 1.6, 1.4, zc, 0.8, 0.8, 5, CONC, "Concrete", { collide = true })
-	end
-	for i = 0, n do W3(h, "EVLinie", "dash", cx, 1.08, z0 + i * w, x1 - x0, 0.1, 0.3, WHITE, "SmoothPlastic") end
-	for j = 0, n / 2 - 1 do -- Ladesäule zwischen zwei Stellplätzen
-		local zc, px = z0 + (2 * j + 1) * w, x1 - 3.6
-		W3(h, "EVSockel", "decor", px, 1.3, zc, 3.4, 0.6, 3.4, CONC, "Concrete", { collide = true })
-		W3(h, "EVSaeule", "trim", px, 4.2, zc, 1.8, 6, 2.4, WHITE, "SmoothPlastic", { collide = true, tag = "EVCharger", attrs = { Station = j + 1, kW = 50 } })
-		W3(h, "EVKopf", "trim", px, 7.6, zc, 2.0, 1.4, 2.6, GREEN, "SmoothPlastic")
-		W3(h, "EVDisplay", "text", px - 1.0, 5.8, zc, 2.0, 1.4, 0.2, DARK, "SmoothPlastic", { yaw = 90, text = { s = "EV", color = { 90, 235, 150 } } })
-		for _, sd in ipairs({ -1, 1 }) do
-			W3(h, "EVHalter", "trim", px - 0.2, 5.0, zc + sd * 1.4, 0.9, 1.2, 0.7, DARK, "SmoothPlastic")
-			W3(h, "EVKabel", "trim", px - 1.0, 3.2, zc + sd * 1.4, 3.2, 0.35, 0.35, DARK, "SmoothPlastic", { shape = "Cylinder", roll = 90 })
-			W3(h, "EVStecker", "trim", px - 1.0, 1.7, zc + sd * 1.4, 0.6, 0.9, 0.6, GREEN, "SmoothPlastic")
+local function parkingLot(h, spec)
+	local pk = spec.parking
+	local WHITE, BLUE, GREEN, DARK, STEEL = { 244, 244, 246 }, { 36, 84, 170 }, { 40, 168, 110 }, { 24, 28, 34 }, { 80, 82, 86 }
+	local n, w, d, x0, zb = #pk.kinds, pk.w, pk.depth, pk.x0, pk.zBack
+	local zf = zb - d -- Vorderkante der Stellplätze (Nordseite)
+	local zc = (zb + zf) / 2
+	for i = 0, n do W3(h, "StellplatzLinie", "dash", x0 + i * w, 1.07, zc, 0.3, 0.1, d, WHITE, "SmoothPlastic") end
+	local station = 0
+	for i, k in ipairs(pk.kinds) do
+		local cx = x0 + (i - 0.5) * w
+		if k == "E" then
+			station = station + 1
+			W3(h, "EVStellplatz", "decor", cx, 1.03, zc, w - 0.5, 0.06, d - 0.4, { 56, 140, 104 }, "SmoothPlastic")
+			W3(h, "EVSockel", "decor", cx, 1.3, zb - 1.6, 2.6, 0.6, 2.6, { 190, 188, 182 }, "Concrete", { collide = true })
+			W3(h, "EVSaeule", "trim", cx, 4.2, zb - 1.6, 1.8, 6, 1.4, WHITE, "SmoothPlastic", { collide = true, tag = "EVCharger", attrs = { Station = station, kW = 50 } })
+			W3(h, "EVKopf", "trim", cx, 7.6, zb - 1.6, 2.2, 1.4, 1.6, GREEN, "SmoothPlastic")
+			W3(h, "EVDisplay", "text", cx, 5.8, zb - 2.4, 1.6, 1.4, 0.2, DARK, "SmoothPlastic", { text = { s = "EV", color = { 90, 235, 150 } } })
+			W3(h, "EVKabel", "trim", cx + 1.2, 3.2, zb - 2.4, 3.2, 0.35, 0.35, DARK, "SmoothPlastic", { shape = "Cylinder", roll = 90 })
+			W3(h, "EVStecker", "trim", cx + 1.2, 1.7, zb - 2.4, 0.6, 0.9, 0.6, GREEN, "SmoothPlastic")
+		elseif k == "H" then
+			W3(h, "BehindertenStellplatz", "decor", cx, 1.03, zc, w - 0.5, 0.06, d - 0.4, BLUE, "SmoothPlastic")
+			W3(h, "RollstuhlSymbol", "decor", cx, 1.1, zc - 0.2, 0.9, 0.08, 0.9, WHITE, "SmoothPlastic", { shape = "Cylinder", roll = 90 })
+			W3(h, "RollstuhlSymbol", "decor", cx - 0.2, 1.1, zc + 1.3, 0.7, 0.08, 2.0, WHITE, "SmoothPlastic")
+			W3(h, "RollstuhlSymbol", "decor", cx + 0.8, 1.1, zc + 2.2, 2.0, 0.08, 0.6, WHITE, "SmoothPlastic")
+			W3(h, "RollstuhlSymbol", "decor", cx + 1.7, 1.1, zc + 3.2, 0.6, 0.08, 2.0, WHITE, "SmoothPlastic")
+			W3(h, "RollstuhlSymbol", "decor", cx, 1.1, zc + 3.4, 3.0, 0.08, 3.0, WHITE, "SmoothPlastic", { shape = "Cylinder", roll = 90 })
+			W3(h, "RollstuhlSymbol", "decor", cx, 1.12, zc + 3.4, 2.1, 0.08, 2.1, BLUE, "SmoothPlastic", { shape = "Cylinder", roll = 90 })
+			W3(h, "RollstuhlSchildPfosten", "decor", cx - w / 2 + 0.6, 3.3, zb - 0.8, 0.4, 4.6, 0.4, STEEL, "Metal", { collide = true })
+			W3(h, "RollstuhlSchild", "decor", cx - w / 2 + 0.6, 6.2, zb - 0.8, 3.2, 3.2, 0.3, BLUE, "SmoothPlastic")
+			W3(h, "Schrift", "text", cx - w / 2 + 0.6, 6.2, zb - 1.05, 2.6, 2.6, 0.2, WHITE, "SmoothPlastic", { text = { s = "P", color = WHITE } })
 		end
 	end
-	for i = 0, n, 2 do W3(h, "EVPfosten", "trim", x1 - 0.8, 5.5, z0 + i * w, 1.2, 9, 1.2, WHITE, "SmoothPlastic", { collide = true }) end
-	W3(h, "EVDach", "trim", cx - 0.25, 10.2, zm, x1 - x0 + 1.5, 0.8, n * w + 2, { 28, 44, 84 }, "SmoothPlastic")
-	W3(h, "EVBlende", "trim", x0 - 1, 10.2, zm, 0.6, 1.6, n * w + 2, WHITE, "SmoothPlastic")
-	W3(h, "EVBlende", "trim", cx - 0.25, 10.2, z1 + 1, x1 - x0 + 1.5, 1.6, 0.6, WHITE, "SmoothPlastic")
-	W3(h, "EVSchrift", "text", x0 - 1.4, 10.2, zm, 26, 1.2, 0.2, { 40, 168, 110 }, "SmoothPlastic", { yaw = 90, text = { s = "E-LADESTATION", color = { 40, 168, 110 } } })
-	W3(h, "EVSchrift", "text", cx - 0.25, 10.2, z1 + 1.4, 12, 1.2, 0.2, { 40, 168, 110 }, "SmoothPlastic", { yaw = 180, text = { s = "E-LADEN", color = { 40, 168, 110 } } })
-	for i = 0, n - 1 do W3(h, "EVLicht", "trim", cx, 9.6, z0 + (i + 0.5) * w, 0.2, 1.6, 1.6, { 120, 255, 190 }, "Neon", { shape = "Cylinder", roll = 90 }) end
+	local first, last
+	for i, k in ipairs(pk.kinds) do if k == "E" then first = first or i last = i end end
+	if first then
+		local ex = x0 + (first - 1) * w + (last - first + 1) * w / 2
+		W3(h, "EVSchildPfosten", "decor", ex - 5, 3.3, zf + 0.8, 0.4, 4.6, 0.4, STEEL, "Metal", { collide = true })
+		W3(h, "EVSchild", "decor", ex - 5, 6.4, zf + 0.8, 8, 2.6, 0.3, GREEN, "SmoothPlastic")
+		W3(h, "Schrift", "text", ex - 5, 6.4, zf + 0.55, 7.4, 2, 0.2, WHITE, "SmoothPlastic", { text = { s = "E-LADEN", color = WHITE } })
+	end
 end
 
 function Planner.planSpecial(spec, opts)
@@ -1390,10 +1480,36 @@ function Planner.planSpecial(spec, opts)
 			W3(h, "Auffahrt", "trim", (43.4 + l[1] + 0.4) / 2, 0.91, (g[1] + g[2]) / 2, l[1] + 0.4 - 43.4, 0.3, g[2] - g[1], { 78, 80, 86 }, "Asphalt", { collide = true })
 		end
 		lotDecor(h, spec)
-		if spec.ev then evPark(h, spec) end
+		if spec.parking then parkingLot(h, spec) end
 	end
 	if spec.compound then COMPOUNDS[spec.compound](h, spec, o) end
 	return { houses = { h } }
+end
+
+function Planner.planCorners(cfg, opts)
+	local o = mergeOpts(opts)
+	local C = cfg.siegestorCorners
+	local cx, cz = cfg.landmarks.siegestor.x, cfg.landmarks.siegestor.z
+	local rng = newRng(o.seed + hash("Siegestor-Ecken"))
+	local plan = { houses = {} }
+	for _, rg in ipairs(C.ranges) do
+		local th0, th1 = math.rad(rg.th[1]), math.rad(rg.th[2])
+		local n = math.max(1, math.floor((th1 - th0) * C.r0 / o.targetWidth * 2 + 0.5))
+		local dth = (th1 - th0) / n
+		local color = rng.pick(o.palette)
+		for i = 1, n do
+			local th = th0 + (i - 0.5) * dth
+			local ex, ez = math.cos(th), math.sin(th) -- radial nach außen = Haus-z (in den Block hinein)
+			local h = {
+				side = "Ecke", index = i, simple = o.simple, rear = true, forceFloors = 5, color = color,
+				ox = cx + C.r0 * ex, oz = cz + C.r0 * ez, yaw = math.deg(math.atan2(ex, ez)), width = 2 * C.r0 * math.sin(dth / 2), depth = C.depth, parts = {},
+				name = string.format("Eckhaus_%s_%d", rg.name, i),
+			}
+			planHouse(h, o, rng, false, false)
+			plan.houses[#plan.houses + 1] = h
+		end
+	end
+	return plan
 end
 
 function Planner.planWall(wall, opts)
@@ -1468,8 +1584,8 @@ return {
 	{ name = "C_LeopoldWestNord", xmin = -206.5, zmin = -448, xmax = -55, zmax = -313.5, reserved = { { -127, -385, -55, -315 } } },
 	{ name = "D_West", xmin = -637, zmin = -256.5, xmax = -488.5, zmax = 1.5 },
 	{ name = "E_Mitte", xmin = -431.5, zmin = -256.5, xmax = -263.5, zmax = 1.5, reserved = { { -429.5, -200, -265.5, -100 } } },
-	{ name = "F_LeopoldWestSued", xmin = -206.5, zmin = -256.5, xmax = -55, zmax = 1.5, reserved = { { -205, -250, -109, -140 }, { -106, -90, -55, 2 } } }, -- zweite Fläche: Kreisverkehr um das Siegestor
-	{ name = "G_LeopoldOst", xmin = 55, zmin = -448, xmax = 276, zmax = 4, reserved = { { T.lot[1], T.lot[2], 86, T.lot[4] }, { 55, -90, 106, 6 } }, lot = T.lot, avoidInner = { { 190, -400, 234, -108 } } }, -- Lücke in der Häuserzeile: Tankstelle liegt frei an der Straße, lot = ihr Grundstück
+	{ name = "F_LeopoldWestSued", xmin = -206.5, zmin = -256.5, xmax = -55, zmax = 1.5, reserved = { { -205, -250, -109, -140 }, { -125, -90, -55, 2 } } }, -- zweite Fläche: Kreisverkehr um das Siegestor
+	{ name = "G_LeopoldOst", xmin = 55, zmin = -448, xmax = 276, zmax = 4, reserved = { { T.lot[1], T.lot[2], 86, T.lot[4] }, { 55, -90, 125, 6 } }, lot = T.lot, avoidInner = { { 190, -400, 234, -108 } } }, -- Lücke in der Häuserzeile: Tankstelle liegt frei an der Straße, lot = ihr Grundstück
 }
 
 end)()
@@ -1482,7 +1598,7 @@ local T = Config.tankstelle
 return {
 	{ name = "Isarbank", x0 = -127, z0 = -385, x1 = -55, z1 = -315, facing = "E", floors = 4, color = { 176, 120, 100 } },
 	{ name = "Parkhaus", x0 = -205, z0 = -250, x1 = -109, z1 = -140, facing = "N", floors = 4, color = { 170, 170, 176 } },
-	{ name = "Tankstellen-Shop", x0 = 78, z0 = -332, x1 = 146, z1 = -298, facing = "W", floors = 1, color = { 250, 250, 250 }, style = "tankstelle", canopy = { 78, -298, 146, -202 }, lot = T.lot, curbGaps = T.gaps, ev = T.ev },
+	{ name = "Tankstellen-Shop", x0 = 78, z0 = -332, x1 = 146, z1 = -298, facing = "W", floors = 1, color = { 250, 250, 250 }, style = "tankstelle", canopy = { 78, -298, 146, -202 }, lot = T.lot, curbGaps = T.gaps, parking = T.parking },
 	{ name = "Tankstellen-Buero-Nord", x0 = 190, z0 = -400, x1 = 234, z1 = -318, facing = "W", floors = 5, color = { 38, 48, 62 }, style = "buero" },
 	{ name = "Tankstellen-Buero-Mitte", x0 = 190, z0 = -302, x1 = 234, z1 = -210, facing = "W", floors = 6, color = { 38, 48, 62 }, style = "buero" },
 	{ name = "Tankstellen-Buero-Sued", x0 = 190, z0 = -194, x1 = 234, z1 = -108, facing = "W", floors = 5, color = { 38, 48, 62 }, style = "buero" },
@@ -1599,7 +1715,7 @@ end
 local function crossCuts(segs, self, px, pz, L, margin)
 	local cuts = {}
 	for _, o in ipairs(segs) do
-		if o.id ~= self.id then
+		if o.id ~= self.id and not (o.road == self.road and o.ux * self.ux + o.uz * self.uz > 0.95) then
 			local lo, hi = Geo.within(px, pz, self.ux, self.uz, L, o.rect, margin)
 			if lo then cuts[#cuts + 1] = { lo, hi } end
 		end
@@ -1675,6 +1791,63 @@ function RoadsPlanner.plan(cfg)
 			end
 		end
 		stats.bays = stats.bays + n
+	end
+
+	local function walkSide(seg, dirx, dirz) -- Gehwegstreifen von seg auf der Seite der Richtung (dirx, dirz): Abstände (innen, außen) zur Mittellinie
+		local sideSign = ((-seg.uz) * dirx + seg.ux * dirz) > 0 and 1 or -1
+		for _, st in ipairs(seg.prof.strips) do
+			if st[3] == "walk" and st[1] * sideSign > 0 and st[2] * sideSign > 0 then return math.min(math.abs(st[1]), math.abs(st[2])), math.max(math.abs(st[1]), math.abs(st[2])) end
+		end
+	end
+	local function inRect(r, x, z)
+		local dx, dz = x - r.ax, z - r.az
+		local u, v = dx * r.ux + dz * r.uz, dx * r.nx + dz * r.nz
+		return u > r.s0 and u < r.s1 and math.abs(v) < r.w
+	end
+	stats.corners = 0
+	for i = 1, #segs do
+		for j = i + 1, #segs do
+			local A, B = segs[i], segs[j]
+			if A.road ~= B.road and math.abs(A.ux * B.ux + A.uz * B.uz) < 0.05 then
+				local dx, dz = B.ax - A.ax, B.az - A.az
+				local ta, tb = dx * A.ux + dz * A.uz, -(dx * B.ux + dz * B.uz) -- Schnittpunkt der Mittellinien (Straßen stehen senkrecht)
+				if ta > -0.5 and ta < A.len + 0.5 and tb > -0.5 and tb < B.len + 0.5 then
+					local px, pz = A.ax + A.ux * ta, A.az + A.uz * ta
+					for _, sa in ipairs({ -1, 1 }) do
+						for _, sb in ipairs({ -1, 1 }) do
+							local ea = { sa * A.ux, sa * A.uz }
+							local eb = { sb * B.ux, sb * B.uz }
+							local da0, da1 = walkSide(A, eb[1], eb[2]) -- Gehweg von A auf der Seite von B
+							local db0, db1 = walkSide(B, ea[1], ea[2])
+							if da0 and db0 then
+								local extA = (sa > 0) and (A.len - ta) or ta
+								local extB = (sb > 0) and (B.len - tb) or tb
+								local qx = px + ea[1] * (db0 + db1) / 2 + eb[1] * (da0 + da1) / 2
+								local qz = pz + ea[2] * (db0 + db1) / 2 + eb[2] * (da0 + da1) / 2
+								local free = extA >= db1 - 0.5 and extB >= da1 - 0.5
+								for _, C in ipairs(segs) do
+									if free and C.road ~= A.road and C.road ~= B.road and inRect(C.rect, qx, qz) then free = false end
+								end
+								if free then
+									local R = math.min(5, (db1 - db0) / 2, (da1 - da0) / 2)
+									local function at(u, v) return px + ea[1] * u + eb[1] * v, pz + ea[2] * u + eb[2] * v end
+									local yaw = Geo.yawOf(A.ux, A.uz)
+									local x1, z1 = at((db0 + R + db1) / 2, (da0 + da1) / 2)
+									part(parts, "GehwegEcke", "corner", x1, 0, z1, db1 - db0 - R, 2, da1 - da0, yaw, COLOR.walk, MATERIAL.walk, { seg = A.id })
+									local x2, z2 = at(db0 + R / 2, (da0 + R + da1) / 2)
+									part(parts, "GehwegEcke", "corner", x2, 0, z2, R, 2, da1 - da0 - R, yaw, COLOR.walk, MATERIAL.walk, { seg = A.id })
+									local x3, z3 = at(db0 + R, da0 + R)
+									part(parts, "GehwegEckeRund", "corner", x3, 0, z3, 2, 2 * R, 2 * R, 0, COLOR.walk, MATERIAL.walk, { seg = A.id, shape = "Cylinder", roll = 90 })
+									local x4, z4 = at(db0 + R / 2, da0 + R / 2) -- Asphalt in der Rundung (zwischen Scheibe und Straßenecke), sonst blitzt der Boden durch
+									part(parts, "EckAsphalt", "corner", x4, 0, z4, R, 1, R, yaw, COLOR.road, MATERIAL.road, { seg = A.id })
+									stats.corners = stats.corners + 1
+								end
+							end
+						end
+					end
+				end
+			end
+		end
 	end
 
 	for _, pl in ipairs(cfg.plazas) do
@@ -1924,6 +2097,11 @@ function LightsPlanner.plan(cfg, roadPlan)
 		end
 	end
 
+	for _, l in ipairs(cfg.extraLamps or {}) do
+		lamp(parts, l[1], l[2], l[3], l[4], L.height)
+		stats.lamps = stats.lamps + 1
+	end
+
 	local lamps3 = { { name = "Red", on = RED, dim = DIM.Red }, { name = "Yellow", on = YELLOW, dim = DIM.Yellow }, { name = "Green", on = GREEN, dim = DIM.Green } }
 	local lamps2 = { { name = "Red", on = RED, dim = DIM.Red }, { name = "Green", on = GREEN, dim = DIM.Green } }
 	local ARM = 14
@@ -2046,7 +2224,7 @@ function Landmarks.friedensengel(cfg)
 		extra = extra or {}
 		add(name, x, y, z, h, d, d, color, mat, { shape = "Cylinder", roll = 90, collide = extra.collide ~= false, transparency = extra.transparency })
 	end
-	vcyl("Rondell", 0, y0 + 0.45, 0, 0.9, 62, STONE, "Concrete")
+	vcyl("Rondell", 0, y0 + 0.45, 0, 0.9, 56, STONE, "Concrete")
 	local yb = y0 + 0.9
 	for i = 0, 23 do
 		local a = math.rad(i * 15)
@@ -2142,13 +2320,16 @@ function Landmarks.friedensengel(cfg)
 		add("Wasserstrahl", a[1], yb + 4, a[2], 0.9, 8, 0.9, { 240, 248, 255 }, "SmoothPlastic", { collide = false, transparency = 0.5 })
 	end
 	local t = cfg.terrace
-	local sx0 = t.x0 - 14 - L.x
+	local sx0 = t.x0 - 12 - L.x
 	for i = 1, 4 do
-		add("TerrassenStufe", sx0 + (i - 0.5) * 3.5, i / 2 - 0.2, 0, 3.5, i + 0.4, 24, STONE, "Concrete")
+		local top = 1 + 0.75 * i
+		add("TerrassenStufe", sx0 + (i - 1) * 3 + (12 - (i - 1) * 3 + 0.5) / 2, top / 2, 0, 12 - (i - 1) * 3 + 0.5, top, 24, STONE, "Concrete")
 	end
 	for _, sd in ipairs({ -1, 1 }) do
-		add("TerrassenWange", sx0 + 7, 1.8, sd * 12.8, 14, 4.4, 1.6, STONE, "Concrete")
+		add("TerrassenWange", sx0 + 6, 2.2, sd * 12.8, 12, 4.4, 1.6, STONE, "Concrete")
 	end
+	local pw0, pw1 = t.x0 + 0.5 - L.x, -28
+	add("Plattenweg", (pw0 + pw1) / 2, 4.05, 0, pw1 - pw0, 0.2, 10, { 214, 208, 196 }, "Concrete", { collide = false })
 	return parts
 end
 
@@ -2547,7 +2728,15 @@ function TerrainPlanner.plan(cfg)
 		end
 	end
 	local t = cfg.terrace
-	block(ops, "Grass", (t.x0 + t.x1) / 2, G + t.height / 2, (t.z0 + t.z1) / 2, t.x1 - t.x0, t.height, t.z1 - t.z0)
+	if t.round then -- Superellipsen-Insel aus 4 Studs breiten Streifen (so groß wie eine Terrain-Zelle)
+		local n = math.floor(2 * t.b / 4)
+		for i = 0, n - 1 do
+			local dz = -t.b + (i + 0.5) * 2 * t.b / n
+			block(ops, "Grass", t.cx, G + t.height / 2, t.cz + dz, 2 * t.a * (1 - math.abs(dz / t.b) ^ t.p) ^ (1 / t.p), t.height, 2 * t.b / n + 0.05)
+		end
+	else
+		block(ops, "Grass", (t.x0 + t.x1) / 2, G + t.height / 2, (t.z0 + t.z1) / 2, t.x1 - t.x0, t.height, t.z1 - t.z0)
+	end
 	cfg.water.isar.name, cfg.water.bach.name = "isar", "bach"
 	river(ops, cfg.water.isar)
 	river(ops, cfg.water.bach)
@@ -2599,7 +2788,7 @@ local function groundY(cfg, x, z)
 		if y > 0 then return y end
 	end
 	local t = cfg.terrace
-	if x >= t.x0 and x <= t.x1 and z >= t.z0 and z <= t.z1 then return t.height end
+	if math.abs((x - t.cx) / t.a) ^ t.p + math.abs((z - t.cz) / t.b) ^ t.p <= 1 then return t.height end
 	local d, y = Geo.polyDist(x, z, cfg.water.isar.pts), 0
 	for _, ly in ipairs(cfg.water.isar.layers) do
 		if d < ly[3] then y = ly[2] end
@@ -2961,6 +3150,34 @@ local function alleeTrees(cfg, add, rng)
 	return n
 end
 
+local function eckBaeume(cfg, add, rng)
+	local n = 0
+	for _, sd in ipairs({ -1, 1 }) do
+		for _, q in ipairs({ { 108, -80 }, { 116, -62 }, { 96, -86 } }) do
+			tree(add, rng, sd * q[1], 0, q[2], 1.0, "Eck")
+			n = n + 1
+		end
+	end
+	return n
+end
+
+local function westPark(cfg, add, rng, free)
+	local n = 0
+	for x = 652, 730, 26 do
+		for z = -190, -110, 26 do
+			local tx, tz = x + (rng() - 0.5) * 12, z + (rng() - 0.5) * 12
+			if free(tx, tz) and tx < 738 then tree(add, rng, tx, 0, tz, 1.1, "West") n = n + 1 end
+		end
+	end
+	for x = 706, 736, 20 do
+		for z = -282, -214, 24 do
+			local tx, tz = x + (rng() - 0.5) * 8, z + (rng() - 0.5) * 8
+			if free(tx, tz) then tree(add, rng, tx, 0, tz, 1.0, "West") n = n + 1 end
+		end
+	end
+	return n
+end
+
 function Garden.plan(cfg, roadPlan, specials)
 	local parts = {}
 	local add = emitter(parts)
@@ -2988,6 +3205,8 @@ function Garden.plan(cfg, roadPlan, specials)
 	eisbach(cfg, add)
 	stats.bank = isarBank(cfg, add, rng, cfg.isarBridges)
 	stats.alleeTrees = alleeTrees(cfg, add, rng)
+	stats.eckTrees = eckBaeume(cfg, add, rng)
+	stats.westTrees = westPark(cfg, add, rng, free)
 	for _, sp in ipairs(specials or {}) do
 		if sp.name == "Prinz-Eins" then club(cfg, add, sp) end
 	end
@@ -3288,6 +3507,20 @@ local STEPS = {
 		if next(only) == nil or only.IsarAllee then
 			local plan = Planner.planAllee(Config, { seed = opts.seed or 1 })
 			Builder.build(plan, Builder.container("Gebaeude", "IsarAllee"), origin)
+			local st = Planner.stats(plan)
+			houses, parts = houses + st.houses, parts + st.parts
+		end
+		if next(only) == nil or only.IsarWestufer then
+			local plan = Planner.planWestbank(Config, { seed = opts.seed or 1 })
+			local folder = Builder.container("Gebaeude", "IsarWestufer")
+			Builder.build(plan, folder, origin)
+			Builder.buildParts(plan.parts, folder, origin)
+			local st = Planner.stats(plan)
+			houses, parts = houses + st.houses, parts + st.parts + #plan.parts
+		end
+		if next(only) == nil or only.SiegestorEcken then
+			local plan = Planner.planCorners(Config, { seed = opts.seed or 1 })
+			Builder.build(plan, Builder.container("Gebaeude", "SiegestorEcken"), origin)
 			local st = Planner.stats(plan)
 			houses, parts = houses + st.houses, parts + st.parts
 		end

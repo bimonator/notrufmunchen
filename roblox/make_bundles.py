@@ -34,14 +34,14 @@ script = """-- MapBuilder_Script.lua  (automatisch erzeugt mit make_bundles.py, 
 -- WAS GEBAUT WIRD (Schritte, in dieser Reihenfolge; Output zeigt je Schritt eine Zeile):
 --   terrain    Boden, Parks, Hügel (Monopteros), Terrasse (Friedensengel), Isar mit 3-stufiger Böschung, Bach
 --   roads      Ring, Leopoldstraße/Ludwigstraße (Achse, rund um das Siegestor ein Kreisverkehr), Schwabinger Raster, Diagonale, Isarspange,
---              Maximilianstraße, Isar-Allee (Ostufer: Straße mit Parkstreifen, Laternen, roter Radweg, Baumreihe, Ufergehweg), Kreisel, Fußgängerzone mit Fliesen, Parkbuchten, 4 Brücken über die Isar (flach, auf Säulen),
+--              Maximilianstraße, Isar-Allee (Ostufer: Straße mit Parkstreifen, Laternen, roter Radweg, Baumreihe, Ufergehweg), Friedensengel-Oval, Kreisverkehr, gerundete Gehwegecken, Parkbuchten, 4 Brücken über die Isar (flach, auf Säulen),
 --              Maximilianbrücke (zwei Bögen, Statuen)
 --   lights     270 Laternen (runder Mast, Bogenarm, Leuchtkopf), 13 Ampelmasten (Rundmast, Ausleger, Linsenköpfe mit Blenden)
 --   landmarks  Siegestor auf Mittelinsel, Friedensengel (Engel mit Flügeln, Ölzweig, Nike; rundes Becken), Frauenkirche (runde Zwiebelhauben),
 --              Chinesischer Turm
 --   gardens    Hofgarten, Englischer Garten, Monopteros-Tempel, Biergarten, Eisbachwelle, Isar-Uferwege, Prinz-Eins-Vorplatz
---   houses     7 Häuserblöcke mit Rück- und Hinterhäusern, Isar-Allee-Zeile mit Backsteinkirche, 13 Sonderbauten (Feuerwache, Polizeiwache mit Hof, Klinikum,
---              Tankstelle mit Schirm, Shop und E-Ladepark (8 Plätze, 4 Ladesäulen), Bank, Parkhaus, ...)
+--   houses     7 Häuserblöcke mit Rück- und Hinterhäusern, Isar-Allee-Zeile mit Backsteinkirche, Westufer-Zeile, gebogene Eckhäuser am Siegestor, 13 Sonderbauten (Feuerwache, Polizeiwache mit Hof, Klinikum,
+--              Tankstelle mit Schirm, Shop und Parkplätzen (3 Ladeplätze, 1 Behindertenparkplatz), Bank, Parkhaus, ...)
 --   wall       Häuserband um die Karte (Mapgrenze) mit Toren und Flusstoren
 --
 -- WAS FUNKTIONIERT WIE:

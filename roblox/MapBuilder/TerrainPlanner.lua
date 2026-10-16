@@ -86,7 +86,15 @@ function TerrainPlanner.plan(cfg)
 		end
 	end
 	local t = cfg.terrace
-	block(ops, "Grass", (t.x0 + t.x1) / 2, G + t.height / 2, (t.z0 + t.z1) / 2, t.x1 - t.x0, t.height, t.z1 - t.z0)
+	if t.round then -- Superellipsen-Insel aus 4 Studs breiten Streifen (so groß wie eine Terrain-Zelle)
+		local n = math.floor(2 * t.b / 4)
+		for i = 0, n - 1 do
+			local dz = -t.b + (i + 0.5) * 2 * t.b / n
+			block(ops, "Grass", t.cx, G + t.height / 2, t.cz + dz, 2 * t.a * (1 - math.abs(dz / t.b) ^ t.p) ^ (1 / t.p), t.height, 2 * t.b / n + 0.05)
+		end
+	else
+		block(ops, "Grass", (t.x0 + t.x1) / 2, G + t.height / 2, (t.z0 + t.z1) / 2, t.x1 - t.x0, t.height, t.z1 - t.z0)
+	end
 	-- 4. Isar und Bach
 	cfg.water.isar.name, cfg.water.bach.name = "isar", "bach"
 	river(ops, cfg.water.isar)

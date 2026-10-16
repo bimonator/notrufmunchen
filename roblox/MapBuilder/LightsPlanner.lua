@@ -119,6 +119,11 @@ function LightsPlanner.plan(cfg, roadPlan)
 		end
 	end
 
+	for _, l in ipairs(cfg.extraLamps or {}) do
+		lamp(parts, l[1], l[2], l[3], l[4], L.height)
+		stats.lamps = stats.lamps + 1
+	end
+
 	local lamps3 = { { name = "Red", on = RED, dim = DIM.Red }, { name = "Yellow", on = YELLOW, dim = DIM.Yellow }, { name = "Green", on = GREEN, dim = DIM.Green } }
 	local lamps2 = { { name = "Red", on = RED, dim = DIM.Red }, { name = "Green", on = GREEN, dim = DIM.Green } }
 	local ARM = 14
