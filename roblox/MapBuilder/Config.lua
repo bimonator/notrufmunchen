@@ -88,8 +88,8 @@ C.hochhaeuser = {
 	{ name = "Hochhaus-Allguth-Nordost", art = "glas", x = 252, z = -424, w = 40, d = 40, r = 9, floors = 9, label = "HELIOS", pm = 3 },
 }
 
--- Eckhäuser, die höher gebaut werden (Faktor auf die Geschosszahl; 3 = um 200 % erhöht). Schlüssel = Hausname aus dem Planer.
-C.eckhaeuser = { Haus_F_LeopoldWestSued_N1 = 3, Haus_C_LeopoldWestNord_S2 = 3 }
+-- Eckhäuser, die höher gebaut werden (Faktor auf die Geschosszahl, gerundet; 1,5 = um 50 % erhöht). Schlüssel = Hausname aus dem Planer.
+C.eckhaeuser = { Haus_F_LeopoldWestSued_N1 = 1.5, Haus_C_LeopoldWestNord_S2 = 1.5 }
 
 -- Bushaltestellen (Mitte auf dem Gehweg, zurStrasse = Seite, auf der die Fahrbahn liegt). Raster-Straßen: Gehweg 23,5 neben der Mittellinie, std48: 19.
 C.busstops = {
@@ -250,6 +250,11 @@ do
 		C.crossings[#C.crossings + 1] = { x = x, z = z, ux = (x1 - x0) / l, uz = (z1 - z0) / l, a0 = -14, a1 = 14 }
 	end
 end
+
+-- Stachus (Karlsplatz) statt Odeonsplatz-Bebauung: Platz x0..x1, z0..z1, Mitte (cx, cz) = Brunnen. Halbellipse der Geschäftshäuser (Mittellinie ac x bc, Tiefe depth,
+-- n = segments Abschnitte), nach Osten gerade Schenkel (legs Abschnitte), Karlstor in der Westmitte (gate = halbe Lücke). taxi = Parkbuchten der Leopoldstraße.
+C.stachus = { x0 = -215, z0 = 60, x1 = -55, z1 = 386, cx = -118, cz = 223, ac = 81, bc = 139, depth = 26, floors = 5, basin = 44, segments = 44, legs = 4, gate = 26,
+	taxi = { x = -38.5, z0 = 98, len = 16, n = 8 } }
 
 -- Marienplatz (Südwest-Viertel): gepflasterter Platz, Neues Rathaus am Nordrand (Front nach Süden bei z1), Mariensäule, U-Bahn-Abgang vor dem Rathaus
 -- (Treppe fällt nach Norden auf depth ab, dahinter ein kurzer Gang), Frauenkirche im Nordwesten (landmarks.frauenkirche).

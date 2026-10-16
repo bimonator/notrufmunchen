@@ -337,7 +337,7 @@ local function planHouse(h, o, rng, cornerA, cornerB)
 	local W, D = h.width, h.depth
 	local floors = rng.weighted(o.floorWeights)
 	if h.forceFloors then floors = h.forceFloors end
-	if h.floorMul then floors = floors * h.floorMul end -- Eckhäuser, die höher gebaut werden
+	if h.floorMul then floors = math.floor(floors * h.floorMul + 0.5) end -- Eckhäuser, die höher gebaut werden
 	local H = o.groundH + o.upperH * (floors - 1)
 	local y0 = o.floorY
 	local facade = rng.pick(o.palette)
@@ -1080,71 +1080,6 @@ local function treeAt(h, lx, lz)
 	add(h, "VorplatzKrone", "tree", lx, 12, lz, 10, 10, 10, { 70, 124, 62 }, "Grass", { shape = "Ball" })
 end
 
--- Kino "Casino Odeon" (Filmcasino, erfundener Name): dunkle Fassade, Vordach (Marquise) mit goldenem Neonrand und Schriftzug, gläserne Eingangshalle
--- mit Doppeltür und Kasse, vier beleuchtete Filmplakate, Dachschild "KINO" mit Filmrolle, roter Teppich mit Absperrpfosten, Vorplatz mit Bänken und Bäumen.
-local function styleKino(h, o, rng)
-	local W, D, y0 = h.width, h.depth, o.floorY
-	local H = 48
-	local WALL, TRIM, GOLD, RED, DARKR = h.color, { 214, 200, 176 }, { 240, 196, 90 }, { 168, 30, 42 }, { 70, 20, 28 }
-	h.floors, h.height, h.facade, h.roof = 3, H, WALL, "flat"
-	add(h, "Body", "body", 0, y0 + H / 2, D / 2, W, H, D, WALL, "SmoothPlastic", { collide = true })
-	add(h, "Sockel", "trim", 0, y0 + 1.2, -0.3, W, 2.4, 0.6, { 90, 84, 88 }, "Concrete")
-	add(h, "Kranzgesims", "trim", 0, y0 + H - 0.8, -0.9, W + 1.2, 1.6, 1.8, TRIM, "Concrete")
-	add(h, "Gurtgesims", "trim", 0, y0 + 15.2, -0.5, W + 0.6, 0.8, 1.2, TRIM, "Concrete")
-	add(h, "Dach", "roof", 0, y0 + H + 0.3, D / 2, W, 0.6, D, { 96, 96, 100 }, "Concrete", { collide = true })
-	for _, row in ipairs({ { 22, 6.4 }, { 30, 4.8 }, { 38, 4.8 } }) do
-		ribbon(h, o, rng, "front", y0 + row[1], row[2], -W / 2 + 3, W / 2 - 3, 8, GLASS, DARKG, 0.3, o.litChance)
-		for _, face in ipairs({ "+x", "-x" }) do ribbon(h, o, rng, face, y0 + row[1], row[2], 6, D - 6, 8, GLASS, DARKG, 0.3, o.litChance) end
-	end
-	-- Eingangshalle: Glasfront, Doppeltür (Tag ShopDoor, ohne Kollision), Kasse
-	ribbon(h, o, rng, "front", y0 + 7.5, 10, -16, -4.5, 4, GLASS, DARKR, 0.3, nil)
-	ribbon(h, o, rng, "front", y0 + 7.5, 10, 4.5, 16, 4, GLASS, DARKR, 0.3, nil)
-	for _, sd in ipairs({ -1, 1 }) do add(h, "Kinotuer", "glass", sd * 2.2, y0 + 5.2, -0.5, 4, 10.4, 0.3, { 140, 160, 170 }, "Glass", { tag = "ShopDoor" }) end
-	add(h, "Tuerrahmen", "trim", 0, y0 + 10.7, -0.6, 9.6, 0.8, 0.6, GOLD, "Metal")
-	add(h, "KasseFenster", "glass", -23, y0 + 5.4, -0.4, 6, 4, 0.3, { 150, 170, 180 }, "Glass")
-	add(h, "KasseRahmen", "trim", -23, y0 + 5.4, -0.3, 7, 5, 0.3, GOLD, "Metal")
-	label(h, "front", -23, y0 + 9.2, 0.6, 6, 1.6, "KASSE", GOLD)
-	-- Filmplakate links und rechts der Halle (hinterleuchtet)
-	local posters = { { "THRILLER", { 40, 110, 90 } }, { "PREMIERE", { 170, 60, 50 } }, { "ACTION", { 50, 90, 150 } }, { "KOMOEDIE", { 220, 170, 60 } }, { "DRAMA", { 90, 60, 120 } }, { "ABENTEUER", { 200, 100, 40 } }, { "KRIMI", { 60, 60, 80 } }, { "FAMILIE", { 70, 150, 190 } } }
-	for i, u in ipairs({ -43.5, -36, -29, -21.5, 21.5, 29, 36, 43.5 }) do
-		add(h, "PlakatRahmen", "trim", u, y0 + 7.8, -0.5, 6, 9, 0.5, { 36, 34, 38 }, "Metal")
-		add(h, "Plakat", "decor", u, y0 + 7.8, -0.85, 5, 8, 0.2, posters[i][2], "SmoothPlastic", { lit = true })
-		label(h, "front", u, y0 + 7.8, 1.1, 4.6, 1.4, posters[i][1], { 255, 255, 255 })
-		add(h, "PlakatLicht", "trim", u, y0 + 12.6, -0.9, 5.4, 0.3, 0.5, { 255, 244, 214 }, "Neon")
-	end
-	-- Marquise
-	add(h, "Marquise", "trim", 0, y0 + 14.6, -5, 40, 1.2, 10, { 40, 28, 34 }, "Metal", { collide = true })
-	for _, sd in ipairs({ -1, 1 }) do
-		add(h, "MarquiseSaeule", "trim", sd * 18.5, y0 + 7.3, -9, 1.2, 14.6, 1.2, GOLD, "Metal", { collide = true })
-		add(h, "MarquiseNeon", "trim", sd * 20, y0 + 15.5, -5, 0.4, 0.5, 10, GOLD, "Neon")
-	end
-	add(h, "MarquiseNeon", "trim", 0, y0 + 15.5, -10, 40.4, 0.5, 0.4, GOLD, "Neon")
-	add(h, "MarquiseNeon", "trim", 0, y0 + 13.9, -10, 40.4, 0.4, 0.4, GOLD, "Neon")
-	for i = -9, 9 do add(h, "MarquiseLampe", "trim", i * 2, y0 + 13.8, -9.8, 0.7, 0.7, 0.7, { 255, 244, 190 }, "Neon", { shape = "Ball" }) end
-	add(h, "Schriftband", "trim", 0, y0 + 18, -10, 36, 4, 0.6, DARKR, "SmoothPlastic")
-	label(h, "front", 0, y0 + 18, 10.5, 34, 3, "CASINO ODEON", GOLD)
-	-- Dachschild mit Filmrolle
-	for _, sd in ipairs({ -1, 1 }) do add(h, "Schildstuetze", "trim", sd * 12, y0 + H + 3, 6, 0.8, 5, 0.8, { 50, 52, 56 }, "Metal") end
-	add(h, "KinoSchild", "trim", 0, y0 + H + 7.2, 6, 30, 7, 0.8, { 24, 20, 28 }, "SmoothPlastic")
-	label(h, "front", 0, y0 + H + 7.2, -5.6, 28, 5.4, "KINO", GOLD)
-	add(h, "Filmrolle", "decor", -W / 2 + 7, y0 + H + 8, 6, 1.4, 9, 9, { 30, 30, 34 }, "Metal", { shape = "Cylinder", yaw = 90 })
-	for k = 0, 5 do
-		local a = math.rad(k * 60)
-		add(h, "FilmrolleLoch", "decor", -W / 2 + 7 + 2.6 * math.cos(a), y0 + H + 8 + 2.6 * math.sin(a), 5.2, 0.4, 1.8, 1.8, { 200, 196, 188 }, "Metal", { shape = "Cylinder", yaw = 90 })
-	end
-	-- Vorplatz: Platte, roter Teppich mit Pfosten und Kordel, Bänke, Bäume
-	forecourt(h, 0, -14, W + 8, 28)
-	add(h, "RoterTeppich", "decor", 0, 1.1, -12, 9, 0.2, 24, RED, "Fabric")
-	for _, sd in ipairs({ -1, 1 }) do
-		for _, lz in ipairs({ -2, -8, -14, -20 }) do add(h, "Absperrpfosten", "decor", sd * 5.4, 2.6, lz, 0.5, 3, 0.5, GOLD, "Metal", { collide = true }) end
-		add(h, "Kordel", "decor", sd * 5.4, 3.7, -11, 0.3, 0.3, 18, { 150, 24, 36 }, "Fabric")
-	end
-	benchAt(h, -W / 2 + 28, -20, 0)
-	benchAt(h, W / 2 - 28, -20, 0)
-	treeAt(h, -W / 2 + 12, -24)
-	treeAt(h, W / 2 - 12, -24)
-end
-
 -- Kaffeehaus Odeon (grün-weißes Café nach Plan, bewusst ohne echtes Markenlogo): helle Fassade mit grünen Bändern, großes Glasfenster, grünes Vordach
 -- mit Schriftzug, rundes Schild mit Kaffeebohne, Terrasse mit Zaun, Tischen, Stühlen und Sonnenschirmen, Menütafel.
 local function styleKaffee(h, o, rng)
@@ -1314,7 +1249,7 @@ local function styleBank(h, o, rng)
 	benchAt(h, W / 2 - 12, -14, 0)
 end
 
-local STYLES = { feuerwache = styleFeuerwache, polizei = stylePolizei, klinik = styleKlinik, buero = styleBuero, kino = styleKino, kaffee = styleKaffee, parkhaus = styleParkhaus, bank = styleBank }
+local STYLES = { feuerwache = styleFeuerwache, polizei = stylePolizei, klinik = styleKlinik, buero = styleBuero, kaffee = styleKaffee, parkhaus = styleParkhaus, bank = styleBank }
 
 
 -- Teil in Weltkoordinaten (für Anlagen, die nicht zum Haus-Koordinatensystem passen: Tankstelle, Polizeihof)

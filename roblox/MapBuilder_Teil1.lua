@@ -165,7 +165,7 @@ C.hochhaeuser = {
 { name = "Hochhaus-Allguth-Sued", art = "glas", x = 160, z = -22, w = 58, d = 44, r = 11, floors = 10, label = "OPTIMA", pm = 3 },
 { name = "Hochhaus-Allguth-Nordost", art = "glas", x = 252, z = -424, w = 40, d = 40, r = 9, floors = 9, label = "HELIOS", pm = 3 },
 }
-C.eckhaeuser = { Haus_F_LeopoldWestSued_N1 = 3, Haus_C_LeopoldWestNord_S2 = 3 }
+C.eckhaeuser = { Haus_F_LeopoldWestSued_N1 = 1.5, Haus_C_LeopoldWestNord_S2 = 1.5 }
 C.busstops = {
 { x = -436.5, z = -360, zurStrasse = "W" }, { x = -483.5, z = -60, zurStrasse = "E" }, { x = -211.5, z = -130, zurStrasse = "W" },
 { x = -258.5, z = -380, zurStrasse = "E" }, { x = -560, z = -261.5, zurStrasse = "N" }, { x = -150, z = -308.5, zurStrasse = "S" },
@@ -287,6 +287,8 @@ local x, z = pt(t)
 C.crossings[#C.crossings + 1] = { x = x, z = z, ux = (x1 - x0) / l, uz = (z1 - z0) / l, a0 = -14, a1 = 14 }
 end
 end
+C.stachus = { x0 = -215, z0 = 60, x1 = -55, z1 = 386, cx = -118, cz = 223, ac = 81, bc = 139, depth = 26, floors = 5, basin = 44, segments = 44, legs = 4, gate = 26,
+taxi = { x = -38.5, z0 = 98, len = 16, n = 8 } }
 C.marienplatz = {
 plaza = { x0 = -632, z0 = 60, x1 = -215, z1 = 326 }, -- bis zur Häuserzeile Süd (Block M_MarienplatzSued)
 rathaus = { x0 = -355, z0 = 66, x1 = -215, z1 = 106 },
@@ -610,7 +612,7 @@ local function planHouse(h, o, rng, cornerA, cornerB)
 local W, D = h.width, h.depth
 local floors = rng.weighted(o.floorWeights)
 if h.forceFloors then floors = h.forceFloors end
-if h.floorMul then floors = floors * h.floorMul end -- Eckhäuser, die höher gebaut werden
+if h.floorMul then floors = math.floor(floors * h.floorMul + 0.5) end -- Eckhäuser, die höher gebaut werden
 local H = o.groundH + o.upperH * (floors - 1)
 local y0 = o.floorY
 local facade = rng.pick(o.palette)
@@ -1278,63 +1280,6 @@ local function treeAt(h, lx, lz)
 add(h, "VorplatzStamm", "tree", lx, 4.5, lz, 1.4, 7, 1.4, { 96, 70, 48 }, "Wood", { collide = true })
 add(h, "VorplatzKrone", "tree", lx, 12, lz, 10, 10, 10, { 70, 124, 62 }, "Grass", { shape = "Ball" })
 end
-local function styleKino(h, o, rng)
-local W, D, y0 = h.width, h.depth, o.floorY
-local H = 48
-local WALL, TRIM, GOLD, RED, DARKR = h.color, { 214, 200, 176 }, { 240, 196, 90 }, { 168, 30, 42 }, { 70, 20, 28 }
-h.floors, h.height, h.facade, h.roof = 3, H, WALL, "flat"
-add(h, "Body", "body", 0, y0 + H / 2, D / 2, W, H, D, WALL, "SmoothPlastic", { collide = true })
-add(h, "Sockel", "trim", 0, y0 + 1.2, -0.3, W, 2.4, 0.6, { 90, 84, 88 }, "Concrete")
-add(h, "Kranzgesims", "trim", 0, y0 + H - 0.8, -0.9, W + 1.2, 1.6, 1.8, TRIM, "Concrete")
-add(h, "Gurtgesims", "trim", 0, y0 + 15.2, -0.5, W + 0.6, 0.8, 1.2, TRIM, "Concrete")
-add(h, "Dach", "roof", 0, y0 + H + 0.3, D / 2, W, 0.6, D, { 96, 96, 100 }, "Concrete", { collide = true })
-for _, row in ipairs({ { 22, 6.4 }, { 30, 4.8 }, { 38, 4.8 } }) do
-ribbon(h, o, rng, "front", y0 + row[1], row[2], -W / 2 + 3, W / 2 - 3, 8, GLASS, DARKG, 0.3, o.litChance)
-for _, face in ipairs({ "+x", "-x" }) do ribbon(h, o, rng, face, y0 + row[1], row[2], 6, D - 6, 8, GLASS, DARKG, 0.3, o.litChance) end
-end
-ribbon(h, o, rng, "front", y0 + 7.5, 10, -16, -4.5, 4, GLASS, DARKR, 0.3, nil)
-ribbon(h, o, rng, "front", y0 + 7.5, 10, 4.5, 16, 4, GLASS, DARKR, 0.3, nil)
-for _, sd in ipairs({ -1, 1 }) do add(h, "Kinotuer", "glass", sd * 2.2, y0 + 5.2, -0.5, 4, 10.4, 0.3, { 140, 160, 170 }, "Glass", { tag = "ShopDoor" }) end
-add(h, "Tuerrahmen", "trim", 0, y0 + 10.7, -0.6, 9.6, 0.8, 0.6, GOLD, "Metal")
-add(h, "KasseFenster", "glass", -23, y0 + 5.4, -0.4, 6, 4, 0.3, { 150, 170, 180 }, "Glass")
-add(h, "KasseRahmen", "trim", -23, y0 + 5.4, -0.3, 7, 5, 0.3, GOLD, "Metal")
-label(h, "front", -23, y0 + 9.2, 0.6, 6, 1.6, "KASSE", GOLD)
-local posters = { { "THRILLER", { 40, 110, 90 } }, { "PREMIERE", { 170, 60, 50 } }, { "ACTION", { 50, 90, 150 } }, { "KOMOEDIE", { 220, 170, 60 } }, { "DRAMA", { 90, 60, 120 } }, { "ABENTEUER", { 200, 100, 40 } }, { "KRIMI", { 60, 60, 80 } }, { "FAMILIE", { 70, 150, 190 } } }
-for i, u in ipairs({ -43.5, -36, -29, -21.5, 21.5, 29, 36, 43.5 }) do
-add(h, "PlakatRahmen", "trim", u, y0 + 7.8, -0.5, 6, 9, 0.5, { 36, 34, 38 }, "Metal")
-add(h, "Plakat", "decor", u, y0 + 7.8, -0.85, 5, 8, 0.2, posters[i][2], "SmoothPlastic", { lit = true })
-label(h, "front", u, y0 + 7.8, 1.1, 4.6, 1.4, posters[i][1], { 255, 255, 255 })
-add(h, "PlakatLicht", "trim", u, y0 + 12.6, -0.9, 5.4, 0.3, 0.5, { 255, 244, 214 }, "Neon")
-end
-add(h, "Marquise", "trim", 0, y0 + 14.6, -5, 40, 1.2, 10, { 40, 28, 34 }, "Metal", { collide = true })
-for _, sd in ipairs({ -1, 1 }) do
-add(h, "MarquiseSaeule", "trim", sd * 18.5, y0 + 7.3, -9, 1.2, 14.6, 1.2, GOLD, "Metal", { collide = true })
-add(h, "MarquiseNeon", "trim", sd * 20, y0 + 15.5, -5, 0.4, 0.5, 10, GOLD, "Neon")
-end
-add(h, "MarquiseNeon", "trim", 0, y0 + 15.5, -10, 40.4, 0.5, 0.4, GOLD, "Neon")
-add(h, "MarquiseNeon", "trim", 0, y0 + 13.9, -10, 40.4, 0.4, 0.4, GOLD, "Neon")
-for i = -9, 9 do add(h, "MarquiseLampe", "trim", i * 2, y0 + 13.8, -9.8, 0.7, 0.7, 0.7, { 255, 244, 190 }, "Neon", { shape = "Ball" }) end
-add(h, "Schriftband", "trim", 0, y0 + 18, -10, 36, 4, 0.6, DARKR, "SmoothPlastic")
-label(h, "front", 0, y0 + 18, 10.5, 34, 3, "CASINO ODEON", GOLD)
-for _, sd in ipairs({ -1, 1 }) do add(h, "Schildstuetze", "trim", sd * 12, y0 + H + 3, 6, 0.8, 5, 0.8, { 50, 52, 56 }, "Metal") end
-add(h, "KinoSchild", "trim", 0, y0 + H + 7.2, 6, 30, 7, 0.8, { 24, 20, 28 }, "SmoothPlastic")
-label(h, "front", 0, y0 + H + 7.2, -5.6, 28, 5.4, "KINO", GOLD)
-add(h, "Filmrolle", "decor", -W / 2 + 7, y0 + H + 8, 6, 1.4, 9, 9, { 30, 30, 34 }, "Metal", { shape = "Cylinder", yaw = 90 })
-for k = 0, 5 do
-local a = math.rad(k * 60)
-add(h, "FilmrolleLoch", "decor", -W / 2 + 7 + 2.6 * math.cos(a), y0 + H + 8 + 2.6 * math.sin(a), 5.2, 0.4, 1.8, 1.8, { 200, 196, 188 }, "Metal", { shape = "Cylinder", yaw = 90 })
-end
-forecourt(h, 0, -14, W + 8, 28)
-add(h, "RoterTeppich", "decor", 0, 1.1, -12, 9, 0.2, 24, RED, "Fabric")
-for _, sd in ipairs({ -1, 1 }) do
-for _, lz in ipairs({ -2, -8, -14, -20 }) do add(h, "Absperrpfosten", "decor", sd * 5.4, 2.6, lz, 0.5, 3, 0.5, GOLD, "Metal", { collide = true }) end
-add(h, "Kordel", "decor", sd * 5.4, 3.7, -11, 0.3, 0.3, 18, { 150, 24, 36 }, "Fabric")
-end
-benchAt(h, -W / 2 + 28, -20, 0)
-benchAt(h, W / 2 - 28, -20, 0)
-treeAt(h, -W / 2 + 12, -24)
-treeAt(h, W / 2 - 12, -24)
-end
 local function styleKaffee(h, o, rng)
 local W, D, y0 = h.width, h.depth, o.floorY
 local H = 33
@@ -1483,7 +1428,7 @@ end
 benchAt(h, -W / 2 + 12, -14, 0)
 benchAt(h, W / 2 - 12, -14, 0)
 end
-local STYLES = { feuerwache = styleFeuerwache, polizei = stylePolizei, klinik = styleKlinik, buero = styleBuero, kino = styleKino, kaffee = styleKaffee, parkhaus = styleParkhaus, bank = styleBank }
+local STYLES = { feuerwache = styleFeuerwache, polizei = stylePolizei, klinik = styleKlinik, buero = styleBuero, kaffee = styleKaffee, parkhaus = styleParkhaus, bank = styleBank }
 local function W3(h, name, kind, x, y, z, sx, sy, sz, color, mat, extra)
 extra = extra or {}
 h.parts[#h.parts + 1] = {
@@ -1894,9 +1839,6 @@ return {
 { name = "Polizei-Seitenfluegel", x0 = 202, z0 = 298, x1 = 218, z1 = 340, facing = "E", floors = 3, color = { 92, 94, 104 } },
 { name = "Krankenhaus", x0 = 340, z0 = -430, x1 = 500, z1 = -310, facing = "W", floors = 5, color = { 90, 170, 150 }, style = "klinik" },
 { name = "Kiosk", x0 = -420, z0 = 280, x1 = -370, z1 = 320, facing = "N", floors = 1, color = { 200, 70, 55 } }, -- auf dem Marienplatz
-{ name = "Cafe-Terrasse", x0 = -130, z0 = 64, x1 = -66, z1 = 116, facing = "E", floors = 2, color = { 226, 190, 120 } },
-{ name = "Uni-Fassade", x0 = -160, z0 = 130, x1 = -60, z1 = 220, facing = "E", floors = 4, color = { 214, 204, 176 } },
-{ name = "Casino-Odeon", x0 = -213, z0 = 296, x1 = -108, z1 = 386, facing = "N", floors = 4, color = { 74, 38, 56 }, style = "kino", lots = { { -106, 296, -58, 384 } } },
 { name = "Kaffeehaus", x0 = 112, z0 = 300, x1 = 202, z1 = 360, facing = "N", floors = 3, color = { 244, 242, 232 }, style = "kaffee", lots = { { 60, 296, 110, 384 } } },
 { name = "Prinz-Eins", x0 = 526, z0 = 326, x1 = 610, z1 = 366, facing = "S", floors = 3, color = { 52, 44, 76 }, lots = { { 436, 350, 522, 384 } } },
 { name = "Klinikum-Parkhaus", x0 = 500, z0 = -430, x1 = 660, z1 = -310, facing = "N", floors = 3, color = { 176, 176, 172 }, style = "parkhaus" }, -- grenzt an das Klinikum (x = 500)

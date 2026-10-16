@@ -10,7 +10,7 @@ import re
 here = os.path.dirname(os.path.abspath(__file__))
 PARTS = [ # ModuleScripts (Name, Module); jedes Teil bekommt die Module der vorigen Teile über die Tabelle M
     ("Teil1", ["Geo", "Config", "Planner", "Blocks", "Specials"]),
-    ("Teil2", ["RoadsPlanner", "LightsPlanner", "Landmarks", "Rathaus", "Marienplatz", "Hochhaus", "Bushaltestellen", "TerrainPlanner", "Garden", "WallPlanner"]),
+    ("Teil2", ["RoadsPlanner", "LightsPlanner", "Landmarks", "Rathaus", "Marienplatz", "Stachus", "Hochhaus", "Bushaltestellen", "TerrainPlanner", "Garden", "WallPlanner"]),
 ]
 MAIN = ["Ampel", "Builder", "BuildAll"]
 LIMIT = 190000  # Sicherheitsabstand zur Roblox-Grenze von ca. 200 000 Zeichen je Script
@@ -66,6 +66,7 @@ script = """-- MapBuilder_Script.lua  (automatisch erzeugt mit make_bundles.py, 
 --              Maximilianbrücke (zwei Bögen, Statuen)
 --   lights     270 Laternen (runder Mast, Bogenarm, Leuchtkopf), 13 Ampelmasten (Rundmast, Ausleger, Linsenköpfe mit Blenden)
 --   marienplatz Neues Rathaus, Mariensäule, U-Bahn-Abgang, Pflaster, Kugelleuchten, Platanen, Cafés (Frauenkirche verkleinert im Nordwesten)
+--   stachus    Stachus: Halbkreis-Geschäftshäuser, Karlstor, Brunnen mit Strahlen, Taxistand (statt Casino/Kaffeehaus-Gelände am Odeonsplatz)
 --   landmarks  Siegestor auf Mittelinsel, Friedensengel (Engel mit Flügeln, Ölzweig, Nike; rundes Becken), Frauenkirche (runde Zwiebelhauben),
 --              Chinesischer Turm
 --   gardens    Hofgarten, Englischer Garten, Monopteros-Tempel, Biergarten, Eisbachwelle, Isar-Uferwege, Prinz-Eins-Vorplatz
@@ -89,7 +90,7 @@ script = """-- MapBuilder_Script.lua  (automatisch erzeugt mit make_bundles.py, 
 -- OUTPUT-ZEILEN, auf die du achten kannst: [boden] (Bodenhöhe), [wasser] ok, [roads], [lights], [landmarks], [gardens], [houses], [wall].
 -- Steht irgendwo "FEHLER:", schick mir die Zeile.
 --
-local STEPS = { "terrain", "roads", "lights", "landmarks", "marienplatz", "gardens", "houses", "skyline", "bus", "wall" } -- Teilmenge möglich, z. B. { "roads" }
+local STEPS = { "terrain", "roads", "lights", "landmarks", "marienplatz", "stachus", "gardens", "houses", "skyline", "bus", "wall" } -- Teilmenge möglich, z. B. { "roads" }
 local ONLY = nil -- nur bestimmte Häuserblöcke, z. B. { "B_NordMitte" }; nil = alle
 local ORIGIN = Vector3.new(0, 0, 0) -- Position des Siegestors
 

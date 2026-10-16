@@ -393,19 +393,18 @@ do
 	print(string.format("Isar-Allee: %d Häuser, Kirche mit %d Teilen", houses, church and #church.parts or 0))
 end
 
--- ===== Odeonsplatz: Kino "Casino Odeon" und "Kaffeehaus Odeon" (keine echten Markennamen/Logos) =====
+-- ===== "Kaffeehaus Odeon" (keine echten Markennamen/Logos) =====
 do
 	local function named(sname)
 		for _, sp in ipairs(Specials) do if sp.name == sname then return Planner.planSpecial(sp, { seed = 1 }).houses[1].parts end end
 	end
 	local function n(list, name) local c = 0 for _, p in ipairs(list) do if p.name == name then c = c + 1 end end return c end
 	local function hasText(list, s) for _, p in ipairs(list) do if p.text and string.find(p.text.s, s, 1, true) then return true end end return false end
-	local k, c = named("Casino-Odeon"), named("Kaffeehaus")
-	check(k and c, "Kino/Kaffeehaus fehlen")
-	check(hasText(k, "CASINO ODEON") and hasText(k, "KINO") and n(k, "Plakat") == 8 and n(k, "Kinotuer") == 2 and n(k, "Marquise") == 1 and n(k, "Filmrolle") == 1, "Kino: Schriftzüge/Plakate/Tür/Marquise/Filmrolle unvollständig")
+	local c = named("Kaffeehaus")
+	check(c and not named("Casino-Odeon"), "Kaffeehaus fehlt oder Casino-Odeon noch da")
 	check(hasText(c, "KAFFEEHAUS ODEON") and n(c, "Tisch") == 8 and n(c, "Schirm") == 4 and n(c, "Kaffeetuer") == 2 and n(c, "SchildBohne") == 1, "Kaffeehaus: Schrift/Tische/Schirme/Tür/Schild unvollständig")
 	-- 50 % größer als vorher (Kino 70x60 -> 105x90, Café 60x40 -> 90x60) und je ein Parkplatz daneben
-	for _, nm in ipairs({ "Casino-Odeon", "Kaffeehaus" }) do
+	for _, nm in ipairs({ "Kaffeehaus" }) do
 		for _, sp in ipairs(Specials) do
 			if sp.name == nm then
 				local a, b = sp.x1 - sp.x0, sp.z1 - sp.z0
@@ -418,7 +417,7 @@ do
 			end
 		end
 	end
-	for _, list in ipairs({ k, c }) do
+	for _, list in ipairs({ c }) do
 		check(not hasText(list, "STARBUCKS") and not hasText(list, "Starbucks"), "echter Markenname im Bauwerk")
 	end
 end
@@ -530,6 +529,47 @@ do
 	check(trunks >= 6 and walk, "Westufer: Bäume " .. trunks)
 end
 
+-- ===== Stachus =====
+do
+	local Config = require("Config")
+	local Stachus = require("Stachus")
+	local S = Config.stachus
+	local plan = Stachus.plan(Config)
+	local st = plan.stats
+	local texts, passage, outside = {}, 0, 0
+	for _, p in ipairs(plan.parts) do
+		local hx, hz = p.size[1] / 2, p.size[3] / 2
+		if p.yaw % 180 == 90 then hx, hz = hz, hx end
+		if p.yaw % 90 ~= 0 then hx = math.max(hx, hz) hz = hx end
+		if p.shape == "Cylinder" and p.roll == 90 then hx, hz = p.size[2] / 2, p.size[2] / 2 end
+		if not string.find(p.name, "^Taxi") and p.name ~= "Fuge" and p.name ~= "Pflaster" then
+			if p.pos[1] - hx < S.x0 - 0.5 or p.pos[1] + hx > S.x1 + 0.5 or p.pos[3] - hz < S.z0 - 0.5 or p.pos[3] + hz > S.z1 + 0.5 then
+				outside = outside + 1
+				if outside <= 5 then print("außerhalb: " .. p.name .. " " .. p.pos[1] .. "," .. p.pos[3]) end
+			end
+		end
+		if p.text then texts[p.text.s] = (texts[p.text.s] or 0) + 1 end
+		-- Durchgang des Karlstors frei: |z - cz| < 6, y < 12 über dem Pflaster, x im Torbau
+		if p.collide and math.abs(p.pos[1] - (S.cx - S.ac)) < 11 and p.pos[2] - p.size[2] / 2 < 12 and p.pos[2] + p.size[2] / 2 > 2 and math.abs(p.pos[3] - S.cz) - hz < 5.5 and not string.find(p.name, "^Gebaeude") then
+			passage = passage + 1
+			print("Durchgang blockiert: " .. p.name)
+		end
+	end
+	check(outside == 0, "Stachus: " .. outside .. " Teile außerhalb der Platzfläche")
+	check(passage == 0, "Karlstor: Durchgang blockiert")
+	check(texts["OSRUM"] == 2 and (texts["McDonnell's"] or 0) >= 2 and texts["KARLSTOR"] == 2 and texts["TAXI"] == 2, "Stachus: Schriften OSRUM/McDonnell's/KARLSTOR/TAXI unvollständig")
+	check(st.segs >= 44 and st.jets >= 48 and st.merlons >= 30 and st.taxis == 6 and st.lamps >= 6 and st.trees == 8, string.format("Stachus: segs %d jets %d zinnen %d taxis %d lampen %d baeume %d", st.segs, st.jets, st.merlons, st.taxis, st.lamps, st.trees))
+	check(#plan.parts > 2000 and #plan.parts < 9000, "Stachus: Teile " .. #plan.parts)
+	-- Wings enden vor der Straße, Tor liegt zwischen den Flügeln (West), keine Sonderbauten im Platz
+	for _, sp in ipairs(Specials) do
+		check(not (sp.x0 < S.x1 and sp.x1 > S.x0 and sp.z0 < S.z1 and sp.z1 > S.z0), sp.name .. " steht im Stachus")
+	end
+	for _, b in ipairs(Blocks) do
+		check(not (b.xmin < S.x1 and b.xmax > S.x0 and b.zmin < S.z1 and b.zmax > S.z0), b.name .. " überlappt den Stachus")
+	end
+	print(string.format("Stachus: %d Teile (%d Abschnitte, %d Läden, %d Strahlen, %d Zinnen)", #plan.parts, st.segs, st.shops, st.jets, st.merlons))
+end
+
 -- ===== Skyline, höhere Eckhäuser, Bushaltestellen =====
 do
 	local Config = require("Config")
@@ -599,7 +639,7 @@ do
 			for i, h in ipairs(base.houses) do
 				if h.name == name then
 					found = true
-					check(raised.houses[i].floors == h.floors * mul, name .. ": Geschosse " .. raised.houses[i].floors .. " statt " .. h.floors * mul)
+					check(raised.houses[i].floors == math.floor(h.floors * mul + 0.5), name .. ": Geschosse " .. raised.houses[i].floors .. " statt " .. h.floors * mul)
 				end
 			end
 		end
