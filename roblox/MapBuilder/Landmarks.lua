@@ -125,67 +125,177 @@ function Landmarks.friedensengel(cfg)
 	return parts
 end
 
+-- Ziffernblatt mit Rand, 12 Strichen, römischen Ziffern an den Viertelstunden und zwei Zeigern (10:10). face = "W", "E", "N" oder "S"
+-- (Blickrichtung der Fläche). add = Teile-Erzeuger mit Koordinaten relativ zur Kirchenmitte.
+local function clock(add, x, y, z, R, face)
+	local WHITE, DARK, GOLD = { 246, 242, 230 }, { 36, 34, 32 }, { 214, 176, 70 }
+	local nx = (face == "W") and -1 or ((face == "E") and 1 or 0)
+	local nz = (face == "N") and -1 or ((face == "S") and 1 or 0)
+	local onX = nx ~= 0
+	local yaw = (face == "W") and 90 or ((face == "E") and 270 or ((face == "N") and 0 or 180))
+	local sgn = (face == "W" or face == "S") and 1 or -1 -- Richtung "rechts" aus Sicht des Betrachters entlang z (x-Flächen) bzw. x (z-Flächen)
+	if face == "N" then sgn = -1 end
+	local function pos(dy, dr) return x + (onX and 0 or dr), y + dy, z + (onX and dr or 0) end
+	-- Rand und Scheibe (Zylinder, Achse in Flächennormale)
+	local function disc(name, dia, thick, off, color, mat)
+		local ox, oy, oz = x + nx * off, y, z + nz * off
+		if onX then add(name, ox, oy, oz, thick, dia, dia, color, mat, { shape = "Cylinder", collide = false })
+		else add(name, ox, oy, oz, thick, dia, dia, color, mat, { shape = "Cylinder", yaw = 90, collide = false }) end
+	end
+	disc("UhrRand", R * 2 + 3, 0.8, 0.5, DARK, "Metal")
+	disc("Uhr", R * 2, 0.8, 0.9, WHITE, "SmoothPlastic")
+	local function oriented(name, dy, dr, sx, sy, sz, rot, color, off)
+		local px, py, pz = pos(dy, dr)
+		px, pz = px + nx * off, pz + nz * off
+		if onX then add(name, px, py, pz, sx, sy, sz, color, "Metal", { pitch = rot, collide = false })
+		else add(name, px, py, pz, sx, sy, sz, color, "Metal", { roll = rot, collide = false }) end
+	end
+	local function toRot(phi) return onX and (sgn * phi) or (-sgn * phi) end
+	for i = 0, 11 do -- Striche
+		local phi = math.rad(i * 30)
+		local len = (i % 3 == 0) and 2.6 or 1.5
+		local rr = R - 0.9 - len / 2
+		if onX then oriented("Uhrstrich", rr * math.cos(phi), sgn * rr * math.sin(phi), 0.3, len, 0.45, math.deg(phi) * sgn, DARK, 1.2)
+		else oriented("Uhrstrich", rr * math.cos(phi), sgn * rr * math.sin(phi), 0.45, len, 0.3, -math.deg(phi) * sgn, DARK, 1.2) end
+	end
+	local function hand(name, phiDeg, len, w)
+		local phi = math.rad(phiDeg)
+		local rr = len / 2
+		if onX then oriented(name, rr * math.cos(phi), sgn * rr * math.sin(phi), 0.3, len, w, phiDeg * sgn, DARK, 1.5)
+		else oriented(name, rr * math.cos(phi), sgn * rr * math.sin(phi), w, len, 0.3, -phiDeg * sgn, DARK, 1.5) end
+	end
+	hand("Uhrzeiger", -60, R * 0.55, 0.9) -- Stundenzeiger auf 10
+	hand("Uhrzeiger", 60, R * 0.8, 0.6) -- Minutenzeiger auf 2
+	local nums = { { "XII", 0 }, { "III", 90 }, { "VI", 180 }, { "IX", 270 } }
+	for _, nm in ipairs(nums) do
+		local phi = math.rad(nm[2])
+		local rr = R - 4.4
+		local px, py, pz = pos(rr * math.cos(phi), sgn * rr * math.sin(phi))
+		add("Uhrziffer", px + nx * 1.2, py, pz + nz * 1.2, 3.2, 2, 0.2, DARK, "SmoothPlastic", { yaw = yaw, kind = "text", collide = false, text = { s = nm[1], color = DARK } })
+	end
+	add("UhrGold", x + nx * 1.7, y, z + nz * 1.7, 1.4, 1.4, 1.4, GOLD, "Metal", { shape = "Ball", collide = false })
+end
+
+-- Zwiebelhaube aus gestapelten Scheiben (Hals, Bauch, Verjüngung zur Spitze) mit Laterne, kleiner Kappe, Spitze und Kreuz
+local function onion(add, x, y, z, color)
+	local GOLD = { 214, 176, 70 }
+	local prof = { { 0, 38 }, { 3, 46 }, { 7, 54 }, { 11, 58 }, { 15, 57 }, { 19, 53 }, { 23, 46 }, { 27, 37 }, { 31, 27 }, { 35, 18 }, { 39, 11 }, { 43, 6 } }
+	for i, pr in ipairs(prof) do
+		add(i == 4 and "Kuppel" or "KuppelRing", x, y + pr[1] + 2, z, 4.2, pr[2], pr[2], color, "Metal", { shape = "Cylinder", roll = 90, collide = true })
+	end
+	add("Laterne", x, y + 49, z, 10, 8, 8, color, "Metal", { shape = "Cylinder", roll = 90, collide = true })
+	add("Laternenkappe", x, y + 56, z, 8, 8, 8, color, "Metal", { shape = "Ball", collide = false })
+	add("Spitze", x, y + 62, z, 3.4, 3.4, 3.4, GOLD, "Metal", { shape = "Ball", collide = false })
+	add("Kreuz", x, y + 70, z, 1.2, 14, 1.2, GOLD, "Metal", { collide = false })
+	add("Kreuz", x, y + 72, z, 6, 1.2, 1.2, GOLD, "Metal", { collide = false })
+end
+
 -- Frauenkirche (nach Fotos, nahe am Originalmaßstab von etwa 4 Studs je Meter): langes Backsteinschiff mit hohen Spitzbogenfenstern,
--- riesiges steiles Ziegeldach, zwei sehr hohe Türme mit Uhren und grünen Zwiebelhauben am Westende. Steht auf dem Kirchplatz.
+-- riesiges steiles Ziegeldach mit Gauben, zwei sehr hohe Türme mit Glockenstuben, Uhren und grünen Zwiebelhauben am Westende,
+-- Hauptportal mit Rosette. Steht auf dem Kirchplatz.
 function Landmarks.frauenkirche(cfg)
 	local parts = {}
 	local L = cfg.landmarks.frauenkirche
 	local cxn = (L.x0 + L.x1) / 2
 	local add = new(parts, cxn, L.z)
 	local y0 = L.baseY
-	local BRICK, BRICK2, BAND, ROOF, GREEN, GOLD = { 150, 112, 88 }, { 138, 100, 78 }, { 196, 172, 142 }, { 196, 84, 48 }, { 96, 160, 140 }, { 214, 176, 70 }
+	local BRICK, BRICK2, BAND, ROOF, GREEN = { 150, 112, 88 }, { 138, 100, 78 }, { 196, 172, 142 }, { 196, 84, 48 }, { 96, 160, 140 }
 	local len, hw, wallH, rise, H = L.x1 - L.x0, L.width / 2, L.wallH, L.roofRise, L.towerH
 	add("Sockel", 0, y0 + 1.5, 0, len + 10, 3, 2 * hw + 10, { 150, 148, 142 }, "Concrete")
 	local yb = y0 + 3
 	add("Schiff", 0, yb + wallH / 2, 0, len, wallH, 2 * hw, BRICK, "Brick", { collide = true })
 	add("Gesims", 0, yb + wallH + 1, 0, len + 3, 2, 2 * hw + 3, BAND, "Concrete")
-	-- hohe Spitzbogenfenster mit Pfeilern dazwischen, beide Längswände
-	local first = -len / 2 + 70 -- hinter den Türmen
+	add("Sockelband", 0, yb + 2, 0, len + 2, 4, 2 * hw + 2, { 128, 120, 112 }, "Concrete")
+	-- hohe Spitzbogenfenster mit Steingewände, Sohlbank und Strebepfeilern dazwischen
+	local first = -len / 2 + 70
 	local n = math.floor((len / 2 - 20 - first) / 22) + 1
 	for i = 0, n - 1 do
 		local wx = first + i * 22
 		for _, sd in ipairs({ -1, 1 }) do
-			add("Fenster", wx, yb + 31, sd * (hw + 0.4), 8, 44, 0.8, { 50, 62, 78 }, "Glass", { collide = false, kind = "glass", tag = "HouseWindow" })
-			add("FensterBogen", wx, yb + 55, sd * (hw + 0.4), 4.4, 6, 0.8, { 50, 62, 78 }, "Glass", { collide = false, kind = "glass" })
-			add("FensterPfeiler", wx + 11, yb + wallH / 2, sd * (hw + 1), 3, wallH, 2.4, BAND, "Concrete")
+			local zz = sd * (hw + 0.4)
+			add("FensterGewaende", wx, yb + 33, sd * (hw + 0.15), 11.4, 50, 0.4, BAND, "Concrete", { collide = false })
+			add("Fenster", wx, yb + 31, zz, 8, 44, 0.8, { 50, 62, 78 }, "Glass", { collide = false, kind = "glass", tag = "HouseWindow" })
+			add("FensterBogen", wx, yb + 55, zz, 6, 6, 0.8, { 50, 62, 78 }, "Glass", { collide = false, kind = "glass" })
+			add("FensterSpitze", wx, yb + 60, zz, 3.4, 5, 0.8, { 50, 62, 78 }, "Glass", { collide = false, kind = "glass" })
+			add("Sohlbank", wx, yb + 8.2, sd * (hw + 0.9), 12.4, 1, 1.8, BAND, "Concrete", { collide = false })
+			add("Strebepfeiler", wx + 11, yb + wallH / 2, sd * (hw + 2), 4, wallH, 4, BAND, "Concrete", { collide = true })
+			add("StrebepfeilerKappe", wx + 11, yb + wallH + 2, sd * (hw + 2), 5, 4, 5, { 176, 150, 124 }, "Concrete")
 		end
 	end
-	-- Satteldach mit Überstand, First, Giebelstufen am Ostende
+	-- Satteldach: Platten mit Überstand, Ziegelreihen, First, Gauben; Giebelstufen am Ostende mit Rosette
 	local run = hw + 3
 	local slope = math.sqrt(run * run + rise * rise)
 	local ang = math.deg(math.atan2(rise, run))
+	local ca, sa = math.cos(math.rad(ang)), math.sin(math.rad(ang))
+	local roofY = yb + wallH + rise / 2 + 2
 	for _, sd in ipairs({ -1, 1 }) do
-		add("Dach", 0, yb + wallH + rise / 2 + 2, sd * run / 2, len + 6, 1.6, slope, ROOF, "Slate", { pitch = sd * ang })
+		add("Dach", 0, roofY, sd * run / 2, len + 6, 1.6, slope, ROOF, "Slate", { pitch = sd * ang })
+		for xr = -len / 2, len / 2, 9 do -- Ziegelreihen (dunkler, längs der Neigung)
+			local off = 1.0
+			add("Dachrippe", xr, roofY + off * ca, sd * run / 2 + sd * off * sa, 1, 0.5, slope - 1, { 150, 62, 38 }, "Slate", { pitch = sd * ang, collide = false })
+		end
+		for k = 1, 10 do -- Gauben auf halber Dachhöhe
+			local gx = -len / 2 + 30 + (k - 1) * (len - 60) / 9
+			local u = 0.5
+			local gy = (yb + wallH + 2) + u * rise
+			local gz = sd * run * (1 - u)
+			add("Gaube", gx, gy + 2, gz, 6, 6, 5, { 168, 140, 116 }, "Concrete", { collide = true })
+			add("GaubeFenster", gx, gy + 2, gz + sd * 2.6, 3.4, 3.8, 0.3, { 50, 62, 78 }, "Glass", { collide = false, kind = "glass" })
+			add("GaubeDach", gx, gy + 5.4, gz, 7.4, 0.8, 6.4, { 120, 56, 36 }, "Slate")
+		end
 	end
 	add("First", 0, yb + wallH + rise + 3, 0, len + 6, 1.6, 3, { 170, 70, 40 }, "Slate")
 	local steps = 12
 	for k = 1, steps do
 		add("Giebel", len / 2 - 0.8, yb + wallH + (k - 0.5) * rise / steps + 2, 0, 1.6, rise / steps, 2 * hw * (1 - (k - 1) / steps), BRICK, "Brick", { collide = true })
 	end
-	-- Türme: je 48 breit, am Nord- und Südrand der Westfassade
+	add("Chorrosette", len / 2 + 0.2, yb + wallH + 22, 0, 0.6, 18, 18, { 70, 86, 110 }, "Glass", { shape = "Cylinder", collide = false, kind = "glass" })
+	-- Türme: je 48 breit, Untergeschoss aus Backstein, Glockengeschoss etwas schmaler mit Schallöffnungen, Achteck, Zwiebelhaube
 	local tw, tx = 48, -len / 2 + 24
+	local H1 = 110
 	for _, sd in ipairs({ -1, 1 }) do
 		local tz = sd * (hw - tw / 2)
-		add("Turm", tx, yb + H / 2, tz, tw, H, tw, BRICK2, "Brick", { collide = true })
+		add("Turm", tx, yb + H1 / 2, tz, tw, H1, tw, BRICK2, "Brick", { collide = true })
 		for _, cxx in ipairs({ -tw / 2 + 1.5, tw / 2 - 1.5 }) do
 			for _, czz in ipairs({ -tw / 2 + 1.5, tw / 2 - 1.5 }) do add("TurmEcke", tx + cxx, yb + H / 2, tz + czz, 3, H, 3, BAND, "Concrete") end
 		end
-		for k = 1, 6 do add("TurmBand", tx, yb + k * 30, tz, tw + 1.6, 2, tw + 1.6, BAND, "Concrete") end
-		for _, yy in ipairs({ 45, 90, 135, 180 }) do -- Fensterschlitze an den drei Außenseiten
+		for k = 1, 4 do add("TurmBand", tx, yb + k * 22, tz, tw + 1.6, 2, tw + 1.6, BAND, "Concrete") end
+		add("TurmAbsatz", tx, yb + H1 + 1.5, tz, tw + 4, 3, tw + 4, BAND, "Concrete", { collide = true })
+		local tw2 = 42
+		add("Turm", tx, yb + H1 + 3 + (H - H1 - 3) / 2, tz, tw2, H - H1 - 3, tw2, BRICK, "Brick", { collide = true })
+		for k = 1, 3 do add("TurmBand", tx, yb + H1 + 3 + k * 26, tz, tw2 + 1.6, 2, tw2 + 1.6, BAND, "Concrete") end
+		for _, yy in ipairs({ 40, 80 }) do -- Fensterschlitze im Untergeschoss
 			add("Turmfenster", tx - tw / 2 - 0.3, yb + yy, tz, 0.8, 18, 5, { 40, 44, 52 }, "Glass", { collide = false, kind = "glass" })
 			add("Turmfenster", tx, yb + yy, tz + sd * (tw / 2 + 0.3), 5, 18, 0.8, { 40, 44, 52 }, "Glass", { collide = false, kind = "glass" })
 		end
-		local clockY = yb + H - 28
-		add("Uhr", tx - tw / 2 - 0.5, clockY, tz, 0.8, 18, 18, { 244, 240, 228 }, "SmoothPlastic", { collide = false, shape = "Cylinder" })
-		add("Uhr", tx, clockY, tz + sd * (tw / 2 + 0.5), 0.8, 18, 18, { 244, 240, 228 }, "SmoothPlastic", { collide = false, shape = "Cylinder", yaw = 90 })
-		add("Trommel", tx, yb + H + 7, tz, 14, tw - 2, tw - 2, BRICK2, "Brick", { shape = "Cylinder", roll = 90, collide = true })
-		add("Kuppel", tx, yb + H + 14 + 22, tz, 56, 56, 56, GREEN, "Metal", { shape = "Ball", collide = true })
-		add("Laterne", tx, yb + H + 14 + 50 + 6, tz, 14, 12, 12, GREEN, "Metal", { shape = "Cylinder", roll = 90, collide = true })
-		add("Spitze", tx, yb + H + 14 + 50 + 16, tz, 8, 8, 8, GOLD, "Metal", { shape = "Ball", collide = false })
-		add("Kreuz", tx, yb + H + 14 + 50 + 28, tz, 1.4, 16, 1.4, GOLD, "Metal", { collide = false })
+		-- Schallöffnungen im Glockengeschoss: zwei hohe Bögen je Außenseite
+		local by = yb + H - 26
+		for _, o in ipairs({ -8, 8 }) do
+			add("Schallloch", tx - tw2 / 2 - 0.3, by, tz + o, 0.8, 30, 8, { 30, 32, 38 }, "Glass", { collide = false, kind = "glass" })
+			add("SchallBogen", tx - tw2 / 2 - 0.3, by + 17, tz + o, 0.8, 6, 5, { 30, 32, 38 }, "Glass", { collide = false, kind = "glass" })
+			add("Schallloch", tx + o, by, tz + sd * (tw2 / 2 + 0.3), 8, 30, 0.8, { 30, 32, 38 }, "Glass", { collide = false, kind = "glass" })
+			add("SchallBogen", tx + o, by + 17, tz + sd * (tw2 / 2 + 0.3), 5, 6, 0.8, { 30, 32, 38 }, "Glass", { collide = false, kind = "glass" })
+		end
+		clock(add, tx - tw2 / 2, yb + H - 70, tz, 11, "W")
+		clock(add, tx, yb + H - 70, tz + sd * (tw2 / 2), 11, sd < 0 and "N" or "S")
+		-- Achteck (zwei gegeneinander gedrehte Quadrate) als Übergang zur Haube
+		local oct = 34
+		add("Achteck", tx, yb + H + 11, tz, oct, 22, oct, BRICK2, "Brick", { collide = true })
+		add("Achteck", tx, yb + H + 11.02, tz, oct, 22, oct, BRICK2, "Brick", { collide = true, yaw = 45 })
+		add("AchteckBand", tx, yb + H + 22.5, tz, oct + 6, 1.4, oct + 6, BAND, "Concrete", { collide = true })
+		for _, o in ipairs({ 0 }) do
+			add("AchteckBogen", tx - oct / 2 - 0.3, yb + H + 11, tz, 0.8, 12, 5, { 30, 32, 38 }, "Glass", { collide = false, kind = "glass" })
+			add("AchteckBogen", tx, yb + H + 11, tz + sd * (oct / 2 + 0.3), 5, 12, 0.8, { 30, 32, 38 }, "Glass", { collide = false, kind = "glass" })
+		end
+		onion(add, tx, yb + H + 23, tz, GREEN)
 	end
+	-- Hauptportal mit Spitzbogen, Stufen und Rosette über dem Westportal
 	add("Portal", -len / 2 - 0.4, yb + 14, 0, 1, 28, 14, { 56, 40, 32 }, "Wood", { collide = false })
 	add("PortalRahmen", -len / 2 - 0.8, yb + 15, 0, 0.8, 32, 20, BAND, "Concrete", { collide = false })
+	add("PortalSpitze", -len / 2 - 0.8, yb + 33, 0, 0.8, 8, 10, BAND, "Concrete", { collide = false })
+	for i = 1, 4 do add("PortalStufe", -len / 2 - 2 - i * 2, yb - 0.4 - i * 0.2, 0, 3, 0.8, 24 + i * 2, { 160, 156, 148 }, "Concrete", { collide = true }) end
+	add("Westrosette", -len / 2 - 0.5, yb + 56, 0, 0.8, 20, 20, { 70, 86, 110 }, "Glass", { shape = "Cylinder", collide = false, kind = "glass" })
+	add("WestrosetteRand", -len / 2 - 0.3, yb + 56, 0, 0.6, 24, 24, BAND, "Concrete", { shape = "Cylinder", collide = false })
 	return parts
 end
 

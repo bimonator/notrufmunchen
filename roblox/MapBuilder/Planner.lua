@@ -20,8 +20,13 @@ Planner.DEFAULTS = {
 	palette = { -- Putzfarben (RGB 0-255)
 		{ 236, 226, 200 }, { 232, 208, 150 }, { 214, 200, 178 }, { 228, 186, 150 }, { 196, 204, 200 }, { 214, 168, 150 },
 		{ 188, 200, 216 }, { 240, 224, 160 }, { 222, 170, 130 }, { 240, 238, 232 }, { 176, 190, 170 }, { 200, 200, 204 },
+		{ 238, 214, 140 }, { 206, 224, 214 }, { 232, 196, 196 }, { 210, 214, 226 }, { 226, 220, 200 }, { 244, 226, 168 },
 	},
 }
+-- Fassadenfarben je Stilvariante (Palazzo = Naturstein, Jugendstil = warme Putzfarben, modern = kühles Grau)
+local PALAZZO = { { 226, 216, 196 }, { 214, 200, 170 }, { 232, 222, 200 }, { 206, 190, 164 } }
+local JUGEND = { { 238, 214, 140 }, { 244, 226, 168 }, { 226, 196, 150 }, { 232, 206, 196 }, { 204, 214, 200 } }
+local MODERN = { { 196, 198, 204 }, { 176, 182, 190 }, { 214, 214, 208 }, { 150, 160, 170 } }
 
 local function round3(v)
 	return math.floor(v * 1000 + 0.5) / 1000
@@ -142,6 +147,21 @@ local function planHouse(h, o, rng, cornerA, cornerB)
 	local ledgeColor = (rng.next() < 0.5) and tint(facade, 0.35) or shade(facade, 0.12)
 	local shutterColor = rng.pick(SHUTTERS)
 	local awning = rng.pick(AWNINGS)
+	-- Stilvariante für mehr Abwechslung: Palazzo (Rustika, Kranzgesims), Erkerturm, Jugendstil (Terrassenzaun, Gauben), modern (Glasbalkone)
+	local variant = "plain"
+	if not h.simple and not h.color and not h.forceFloors then
+		variant = rng.weighted({ { "plain", 0.34 }, { "palazzo", 0.16 }, { "erker", 0.16 }, { "jugend", 0.2 }, { "modern", 0.14 } })
+		if variant == "palazzo" and (floors < 4 or W < 28) then variant = "plain" end
+		if variant == "erker" and (floors < 4 or W < 30) then variant = "plain" end
+		if variant == "palazzo" then facade = rng.pick(PALAZZO) end
+		if variant == "jugend" then facade = rng.pick(JUGEND) end
+		if variant == "modern" then
+			facade = rng.pick(MODERN)
+			balconyStyle = "none"
+			if floors <= 5 then roof = "staffel" end
+		end
+	end
+	h.variant = variant
 	h.floors, h.height, h.facade, h.roof = floors, H, facade, roof
 
 	-- Hauptkörper, Sockel, Gesimse
@@ -253,6 +273,53 @@ local function planHouse(h, o, rng, cornerA, cornerB)
 		for i = 1, math.max(1, math.floor((W - 21) / 9) + 1) do
 			addWindow(h, "RG_" .. i, "back", -dx + doorSign * 9 * (i - 1), y0 + 8, 4.4, 5.4, rng.next() < o.litChance, 0, true)
 		end
+	end
+
+	-- Stildetails je Variante (nur Vorderseite, nicht weiter als 2 Studs über den Blockrand hinaus)
+	if variant == "palazzo" then
+		for i = 1, 5 do add(h, "Rustika", "trim", 0, y0 + i * 2.4, -0.12, W, 0.2, 0.3, shade(facade, 0.2), "Concrete") end
+		for i = 1, nw do
+			local u = -W / 2 + (i - 0.5) * W / nw
+			local lx, lz, ey = onFace(h, "front", u, 0.9)
+			add(h, "FensterVerdachung", "trim", lx, y0 + o.groundH + 10.6, lz, 6.6, 1.0, 1.4, tint(facade, 0.5), "Concrete", { yaw = ey })
+		end
+		add(h, "Kranzgesims", "trim", 0, y0 + H - 1.6, -1.2, W + 3, 3.2, 3.6, tint(facade, 0.5), "Concrete")
+		add(h, "Fries", "trim", 0, y0 + H - 4.4, -0.3, W, 1.6, 0.6, { 176, 96, 72 }, "Concrete")
+		for _, sd in ipairs({ -1, 1 }) do add(h, "Eckquader", "trim", sd * (W / 2 - 1), y0 + H / 2, -0.4, 2, H, 0.8, tint(facade, 0.35), "Concrete") end
+	elseif variant == "erker" then
+		local ex = rng.pick({ -W / 4, W / 4 })
+		local eh = math.min(3, floors - 2) * o.upperH
+		local yb1 = y0 + o.groundH
+		add(h, "ErkerGlas", "glass", ex, yb1 + eh / 2, -1.9, 7, eh, 3.6, { 110, 140, 160 }, "Glass", { collide = true, tag = "HouseWindow", lit = rng.next() < 0.5 })
+		for k = 0, eh / o.upperH do add(h, "ErkerBand", "trim", ex, yb1 + k * o.upperH, -1.9, 7.8, 0.8, 4.0, tint(facade, 0.3), "Concrete") end
+		for _, sd in ipairs({ -3.4, 3.4 }) do add(h, "ErkerPfosten", "trim", ex + sd, yb1 + eh / 2, -3.7, 0.5, eh, 0.5, FRAME, "Metal") end
+		for _, sd in ipairs({ -1, 1 }) do add(h, "ErkerDach", "roof", ex, yb1 + eh + 1.9, -1.9 + sd * 0.8, 7.8, 0.6, 2.4, { 96, 96, 100 }, "Metal", { pitch = sd * 38 }) end
+	elseif variant == "jugend" then
+		add(h, "Terrassenzaun", "trim", 0, y0 + 1.0, -3.7, W - 6, 2, 0.3, { 140, 98, 62 }, "Wood")
+		for u = -W / 2 + 3, W / 2 - 3, 6 do add(h, "Zaunpfosten", "trim", u, y0 + 1.2, -3.7, 0.5, 2.4, 0.5, { 110, 76, 48 }, "Wood") end
+		for _, tu in ipairs({ -W / 4, W / 4 }) do
+			add(h, "Terrassentisch", "trim", tu, y0 + 2.0, -1.9, 2.4, 0.2, 2.4, { 236, 232, 222 }, "SmoothPlastic")
+			add(h, "Tischfuss", "trim", tu, y0 + 1.0, -1.9, 0.3, 2.0, 0.3, { 70, 70, 74 }, "Metal")
+		end
+		if roof == "mansard" then
+			local nd = math.max(2, math.floor(W / 14))
+			for k = 1, nd do
+				local u = -W / 2 + (k - 0.5) * W / nd
+				add(h, "Gaube", "body", u, y0 + H + 2.6, 1.9, 3.8, 4.4, 2.6, tint(facade, 0.1), "SmoothPlastic", { collide = true })
+				add(h, "GaubeFenster", "glass", u, y0 + H + 2.6, 0.55, 2.4, 2.8, 0.2, GLASS, "Glass", { collide = false })
+				add(h, "GaubeDach", "roof", u, y0 + H + 5.0, 1.9, 4.6, 0.5, 3.4, { 88, 88, 96 }, "Metal")
+			end
+		end
+	elseif variant == "modern" then
+		for k = 2, floors - 1 do
+			local yb = y0 + o.groundH + o.upperH * (k - 1)
+			for i = 1, nw, 2 do
+				local u = -W / 2 + (i - 0.5) * W / nw
+				add(h, "BalkonPlatte", "balcony", u, yb + 0.3, -1.2, 5.8, 0.5, 2.4, shade(facade, 0.1), "Concrete")
+				add(h, "BalkonGlas", "glass", u, yb + 2.1, -2.3, 5.8, 3, 0.2, { 150, 190, 200 }, "Glass", { collide = false })
+			end
+		end
+		add(h, "Akzentstreifen", "trim", W / 2 - 3, y0 + H / 2, -0.15, 1.6, H, 0.3, { 200, 120, 70 }, "SmoothPlastic")
 	end
 
 	-- Eckhaus: Fenster auch an der Seitenfläche zur Querstraße
@@ -499,6 +566,61 @@ local function styleFeuerwache(h, o, rng)
 	add(h, "Antenne", "trim", W / 2 - 4, roofTop + 20, D * 0.45, 0.6, 16, 0.6, { 140, 140, 146 }, "Metal")
 	label(h, "front", W / 2 - tbw / 2, roofTop + 4.5, 0.2, tbw - 4, 4, "FEUERWACHE SCHWABING", { 250, 250, 250 })
 	label(h, "back", 0, y0 + 14 + UP - 1.7, 0.2, 40, 2.6, "RETTUNGSWACHE", { 250, 250, 250 })
+
+	-- Details: Paneelfugen, Torvorplätze mit gelber Markierung, Blaulichter und Torziffern, Hallenbeleuchtung und Spurlinien,
+	-- Solarfeld, Schlauchturm und Lüfter auf dem Dach, Fahnenmasten, Notruf-Emblem
+	local SEAM, YEL, BLUE = { 150, 28, 28 }, { 240, 200, 40 }, { 40, 110, 255 }
+	for _, face in ipairs({ "front", "back" }) do
+		for u = -W / 2 + 6, W / 2 - 6, 6 do
+			local lx, lz, ey = onFace(h, face, u, 0.1)
+			add(h, "Paneelfuge", "trim", lx, y0 + 14 + UP / 2, lz, 0.2, UP, 0.3, SEAM, "Metal", { yaw = ey })
+		end
+		for k = 1, 2 do
+			local lx, lz, ey = onFace(h, face, 0, 0.1)
+			add(h, "Paneelfuge", "trim", lx, y0 + 14 + 12 * k, lz, W, 0.2, 0.3, SEAM, "Metal", { yaw = ey })
+		end
+		for b = 0, bays - 1 do
+			local u0 = -W / 2 + pw + b * (bw + pw)
+			local uc = u0 + bw / 2
+			local lx, lz, ey = onFace(h, face, uc, -1.5) -- Blaulicht unter dem Überstand
+			add(h, "Blaulicht", "trim", lx, y0 + 13.2, lz, 1.8, 1.0, 1.4, BLUE, "Neon", { yaw = ey })
+			label(h, face, uc, y0 + 13, -2.85, 2.4, 1.6, tostring(b + 1 + (face == "back" and 4 or 0)), { 255, 255, 255 })
+			for _, side in ipairs({ -1, 1 }) do -- Markierung des Torvorplatzes (Seitenlinien und Querlinie)
+				local lx2, lz2, ey2 = onFace(h, face, uc + side * (bw / 2 - 1), 6)
+				add(h, "Torlinie", "trim", lx2, y0 + 0.06, lz2, 0.4, 0.1, 8, YEL, "SmoothPlastic", { yaw = ey2 })
+			end
+			local lx3, lz3, ey3 = onFace(h, face, uc, 10)
+			add(h, "Torlinie", "trim", lx3, y0 + 0.06, lz3, bw - 2, 0.1, 0.4, YEL, "SmoothPlastic", { yaw = ey3 })
+		end
+	end
+	for b = 0, bays - 1 do -- Spurlinien in der Halle
+		local uc = -W / 2 + pw + b * (bw + pw) + bw / 2
+		for _, side in ipairs({ -1, 1 }) do
+			local lx, lz, ey = onFace(h, "front", uc + side * (bw / 2 - 2), -D / 2)
+			add(h, "Hallenlinie", "trim", lx, y0 + 0.06, lz, 0.4, 0.1, D - 14, { 236, 236, 232 }, "SmoothPlastic", { yaw = ey })
+		end
+	end
+	for _, sd in ipairs({ -1, 1 }) do -- Hallenlicht
+		for k = 0, 6 do
+			add(h, "Hallenlicht", "trim", sd * W / 4, y0 + 13.7, 14 + k * (D - 28) / 6, 0.2, 2.4, 2.4, { 255, 250, 235 }, "Neon", { shape = "Cylinder", roll = 90 })
+		end
+	end
+	for r = 0, 2 do -- Solarfeld
+		for c = 0, 7 do
+			add(h, "Solarmodul", "trim", -W / 2 + 12 + c * 8.4, roofTop + 1.4, D * 0.55 + r * 5.6, 7.4, 0.3, 4.6, { 24, 40, 84 }, "Metal", { pitch = -14, collide = false })
+		end
+	end
+	add(h, "Schlauchturm", "body", -W / 2 + 8, roofTop + 15, D - 10, 10, 30, 10, RED, "SmoothPlastic", { collide = true })
+	add(h, "SchlauchturmPlattform", "trim", -W / 2 + 8, roofTop + 30.5, D - 10, 12.4, 1, 12.4, { 90, 90, 96 }, "Concrete")
+	add(h, "SchlauchturmFenster", "glass", -W / 2 + 8, roofTop + 22, D - 15.1, 5, 4, 0.2, GLASS_DARK, "Glass", { collide = false })
+	for i = 0, 3 do add(h, "Lueftungsaufbau", "trim", -W / 2 + 26 + i * 10, roofTop + 2.5, D * 0.2, 5, 4, 4, { 160, 164, 170 }, "Metal", { collide = true }) end
+	for i = 0, 2 do -- Fahnenmasten mit Fahnen vor dem Haus
+		local lx, lz, ey = onFace(h, "front", -W / 2 + 12 + i * 12, 2.6)
+		add(h, "Fahnenmast", "trim", lx, y0 + 13, lz, 0.6, 26, 0.6, { 200, 202, 206 }, "Metal", { yaw = ey, collide = true })
+		add(h, "Fahne", "trim", lx + 3.8 * math.cos(math.rad(h.yaw + ey)) , y0 + 23, lz, 7.6, 4.6, 0.2, (i == 1) and { 255, 255, 255 } or { 0, 100, 190 }, "Fabric", { yaw = ey, collide = false })
+	end
+	add(h, "NotrufSchild", "trim", W / 2 - tbw - 8, roofTop + 4.5, -0.45, 9, 5.4, 0.5, { 0, 90, 170 }, "SmoothPlastic")
+	label(h, "front", W / 2 - tbw - 8, roofTop + 4.5, 0.7, 7.6, 4, "112", { 255, 255, 255 })
 end
 
 -- Polizeiinspektion: roter Sockel, graue Obergeschosse mit hellen Fensterrahmen, Durchfahrt zum Innenhof, blaues Schild
@@ -530,6 +652,62 @@ local function stylePolizei(h, o, rng)
 	add(h, "Vordach", "trim", ux, y0 + 10.8, -2, 9, 0.5, 4, { 110, 112, 118 }, "Concrete")
 	add(h, "PolizeiSchild", "trim", ux, y0 + 12.6, -0.4, 11, 2.6, 0.5, { 30, 80, 190 }, "SmoothPlastic")
 	label(h, "front", ux, y0 + 12.6, 0.8, 10, 2, "POLIZEI", { 255, 255, 255 })
+
+	-- Details: dunkle Brüstungsbänder und weiße Fassadenpfeiler, Lamellen-Sonnenschutz, Fugen im roten Sockel, Treppe, Blaulicht,
+	-- Treppenhaus-Glasturm am anderen Ende, Dachaufbauten (Technik, Antennen, Solar, Fahne), Brandmauer-Attika
+	local DG, ALU, SEAM = { 74, 76, 86 }, { 150, 154, 160 }, { 150, 40, 38 }
+	local nw = math.floor((W - 8) / 9)
+	for _, face in ipairs({ "front", "back" }) do
+		for k = 1, floors - 1 do
+			local yb = y0 + 14 + 12 * (k - 1)
+			local lx, lz, ey = onFace(h, face, 0, 0.35)
+			add(h, "Bruestungsband", "trim", lx, yb + 1.0, lz, W, 2.0, 0.7, DG, "SmoothPlastic", { yaw = ey })
+			for i = 1, nw do
+				if (i + k) % 3 == 0 then -- Lamellen vor jedem dritten Fenster
+					local u = -W / 2 + 4 + (i - 0.5) * (W - 8) / nw
+					local lx2, lz2, ey2 = onFace(h, face, u, 1.2)
+					add(h, "Lamellen", "trim", lx2, yb + 6, lz2, 5.8, 6.6, 0.4, ALU, "Metal", { yaw = ey2 })
+				end
+			end
+		end
+		for j = 0, nw, 3 do -- weiße Pfeiler zwischen den Fenstergruppen
+			local u = -W / 2 + 4 + j * (W - 8) / nw
+			local lx, lz, ey = onFace(h, face, u, 0.9)
+			add(h, "Fassadenpfeiler", "trim", lx, y0 + 14 + UP / 2, lz, 1.8, UP, 1.2, WHITE, "Concrete", { yaw = ey })
+		end
+		for u = -W / 2 + 4, a0 - 3, 8 do -- Fugen im roten Sockel (großer Block)
+			local lx, lz, ey = onFace(h, face, u, 0.1)
+			add(h, "Sockelfuge", "trim", lx, y0 + 7, lz, 0.2, 14, 0.3, SEAM, "Metal", { yaw = ey })
+		end
+	end
+	for i = 1, 2 do -- Treppe zum Eingang mit Handlauf
+		local lx, lz, ey = onFace(h, "front", ux, 0.8 + i * 1.6)
+		add(h, "EingangsStufe", "trim", lx, y0 + 0.3 * (3 - i), lz, 12, 0.6 * (3 - i), 1.8, { 170, 168, 162 }, "Concrete", { yaw = ey, collide = true })
+	end
+	for _, sd in ipairs({ -4.4, 4.4 }) do add(h, "Vordachsaeule", "trim", ux + sd, y0 + 5.5, -3.8, 0.8, 11, 0.8, WHITE, "Concrete", { collide = true }) end
+	add(h, "Blaulicht", "trim", ux + 6.8, y0 + 9, -1.2, 1.6, 2.2, 1.2, { 40, 110, 255 }, "Neon")
+	-- Glas-Treppenhausturm am Ostende der Front
+	local sx = -W / 2 + 8
+	add(h, "Treppenhaus", "glass", sx, y0 + (14 + UP + 6) / 2, -1.2, 12, 14 + UP + 6, 6, { 80, 110, 130 }, "Glass", { collide = true })
+	for i = 0, 3 do add(h, "TreppenhausPfosten", "trim", sx - 6 + i * 4, y0 + (14 + UP + 6) / 2, -4.3, 0.6, 14 + UP + 6.4, 0.6, DARKG, "Metal") end
+	for k = 0, floors do add(h, "TreppenhausRiegel", "trim", sx, y0 + 1 + k * 12.4, -4.3, 12.4, 0.5, 0.6, DARKG, "Metal") end
+	-- Dach: Attika, Technikaufbau, Antennen, Solar, Fahnenmast
+	local rt = y0 + 14 + UP + 0.6
+	add(h, "Attika", "trim", 0, rt + 0.9, -0.4, W + 1, 1.8, 0.8, { 190, 192, 198 }, "Concrete")
+	add(h, "Attika", "trim", 0, rt + 0.9, D + 0.4, W + 1, 1.8, 0.8, { 190, 192, 198 }, "Concrete")
+	add(h, "Technikaufbau", "body", -W / 2 + 34, rt + 4, D / 2, 40, 8, 16, { 120, 124, 132 }, "Metal", { collide = true })
+	for i = 0, 1 do add(h, "Antenne", "trim", W / 2 - 14 - i * 6, rt + 12, D / 2 - 6, 0.8, 24, 0.8, { 190, 190, 196 }, "Metal") end
+	add(h, "Satellitenschuessel", "trim", W / 2 - 30, rt + 3, D / 2 + 8, 0.6, 6, 6, { 220, 222, 226 }, "Metal", { shape = "Cylinder" })
+	for r = 0, 2 do
+		for c = 0, 5 do add(h, "Solarmodul", "trim", 0 + c * 8.4, rt + 1.4, D * 0.3 + r * 6, 7.4, 0.3, 4.8, { 24, 40, 84 }, "Metal", { pitch = -12, collide = false }) end
+	end
+	add(h, "Fahnenmast", "trim", W / 2 - 5, rt + 12, D - 6, 0.6, 24, 0.6, { 200, 202, 206 }, "Metal", { collide = true })
+	add(h, "Fahne", "trim", W / 2 - 5, rt + 20, D - 2, 0.2, 5, 8, { 0, 100, 190 }, "Fabric", { collide = false })
+	-- Durchfahrt: Deckenleuchten und Hinweisschild "Einsatzfahrzeuge frei"
+	for i = 0, 2 do add(h, "Durchfahrtlicht", "trim", (a0 + a1) / 2, y0 + 13.7, 8 + i * (D - 16) / 2, 0.2, 2.4, 2.4, { 255, 250, 235 }, "Neon", { shape = "Cylinder", roll = 90 }) end
+	local sgx, sgz = onFace(h, "front", a1 + 1.5, 1.6)
+	add(h, "HinweisSchild", "trim", sgx, y0 + 9, sgz, 4.2, 4.6, 0.3, { 30, 80, 190 }, "SmoothPlastic")
+	label(h, "front", a1 + 1.5, y0 + 9, 1.9, 3.8, 3.8, "Einsatz-\nfahrzeuge\nfrei", { 255, 255, 255 })
 end
 
 -- Klinikum: Betonfassade mit auskragenden Geschossplatten und Brüstungsbändern, Fensterbänder, Stützen im Sockel,
@@ -615,6 +793,14 @@ local function W3(h, name, kind, x, y, z, sx, sy, sz, color, mat, extra)
 	}
 end
 
+-- Logo: weiße Platte mit rotem "A" (nur der Buchstabe, kein Firmenname). face = "W", "E", "N" oder "S" (Blickrichtung der Vorderseite)
+local FACE = { W = { 90, -1, 0 }, E = { 270, 1, 0 }, N = { 0, 0, -1 }, S = { 180, 0, 1 } }
+local function logoA(h, x, y, z, size, face)
+	local f = FACE[face]
+	W3(h, "LogoPlatte", "decor", x + f[2] * 0.05, y, z + f[3] * 0.05, (f[2] ~= 0) and 0.3 or size, size, (f[2] ~= 0) and size or 0.3, { 250, 250, 250 }, "SmoothPlastic")
+	W3(h, "Schrift", "text", x + f[2] * 0.25, y, z + f[3] * 0.25, size * 0.85, size * 0.85, 0.2, { 200, 32, 40 }, "SmoothPlastic", { yaw = f[1], text = { s = "A", color = { 200, 32, 40 } } })
+end
+
 -- Tankstellen-Shop (nach Beschreibung): weiß mit rotem Band, schließt an die schmale Seite des Schirms an, hohl mit Glasfront zur Straße (West)
 local function styleTankstelle(h, spec)
 	local x0, z0, x1, z1 = spec.x0, spec.z0, spec.x1, spec.z1
@@ -627,9 +813,9 @@ local function styleTankstelle(h, spec)
 	W3(h, "ShopSockel", "body", x0 + 0.6, 2.1, cz, 1.2, 2.2, d - 2.4, WHITE, "SmoothPlastic", { collide = true })
 	W3(h, "ShopSturz", "body", x0 + 0.6, 12.9, cz, 1.2, 2.2, d - 2.4, WHITE, "SmoothPlastic", { collide = true })
 	W3(h, "ShopBand", "trim", x0 - 0.1, 14.2, cz, 0.4, 2.8, d, RED, "SmoothPlastic")
-	for _, zz in ipairs({ z0 - 0.1, z1 + 0.1 }) do W3(h, "ShopBand", "trim", cx, 14.2, zz, w, 2.8, 0.4, RED, "SmoothPlastic") end
+	W3(h, "ShopBand", "trim", cx, 14.2, z0 - 0.1, w, 2.8, 0.4, RED, "SmoothPlastic") -- Südseite grenzt an den Schirm
 	W3(h, "ShopBandHinten", "trim", x1 + 0.1, 14.2, cz, 0.4, 2.8, d, RED, "SmoothPlastic")
-	W3(h, "Schrift", "text", x0 - 0.35, 14.2, cz, 18, 2, 0.2, { 255, 255, 255 }, "SmoothPlastic", { yaw = 90, text = { s = "ALLGUTH", color = { 255, 255, 255 } } })
+	logoA(h, x0 - 0.3, 14.2, cz, 2.7, "W")
 	-- Glasfassade zur Straße: Scheiben links und rechts der Schiebetür (8 breit), Pfosten, rote Türrahmen
 	local door = 8
 	local function panes(za, zb)
@@ -686,26 +872,26 @@ end
 
 local COMPOUNDS = { polizei = compoundPolizei }
 
--- Allguth-Schirm nach Fotos: flaches weißes Dach, vorn (Nordseite) abgerundete Ecken, rotes Band mit weißem Schriftzug ALLGUTH,
--- kräftige weiße Stützen in zwei Reihen, Deckenleuchten, zwei Zapfsäulen-Inseln mit weiß-roten Säulen. Hinten (Süd) schließt der Shop an.
+-- Allguth-Schirm nach Fotos: flaches weißes Dach, am freien Südende abgerundete Ecken (im Norden schließt der Shop an), rotes Band mit
+-- Logo "A", kräftige weiße Stützen in zwei Reihen, Deckenleuchten, zwei Zapfsäulen-Inseln mit weiß-roten Säulen.
 local function canopyAllguth(h, c)
 	local x0, z0, x1, z1 = c[1], c[2], c[3], c[4]
 	local cx, cz, w, d = (x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0
 	local WHITE, RED, TRIM = { 250, 250, 250 }, { 200, 32, 40 }, { 236, 236, 238 }
 	local r = 8
-	W3(h, "CanopyRoof", "trim", cx, 14.5, (z0 + r + z1) / 2, w, 1, d - r, WHITE, "SmoothPlastic")
-	W3(h, "CanopyRoof", "trim", cx, 14.5, z0 + r / 2, w - 2 * r, 1, r, WHITE, "SmoothPlastic")
+	W3(h, "CanopyRoof", "trim", cx, 14.5, (z0 + z1 - r) / 2, w, 1, d - r, WHITE, "SmoothPlastic")
+	W3(h, "CanopyRoof", "trim", cx, 14.5, z1 - r / 2, w - 2 * r, 1, r, WHITE, "SmoothPlastic")
 	for _, px in ipairs({ x0 + r, x1 - r }) do -- Rundung: Zylinder mit 0,04 Überstand gegen Flackern
-		W3(h, "CanopyRoofRund", "trim", px, 14.5, z0 + r, 1.08, 2 * r, 2 * r, WHITE, "SmoothPlastic", { shape = "Cylinder", roll = 90 })
+		W3(h, "CanopyRoofRund", "trim", px, 14.5, z1 - r, 1.08, 2 * r, 2 * r, WHITE, "SmoothPlastic", { shape = "Cylinder", roll = 90 })
 	end
-	local zs, ze = z0 + r, z1 -- gerade Bänder an den Längsseiten
+	local zs, ze = z0, z1 - r -- gerade Bänder an den Längsseiten
 	W3(h, "CanopyBand", "trim", x0 + 0.4, 14.2, (zs + ze) / 2, 0.8, 2.8, ze - zs, RED, "SmoothPlastic")
 	W3(h, "CanopyBand", "trim", x1 - 0.4, 14.2, (zs + ze) / 2, 0.8, 2.8, ze - zs, RED, "SmoothPlastic")
-	W3(h, "CanopyBand", "trim", cx, 14.2, z0 + 0.4, w - 2 * r, 2.8, 0.8, RED, "SmoothPlastic")
-	for _, e in ipairs({ { x0 + 0.5, (zs + ze) / 2, 0.9, ze - zs }, { x1 - 0.5, (zs + ze) / 2, 0.9, ze - zs } }) do
-		W3(h, "CanopyTrim", "trim", e[1], 15.85, e[2], e[3], 0.5, e[4], TRIM, "SmoothPlastic")
+	W3(h, "CanopyBand", "trim", cx, 14.2, z1 - 0.4, w - 2 * r, 2.8, 0.8, RED, "SmoothPlastic")
+	for _, e in ipairs({ x0 + 0.5, x1 - 0.5 }) do
+		W3(h, "CanopyTrim", "trim", e, 15.85, (zs + ze) / 2, 0.9, 0.5, ze - zs, TRIM, "SmoothPlastic")
 	end
-	for ci, cc in ipairs({ { x0 + r, z0 + r, 180 }, { x1 - r, z0 + r, 270 } }) do -- Bogenstücke der Bänder
+	for _, cc in ipairs({ { x0 + r, z1 - r, 90 }, { x1 - r, z1 - r, 0 } }) do -- Bogenstücke der Bänder (Südecken)
 		local n, rad = 6, r - 0.4
 		for k = 1, n do
 			local a = math.rad(cc[3] + (k - 0.5) * 90 / n)
@@ -713,11 +899,9 @@ local function canopyAllguth(h, c)
 			W3(h, "CanopyBand", "trim", cc[1] + rad * math.cos(a), 14.2, cc[2] + rad * math.sin(a), rad * (math.pi / 2) / n + 0.3, 2.8, 0.8, RED, "SmoothPlastic", { yaw = math.deg(math.atan2(-tz, tx)) % 360 })
 		end
 	end
-	-- Schriftzug auf dem Band: Westseite (zur Straße), Ostseite und Nordstirnseite
-	local function brand(x, z, yaw) W3(h, "Schrift", "text", x, 14.2, z, 22, 2, 0.2, { 255, 255, 255 }, "SmoothPlastic", { yaw = yaw, text = { s = "ALLGUTH", color = { 255, 255, 255 } } }) end
-	brand(x0 - 0.1, (zs + ze) / 2 - 8, 90)
-	brand(x1 + 0.1, (zs + ze) / 2 - 8, 270)
-	brand(cx, z0 - 0.1, 0)
+	logoA(h, x0 - 0.2, 14.2, (zs + ze) / 2 - 8, 2.7, "W") -- Logo auf dem Band: West (Straße), Ost und Südende
+	logoA(h, x1 + 0.2, 14.2, (zs + ze) / 2 - 8, 2.7, "E")
+	logoA(h, cx, 14.2, z1 + 0.2, 2.7, "S")
 	-- Stützen: zwei Reihen à vier, kräftig weiß
 	for _, px in ipairs({ x0 + 10, x1 - 10 }) do
 		for k = 0, 3 do W3(h, "CanopyPillar", "trim", px, 7.5, z0 + 14 + k * (d - 28) / 3, 2.6, 14, 2.6, WHITE, "Concrete", { collide = true }) end
@@ -745,10 +929,10 @@ local function lotDecor(h, spec)
 	local LAWN, HEDGE, WHITE, RED = { 88, 158, 62 }, { 40, 88, 48 }, { 244, 244, 246 }, { 200, 32, 40 }
 	local sections, z = {}, l[2] + K
 	for _, g in ipairs(spec.curbGaps) do
-		if g[1] > z then sections[#sections + 1] = { z, g[1] } end
+		if g[1] - z >= 8 then sections[#sections + 1] = { z, g[1] } end
 		z = g[2]
 	end
-	if z < l[4] - K then sections[#sections + 1] = { z, l[4] - K } end
+	if l[4] - K - z >= 8 then sections[#sections + 1] = { z, l[4] - K } end
 	local lx0, lx1 = l[1] + K + 0.4, l[1] + 13
 	for _, sct in ipairs(sections) do
 		W3(h, "Rasen", "decor", (lx0 + lx1) / 2, 1.0, (sct[1] + sct[2]) / 2, lx1 - lx0, 0.6, sct[2] - sct[1] - 1, LAWN, "Grass")
@@ -768,8 +952,7 @@ local function lotDecor(h, spec)
 			W3(h, "Schrift", "text", x, 6.5, zc + sd[1] * 0.4, 3.2, 3.2, 0.2, { 255, 255, 255 }, "SmoothPlastic", { yaw = sd[2], text = { s = "A", color = { 255, 255, 255 } } })
 		end
 	end
-	if sections[1] then logoSign(lx0 + 3, (sections[1][1] + sections[1][2]) / 2 + 12) end
-	if sections[2] then logoSign(lx0 + 3, (sections[2][1] + sections[2][2]) / 2) end
+	if sections[1] then logoSign(lx0 + 3, sections[1][1] + 12) end
 	-- Ein- und Ausfahrt-Schilder an den Rasenenden
 	local function gateSign(zc, label)
 		W3(h, "SchildPfosten", "decor", l[1] + 4.5, 2.8, zc, 0.4, 3, 0.4, { 80, 82, 86 }, "Metal", { collide = true })
@@ -778,17 +961,16 @@ local function lotDecor(h, spec)
 			W3(h, "Schrift", "text", l[1] + 4.5, 5.8, zc + sd[1] * 0.25, 6.4, 2, 0.2, { 255, 255, 255 }, "SmoothPlastic", { yaw = sd[2], text = { s = label, color = { 255, 255, 255 } } })
 		end
 	end
-	if spec.curbGaps[1] and sections[1] then gateSign(sections[1][1] + 1, "EINFAHRT") end
-	if spec.curbGaps[2] and sections[1] then gateSign(sections[1][2] - 1, "AUSFAHRT") end
+	if sections[1] then gateSign(sections[1][2] - 1, "AUSFAHRT") end -- am Südende des Nordabschnitts, direkt vor der Ausfahrt
+	if sections[2] then gateSign(sections[2][2] - 1, "EINFAHRT") end -- vor der südlichen Einfahrt
 	-- Preis-Totem: Stahlpylon mit rotem Kopf (weißes A, ALLGUTH) und schwarzer Preistafel, an beiden Flachseiten
-	local tx, tz = l[1] + 6, sections[1] and (sections[1][1] + sections[1][2]) / 2 - 2 or l[2] + 20
+	local tx, tz = l[1] + 6, sections[1] and sections[1][2] - 9 or l[2] + 20
 	W3(h, "TotemPylon", "decor", tx, 17.3, tz, 6.2, 32, 1.8, { 70, 74, 80 }, "Metal", { collide = true })
 	local fuels = { { "SUPER", "1,81", "Super" }, { "SUPER E10", "1,75", "E10" }, { "SUPER PLUS", "1,95", "SuperPlus" }, { "DIESEL", "1,69", "Diesel" }, { "AUTOGAS", "0,89", "Autogas" } }
 	for _, sd in ipairs({ { -1, 0 }, { 1, 180 } }) do
 		local zf = tz + sd[1] * 1.0
 		W3(h, "TotemKopf", "decor", tx, 28.8, zf, 5.6, 8.6, 0.3, RED, "SmoothPlastic")
-		W3(h, "Schrift", "text", tx, 30.2, zf + sd[1] * 0.25, 4, 5, 0.2, { 255, 255, 255 }, "SmoothPlastic", { yaw = sd[2], text = { s = "A", color = { 255, 255, 255 } } })
-		W3(h, "Schrift", "text", tx, 26.2, zf + sd[1] * 0.25, 5.2, 1.3, 0.2, { 255, 255, 255 }, "SmoothPlastic", { yaw = sd[2], text = { s = "ALLGUTH", color = { 255, 255, 255 } } })
+		W3(h, "Schrift", "text", tx, 28.8, zf + sd[1] * 0.25, 5, 7, 0.2, { 255, 255, 255 }, "SmoothPlastic", { yaw = sd[2], text = { s = "A", color = { 255, 255, 255 } } })
 		W3(h, "TotemTafel", "decor", tx, 14.5, zf, 5.6, 17, 0.3, { 18, 20, 24 }, "SmoothPlastic")
 		for i, f in ipairs(fuels) do
 			local yy = 22.4 - (i - 0.5) * 3.35
@@ -831,6 +1013,9 @@ function Planner.planSpecial(spec, opts)
 			z = g[2]
 		end
 		if z < l[4] - K then kerb(l[1], z, l[1] + K, l[4] - K) end
+		for _, g in ipairs(spec.curbGaps) do -- Einfahrten über den Gehweg (Bordsteinabsenkung): Asphalt über dem Gehweg bis zum Grundstück
+			W3(h, "Auffahrt", "trim", (43.4 + l[1] + 0.4) / 2, 0.91, (g[1] + g[2]) / 2, l[1] + 0.4 - 43.4, 0.3, g[2] - g[1], { 78, 80, 86 }, "Asphalt", { collide = true })
+		end
 		lotDecor(h, spec)
 	end
 	if spec.compound then COMPOUNDS[spec.compound](h, spec, o) end

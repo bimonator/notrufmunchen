@@ -20,6 +20,13 @@ local function part(parts, name, kind, x, y, z, sx, sy, sz, yaw, color, material
 	}
 end
 
+local function inDriveway(cfg, x, z)
+	for _, d in ipairs(cfg.driveways or {}) do
+		if x > d.x0 - 1 and x < d.x1 + 1 and z > d.z0 - 3 and z < d.z1 + 3 then return true end
+	end
+	return false
+end
+
 local function onWalk(walks, x, z)
 	for _, w in ipairs(walks) do
 		if Geo.inPart(x, z, w, 1.2) then return true end
@@ -72,7 +79,7 @@ function LightsPlanner.plan(cfg, roadPlan)
 				local t = L.spacing / 2
 				while t < seg.len do
 					local x, z = seg.ax + seg.ux * t + nx * off, seg.az + seg.uz * t + nz * off
-					if onWalk(walks, x, z) then
+					if onWalk(walks, x, z) and not inDriveway(cfg, x, z) then
 						lamp(parts, x, z, -nx * side, -nz * side, L.height)
 						stats.lamps = stats.lamps + 1
 					end

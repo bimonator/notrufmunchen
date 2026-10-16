@@ -16,7 +16,7 @@ Baut die Karte aus `docs/MAP_PLAN.md` und `docs/phase1_bauplan.html` per Code: T
 [wasser] ok (... Wasser-Zellen am Messpunkt)
 [roads] 1475 Teile, 157 Parkbuchten
 [lights] 270 Laternen, 13 Ampelmasten, 2 Fußgängerampeln, 1529 Teile
-[landmarks] 279 Teile (Siegestor, Friedensengel, Frauenkirche, Chinesischer Turm)
+[landmarks] ~680 Teile (Siegestor, Friedensengel, Frauenkirche, Chinesischer Turm)
 [gardens] 1050 Teile, 143 Bäume, 103 Uferweg-Platten, 50 Findlinge
 [houses] 154 Häuser, 12928 Teile
 [ampel] Script AmpelSteuerung in ServerScriptService angelegt
@@ -102,6 +102,10 @@ Das Test-Script `MapBuilder_Script.lua` startet die Steuerung direkt nach dem Ba
 
 Nach Fotos: Schirm mit abgerundeten Nordecken und rotem Band mit Schriftzug, 8 weiße Stützen, zwei Zapfsäulen-Inseln, Rasenstreifen mit Hecke und Büschen zwischen Gehweg und Station (nicht an den Einfahrten), EINFAHRT/AUSFAHRT-Schilder, quadratische Logoschilder und das Preis-Totem mit 5 Sorten.
 Die Preiszeilen tragen den Tag `FuelPrice` mit den Attributen `Fuel` und `Price` (nur Anzeige, ein Skript kann sie später ändern). Dahinter stehen drei Bürogebäude (Spezialbauten `Tankstellen-Buero-*`) mit Glasfassade, Geschossbändern und Stahlpfeilern.
+
+## Hinweise zu Terrain-Einstellungen
+
+Der Terrain-Schritt setzt `Terrain.Decoration = false` (keine Gras-Büschel, die sonst durch Wege und Straßen ragen), `WaterTransparency = 0.45` und eine Wasserfarbe, damit die Isar von oben als Wasser erscheint. Das Flussbett besteht aus Sand statt Asphalt-grau.
 
 ## Offen / Backlog
 

@@ -195,9 +195,10 @@ do
 			check(c[3] - c[1] >= 66, "Schirm nicht doppelt so breit: " .. (c[3] - c[1]))
 			check(c[1] >= sp.lot[1] and c[3] <= sp.lot[3] and c[2] >= sp.lot[2] and c[4] <= sp.lot[4], "Schirm außerhalb des Grundstücks")
 			check(sp.x0 >= sp.lot[1] and sp.x1 <= sp.lot[3] and sp.z0 >= sp.lot[2] and sp.z1 <= sp.lot[4], "Shop außerhalb des Grundstücks")
-			check(math.abs(sp.z0 - c[4]) < 0.01 and sp.x0 == c[1] and sp.x1 == c[3], "Shop schließt nicht an die schmale Seite des Schirms an")
+			check(math.abs(sp.z1 - c[2]) < 0.01 and sp.x0 == c[1] and sp.x1 == c[3], "Shop schließt nicht an die schmale Seite des Schirms an (Nordende)")
 			check(#sp.curbGaps == 2 and sp.curbGaps[1][2] - sp.curbGaps[1][1] >= 28 and sp.curbGaps[2][2] - sp.curbGaps[2][1] >= 28, "Einfahrten zu schmal")
 			check(sp.lot[1] <= 58, "Grundstück liegt nicht an der Straße")
+			check(sp.z1 <= c[2] + 0.01 and sp.curbGaps[2][1] > c[4], "Shop nicht gegenüber der Einfahrt")
 		end
 	end
 	for i = 1, #plans do
@@ -248,7 +249,8 @@ do
 		end
 		if p.name == "Hecke" then hedge = hedge + 1 end
 		if p.tag == "FuelPrice" then prices = prices + 1 end
-		if p.name == "Schrift" and p.text and p.text.s == "ALLGUTH" then brand = brand + 1 end
+		if p.name == "Schrift" and p.text and p.text.s == "A" then brand = brand + 1 end
+		if p.text and string.find(p.text.s, "ALLGUTH", 1, true) then check(false, "Firmenname ALLGUTH nicht gewünscht") end
 		if p.name == "CanopyPillar" then pillars = pillars + 1 end
 		if p.name == "CanopyBand" and p.yaw ~= 0 and p.yaw ~= 90 and p.yaw ~= 180 and p.yaw ~= 270 then arcs = arcs + 1 end
 		if p.name == "CanopyRoofRund" then roundRoofs = roundRoofs + 1 end
@@ -257,7 +259,7 @@ do
 	end
 	check(lawn == 2 and hedge >= 6, "Rasen/Hecke: " .. lawn .. "/" .. hedge)
 	check(prices == 10, "Preiszeilen " .. prices .. " (5 Sorten, beide Seiten)")
-	check(brand >= 5, "ALLGUTH-Schriftzüge " .. brand)
+	check(brand >= 8, "A-Logos " .. brand)
 	check(pillars == 8 and roundRoofs == 2 and arcs >= 12, "Schirm: Stützen " .. pillars .. ", Rundungen " .. roundRoofs .. ", Bogenstücke " .. arcs)
 	check(totemH >= 30, "Totem zu niedrig " .. totemH)
 	check(logoA == 0, "altes Dach-A noch vorhanden")
@@ -306,6 +308,14 @@ do
 	if #n > 2 then check(sideFrames(n[2]) == 0, "mittleres Haus mit Seitenfenstern") end
 end
 
+do -- Stilvarianten: alle fünf kommen vor
+	local seen, total = {}, 0
+	for _, block in ipairs(Blocks) do
+		for _, h in ipairs(Planner.planBlock(block, { seed = 1 }).houses) do seen[h.variant] = (seen[h.variant] or 0) + 1 total = total + 1 end
+	end
+	for _, v in ipairs({ "plain", "palazzo", "erker", "jugend", "modern" }) do check((seen[v] or 0) >= 3, "Stilvariante " .. v .. " zu selten: " .. (seen[v] or 0)) end
+	print(string.format("Varianten: plain %d, palazzo %d, erker %d, jugend %d, modern %d", seen.plain or 0, seen.palazzo or 0, seen.erker or 0, seen.jugend or 0, seen.modern or 0))
+end
 print(string.format("Gesamt: %d Häuser, %d Teile, Grundfläche %.0f Studs²", totalHouses, totalParts, totalArea))
 if failures > 0 then
 	print(failures .. " FEHLER")

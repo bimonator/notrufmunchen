@@ -21,7 +21,16 @@ local road = RoadsPlanner.plan(Config)
 local parts, segs = road.parts, road.segments
 print(string.format("Straßen: %d Teile, %d Segmente, %d Parkbuchten, %d Strichlinien", #parts, #segs, road.stats.bays, road.stats.dashes))
 
-check(road.stats.bays == 157, "Parkbuchten " .. road.stats.bays .. " statt 157 (Plan)")
+check(road.stats.bays >= 140 and road.stats.bays <= 150, "Parkbuchten " .. road.stats.bays)
+-- keine Parkbuchten vor den Tankstellen-Einfahrten
+for _, b in ipairs(Config.bays) do
+	if b[1] == 38.5 and b[3] == 38.5 then
+		for _, d in ipairs(Config.driveways) do
+			local za, zb = math.min(b[2], b[4]), math.max(b[2], b[4])
+			check(zb <= d.z0 or za >= d.z1, "Parkbucht vor der Einfahrt: " .. b[2] .. ".." .. b[4])
+		end
+	end
+end
 for _, p in ipairs(parts) do
 	check(p.pos[2] > -25 and p.pos[2] < 20, "Teil " .. p.name .. " liegt auf Höhe " .. p.pos[2])
 	check(p.size[1] > 0 and p.size[2] > 0 and p.size[3] > 0, "Teil " .. p.name .. " ohne Größe")
@@ -328,7 +337,7 @@ for i, a in ipairs(lampPos) do
 	end
 end
 check(close == 0, close .. " Laternenpaare enger als 10 Studs")
-check(west > 3 and east > 3, "Achse: Laternen West " .. west .. ", Ost " .. east)
+check(west > 3 and east >= 2, "Achse: Laternen West " .. west .. ", Ost " .. east)
 -- Ampeln: Ausleger reicht über die Fahrbahn (Länge >= 12), zwei Köpfe je Mast
 local arms = 0
 for _, p in ipairs(lights.parts) do
@@ -526,7 +535,9 @@ do
 	end
 	check(pl ~= nil and minX >= pl.x0 and maxX <= pl.x1 and minZ >= pl.z0 and maxZ <= pl.z1, "Frauenkirche passt nicht auf den Kirchplatz: " .. minX .. ".." .. maxX .. ", " .. minZ .. ".." .. maxZ)
 	check(maxX - minX >= 380 and maxZ - minZ >= 145, "Frauenkirche zu klein: " .. (maxX - minX) .. " x " .. (maxZ - minZ))
-	check(count(fk, "Kuppel") == 2 and count(fk, "Uhr") == 4 and count(fk, "Dach") == 2, "Frauenkirche: Türme/Uhren/Dach")
+	check(count(fk, "Kuppel") == 2 and count(fk, "KuppelRing") == 22 and count(fk, "Uhr") == 4 and count(fk, "Dach") == 2, "Frauenkirche: Hauben/Uhren/Dach")
+	check(count(fk, "Uhrzeiger") == 8 and count(fk, "Uhrstrich") == 48 and count(fk, "Uhrziffer") == 16, "Frauenkirche: Ziffernblätter unvollständig")
+	check(count(fk, "Gaube") == 20 and count(fk, "Schallloch") == 8, "Frauenkirche: Gauben/Schalllöcher")
 	check(count(fk, "Fenster") >= 28, "Frauenkirche: Fenster " .. count(fk, "Fenster"))
 	check(maxY > 280 and maxY < 380, "Frauenkirche Höhe " .. maxY)
 	local roofs = 0

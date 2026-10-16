@@ -54,8 +54,15 @@ C.roads = {
 
 -- Parkbuchten: Mittellinie des Parkstreifens, Buchtlänge 16, Breite 9. { x0, z0, x1, z1 }
 C.bay = { length = 16, width = 9 }
+-- Allguth-Tankstelle: Grundstück und Ein-/Ausfahrten (z-Bereiche an der Straße, Einfahrt südlich, Ausfahrt nördlich davon).
+-- Vor den Einfahrten gibt es keine Parkbuchten und die Laternen stehen nicht im Weg (siehe driveways).
+C.tankstelle = { lot = { 57, -336, 180, -150 }, gaps = { { -262, -218 }, { -196, -152 } } }
+C.driveways = {}
+for _, g in ipairs(C.tankstelle.gaps) do C.driveways[#C.driveways + 1] = { x0 = 43, x1 = 57, z0 = g[1] - 3, z1 = g[2] + 3 } end
+
 C.bays = {
-	{ 38.5, -448, 38.5, -40 }, { -38.5, -448, -38.5, -314 }, { -38.5, -257, -38.5, -40 }, { -38.5, 64, -38.5, 226 }, { 38.5, 64, 38.5, 286 },
+	{ 38.5, -448, 38.5, -340 }, { 38.5, -334, 38.5, -274 }, { 38.5, -140, 38.5, -40 }, -- Achse Ost: Lücke vor der Tankstelleneinfahrt
+	{ -38.5, -448, -38.5, -314 }, { -38.5, -257, -38.5, -40 }, { -38.5, 64, -38.5, 226 }, { 38.5, 64, 38.5, 286 },
 	{ -633, -271, -497, -271 }, { -432, -271, -272, -271 }, { -207, -271, -59, -271 },
 	{ -633, 44, -578, 44 }, { -522, 44, -497, 44 }, { -432, 44, -272, 44 }, { -207, 44, -59, 44 },
 	{ -446, -448, -446, -317 }, { -446, -253, -446, -211 }, { -446, -89, -446, -3 },
@@ -92,11 +99,12 @@ C.water = {
 		pts = { { 945, -556 }, { 945, -472 }, { 930, -330 }, { 915, -200 }, { 895, -90 }, { 885, 0 }, { 850, 100 }, { 800, 200 }, { 750, 300 }, { 705, 390 }, { 695, 410 }, { 670, 494 } },
 		-- Böschung in drei Stufen: Uferweg (Oberkante -4, Breite 30), Kiesbank auf Wasserhöhe (-8, Breite 24), dann Wasser bis -14.
 		layers = { { 0, -4, 90 }, { -4, -8, 60 }, { -8, -12, 36 }, { -12, -14, 30 } }, waterTop = -8,
-		fills = { { -12, -8, 60, "Sand" }, { -8, -4, 90, "Grass" } }, -- Material der beiden Uferstufen (vor dem Ausheben eingefüllt)
+		fills = { { -18, -12, 36, "Sand" }, { -12, -8, 60, "Sand" }, { -8, -4, 90, "Grass" } }, -- Sandbett, Kiesbank und Gras-Uferweg (vor dem Ausheben eingefüllt)
 	},
 	bach = {
 		pts = { { 640, -257 }, { 642, -226 }, { 665, -31 }, { 672, 194 }, { 650, 330 }, { 620, 410 }, { 612, 494 } },
 		layers = { { 0, -4, 13 }, { -4, -7, 7 } }, waterTop = -4,
+		fills = { { -11, -4, 13, "Sand" } }, -- Bachbett und Böschung aus Sand
 	},
 }
 

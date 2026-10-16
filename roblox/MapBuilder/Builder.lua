@@ -94,6 +94,13 @@ end
 
 function Builder.applyTerrain(ops, origin)
 	local terrain = Workspace.Terrain
+	-- Keine Gras-Büschel (ragen sonst durch Wege und Straßen), Wasser deckend genug, dass man es von oben als Wasser sieht
+	pcall(function()
+		terrain.Decoration = false
+		terrain.WaterTransparency = 0.45
+		terrain.WaterColor = Color3.fromRGB(38, 104, 128)
+		terrain.WaterReflectance = 0.35
+	end)
 	for _, op in ipairs(ops) do
 		local cf = CFrame.new(origin + Vector3.new(op.pos[1], op.pos[2], op.pos[3])) * CFrame.Angles(0, math.rad(op.yaw or 0), 0)
 		if op.op == "cylinder" then
