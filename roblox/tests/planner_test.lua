@@ -403,10 +403,55 @@ do
 	local function hasText(list, s) for _, p in ipairs(list) do if p.text and string.find(p.text.s, s, 1, true) then return true end end return false end
 	local k, c = named("Casino-Odeon"), named("Kaffeehaus")
 	check(k and c, "Kino/Kaffeehaus fehlen")
-	check(hasText(k, "CASINO ODEON") and hasText(k, "KINO") and n(k, "Plakat") == 4 and n(k, "Kinotuer") == 2 and n(k, "Marquise") == 1 and n(k, "Filmrolle") == 1, "Kino: Schriftzüge/Plakate/Tür/Marquise/Filmrolle unvollständig")
-	check(hasText(c, "KAFFEEHAUS ODEON") and n(c, "Tisch") == 6 and n(c, "Schirm") == 3 and n(c, "Kaffeetuer") == 2 and n(c, "SchildBohne") == 1, "Kaffeehaus: Schrift/Tische/Schirme/Tür/Schild unvollständig")
+	check(hasText(k, "CASINO ODEON") and hasText(k, "KINO") and n(k, "Plakat") == 8 and n(k, "Kinotuer") == 2 and n(k, "Marquise") == 1 and n(k, "Filmrolle") == 1, "Kino: Schriftzüge/Plakate/Tür/Marquise/Filmrolle unvollständig")
+	check(hasText(c, "KAFFEEHAUS ODEON") and n(c, "Tisch") == 8 and n(c, "Schirm") == 4 and n(c, "Kaffeetuer") == 2 and n(c, "SchildBohne") == 1, "Kaffeehaus: Schrift/Tische/Schirme/Tür/Schild unvollständig")
+	-- 50 % größer als vorher (Kino 70x60 -> 105x90, Café 60x40 -> 90x60) und je ein Parkplatz daneben
+	for _, nm in ipairs({ "Casino-Odeon", "Kaffeehaus" }) do
+		for _, sp in ipairs(Specials) do
+			if sp.name == nm then
+				local a, b = sp.x1 - sp.x0, sp.z1 - sp.z0
+				check(a * b >= (nm == "Casino-Odeon" and 70 * 60 or 60 * 40) * 2.2, nm .. " ist nicht 50 % größer")
+				check(sp.lots and #sp.lots == 1, nm .. " ohne Parkplatz")
+				local lt = named(nm)
+				local lines = 0
+				for _, p in ipairs(lt) do if p.name == "StellplatzLinie" then lines = lines + 1 end end
+				check(lines >= 18, nm .. ": Stellplatzlinien " .. lines)
+			end
+		end
+	end
 	for _, list in ipairs({ k, c }) do
 		check(not hasText(list, "STARBUCKS") and not hasText(list, "Starbucks"), "echter Markenname im Bauwerk")
+	end
+end
+
+-- ===== Klinikum-Parkhaus, Volksbank, Prinz Eins (50 % größer, mit Parkplatz) =====
+do
+	local function spec(nm) for _, sp in ipairs(Specials) do if sp.name == nm then return sp end end end
+	local function parts2(nm) return Planner.planSpecial(spec(nm), { seed = 1 }).houses[1].parts end
+	local function n(list, name) local c = 0 for _, p in ipairs(list) do if p.name == name then c = c + 1 end end return c end
+	local kl, ph, bk, pe = spec("Krankenhaus"), spec("Klinikum-Parkhaus"), spec("Volksbank"), spec("Prinz-Eins")
+	check(ph.x0 == kl.x1 and ph.z0 == kl.z0 and ph.z1 == kl.z1 and ph.x1 - ph.x0 == kl.x1 - kl.x0, "Parkhaus grenzt nicht in gleicher Größe an das Klinikum")
+	local pk = parts2("Klinikum-Parkhaus")
+	local maxY = 0
+	for _, p in ipairs(pk) do maxY = math.max(maxY, p.pos[2] + p.size[2] / 2) end
+	check(n(pk, "Parkdeck") == 3 and n(pk, "Stuetze") == 3 * 35 and n(pk, "Auffahrt") == 1 and n(pk, "Schranke") == 8 and maxY > 33 and maxY < 40, "Parkhaus: Decks " .. n(pk, "Parkdeck") .. ", Stützen " .. n(pk, "Stuetze") .. ", Höhe " .. maxY)
+	check(n(pk, "StellplatzLinie") == 3 * 56, "Parkhaus: Stellplatzlinien " .. n(pk, "StellplatzLinie"))
+	local bank = parts2("Volksbank")
+	local txt = false
+	for _, p in ipairs(bank) do if p.text and p.text.s == "Volksbank" then txt = true end end
+	check(txt and n(bank, "Geldautomat") == 2 and n(bank, "Drehtuer") == 1, "Volksbank: Schriftzug/Geldautomaten/Tür fehlen")
+	check((pe.x1 - pe.x0) == 84 and pe.floors == 3 and pe.lots and #pe.lots == 1, "Prinz Eins nicht vergrößert oder ohne Parkplatz")
+	-- keine Überlappung der neuen Flächen untereinander und mit anderen Sonderbauten
+	local rects = {}
+	for _, sp in ipairs(Specials) do
+		rects[#rects + 1] = { sp.name, sp.x0, sp.z0, sp.x1, sp.z1 }
+		for i, r in ipairs(sp.lots or {}) do rects[#rects + 1] = { sp.name .. "-Parkplatz" .. i, r[1], r[2], r[3], r[4] } end
+	end
+	for i = 1, #rects do
+		for j = i + 1, #rects do
+			local a, b = rects[i], rects[j]
+			check(not (a[2] < b[4] - 0.01 and a[4] > b[2] + 0.01 and a[3] < b[5] - 0.01 and a[5] > b[3] + 0.01), "Überlappung: " .. a[1] .. " und " .. b[1])
+		end
 	end
 end
 

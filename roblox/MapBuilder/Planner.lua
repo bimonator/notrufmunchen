@@ -959,7 +959,7 @@ end
 -- mit Doppeltür und Kasse, vier beleuchtete Filmplakate, Dachschild "KINO" mit Filmrolle, roter Teppich mit Absperrpfosten, Vorplatz mit Bänken und Bäumen.
 local function styleKino(h, o, rng)
 	local W, D, y0 = h.width, h.depth, o.floorY
-	local H = 36
+	local H = 48
 	local WALL, TRIM, GOLD, RED, DARKR = h.color, { 214, 200, 176 }, { 240, 196, 90 }, { 168, 30, 42 }, { 70, 20, 28 }
 	h.floors, h.height, h.facade, h.roof = 3, H, WALL, "flat"
 	add(h, "Body", "body", 0, y0 + H / 2, D / 2, W, H, D, WALL, "SmoothPlastic", { collide = true })
@@ -967,11 +967,9 @@ local function styleKino(h, o, rng)
 	add(h, "Kranzgesims", "trim", 0, y0 + H - 0.8, -0.9, W + 1.2, 1.6, 1.8, TRIM, "Concrete")
 	add(h, "Gurtgesims", "trim", 0, y0 + 15.2, -0.5, W + 0.6, 0.8, 1.2, TRIM, "Concrete")
 	add(h, "Dach", "roof", 0, y0 + H + 0.3, D / 2, W, 0.6, D, { 96, 96, 100 }, "Concrete", { collide = true })
-	ribbon(h, o, rng, "front", y0 + 22, 6.4, -W / 2 + 3, W / 2 - 3, 8, GLASS, DARKG, 0.3, o.litChance)
-	ribbon(h, o, rng, "front", y0 + 30, 4.8, -W / 2 + 3, W / 2 - 3, 8, GLASS, DARKG, 0.3, o.litChance)
-	for _, face in ipairs({ "+x", "-x" }) do
-		ribbon(h, o, rng, face, y0 + 22, 6.4, 6, D - 6, 8, GLASS, DARKG, 0.3, o.litChance)
-		ribbon(h, o, rng, face, y0 + 30, 4.8, 6, D - 6, 8, GLASS, DARKG, 0.3, o.litChance)
+	for _, row in ipairs({ { 22, 6.4 }, { 30, 4.8 }, { 38, 4.8 } }) do
+		ribbon(h, o, rng, "front", y0 + row[1], row[2], -W / 2 + 3, W / 2 - 3, 8, GLASS, DARKG, 0.3, o.litChance)
+		for _, face in ipairs({ "+x", "-x" }) do ribbon(h, o, rng, face, y0 + row[1], row[2], 6, D - 6, 8, GLASS, DARKG, 0.3, o.litChance) end
 	end
 	-- Eingangshalle: Glasfront, Doppeltür (Tag ShopDoor, ohne Kollision), Kasse
 	ribbon(h, o, rng, "front", y0 + 7.5, 10, -16, -4.5, 4, GLASS, DARKR, 0.3, nil)
@@ -982,8 +980,8 @@ local function styleKino(h, o, rng)
 	add(h, "KasseRahmen", "trim", -23, y0 + 5.4, -0.3, 7, 5, 0.3, GOLD, "Metal")
 	label(h, "front", -23, y0 + 9.2, 0.6, 6, 1.6, "KASSE", GOLD)
 	-- Filmplakate links und rechts der Halle (hinterleuchtet)
-	local posters = { { "PREMIERE", { 170, 60, 50 } }, { "ACTION", { 50, 90, 150 } }, { "KOMOEDIE", { 220, 170, 60 } }, { "DRAMA", { 90, 60, 120 } } }
-	for i, u in ipairs({ -29, -21.5, 21.5, 29 }) do
+	local posters = { { "THRILLER", { 40, 110, 90 } }, { "PREMIERE", { 170, 60, 50 } }, { "ACTION", { 50, 90, 150 } }, { "KOMOEDIE", { 220, 170, 60 } }, { "DRAMA", { 90, 60, 120 } }, { "ABENTEUER", { 200, 100, 40 } }, { "KRIMI", { 60, 60, 80 } }, { "FAMILIE", { 70, 150, 190 } } }
+	for i, u in ipairs({ -43.5, -36, -29, -21.5, 21.5, 29, 36, 43.5 }) do
 		add(h, "PlakatRahmen", "trim", u, y0 + 7.8, -0.5, 6, 9, 0.5, { 36, 34, 38 }, "Metal")
 		add(h, "Plakat", "decor", u, y0 + 7.8, -0.85, 5, 8, 0.2, posters[i][2], "SmoothPlastic", { lit = true })
 		label(h, "front", u, y0 + 7.8, 1.1, 4.6, 1.4, posters[i][1], { 255, 255, 255 })
@@ -1016,17 +1014,17 @@ local function styleKino(h, o, rng)
 		for _, lz in ipairs({ -2, -8, -14, -20 }) do add(h, "Absperrpfosten", "decor", sd * 5.4, 2.6, lz, 0.5, 3, 0.5, GOLD, "Metal", { collide = true }) end
 		add(h, "Kordel", "decor", sd * 5.4, 3.7, -11, 0.3, 0.3, 18, { 150, 24, 36 }, "Fabric")
 	end
-	benchAt(h, -20, -20, 0)
-	benchAt(h, 20, -20, 0)
-	treeAt(h, -30, -24)
-	treeAt(h, 30, -24)
+	benchAt(h, -W / 2 + 28, -20, 0)
+	benchAt(h, W / 2 - 28, -20, 0)
+	treeAt(h, -W / 2 + 12, -24)
+	treeAt(h, W / 2 - 12, -24)
 end
 
 -- Kaffeehaus Odeon (grün-weißes Café nach Plan, bewusst ohne echtes Markenlogo): helle Fassade mit grünen Bändern, großes Glasfenster, grünes Vordach
 -- mit Schriftzug, rundes Schild mit Kaffeebohne, Terrasse mit Zaun, Tischen, Stühlen und Sonnenschirmen, Menütafel.
 local function styleKaffee(h, o, rng)
 	local W, D, y0 = h.width, h.depth, o.floorY
-	local H = 22
+	local H = 33
 	local CREAM, GREEN, DGREEN, WHITE2 = { 244, 242, 232 }, { 30, 120, 80 }, { 18, 84, 56 }, { 250, 250, 246 }
 	h.floors, h.height, h.facade, h.roof = 2, H, CREAM, "flat"
 	add(h, "Body", "body", 0, y0 + H / 2, D / 2, W, H, D, CREAM, "SmoothPlastic", { collide = true })
@@ -1039,7 +1037,7 @@ local function styleKaffee(h, o, rng)
 	-- Glasfront im Erdgeschoss, Tür in der Mitte; Fenster im Obergeschoss
 	ribbon(h, o, rng, "front", y0 + 7, 9.4, -W / 2 + 2, -3.6, 4.4, GLASS, DGREEN, 0.3, nil)
 	ribbon(h, o, rng, "front", y0 + 7, 9.4, 3.6, W / 2 - 2, 4.4, GLASS, DGREEN, 0.3, nil)
-	ribbon(h, o, rng, "front", y0 + 18, 4.4, -W / 2 + 2, W / 2 - 2, 6, GLASS, DGREEN, 0.3, o.litChance)
+	for _, yy in ipairs({ 18, 25.5 }) do ribbon(h, o, rng, "front", y0 + yy, 4.4, -W / 2 + 2, W / 2 - 2, 6, GLASS, DGREEN, 0.3, o.litChance) end
 	for _, sd in ipairs({ -1, 1 }) do
 		add(h, "Kaffeetuer", "glass", sd * 1.7, y0 + 4.8, -0.5, 3.2, 9.6, 0.3, { 160, 180, 176 }, "Glass", { tag = "ShopDoor" })
 		add(h, "Tuerrahmen", "trim", sd * 3.5, y0 + 5, -0.6, 0.5, 10, 0.5, DGREEN, "Metal")
@@ -1047,7 +1045,7 @@ local function styleKaffee(h, o, rng)
 	add(h, "Tuerrahmen", "trim", 0, y0 + 10.1, -0.6, 7.4, 0.5, 0.5, DGREEN, "Metal")
 	for _, face in ipairs({ "+x", "-x" }) do
 		ribbon(h, o, rng, face, y0 + 7, 9, 6, D - 6, 8, GLASS, DGREEN, 0.3, o.litChance)
-		ribbon(h, o, rng, face, y0 + 18, 4.4, 6, D - 6, 8, GLASS, DGREEN, 0.3, o.litChance)
+		for _, yy in ipairs({ 18, 25.5 }) do ribbon(h, o, rng, face, y0 + yy, 4.4, 6, D - 6, 8, GLASS, DGREEN, 0.3, o.litChance) end
 	end
 	-- grünes Vordach mit Schriftzug
 	add(h, "Markise", "trim", 0, y0 + 12.2, -3, W - 8, 0.6, 6, GREEN, "Fabric")
@@ -1068,7 +1066,7 @@ local function styleKaffee(h, o, rng)
 	add(h, "Zaunriegel", "decor", 0, 3.4, -25.2, W + 4, 0.3, 0.3, DGREEN, "Metal")
 	for _, lx in ipairs({ -W / 2 + 2, W / 2 - 2 }) do for _, lz in ipairs({ -25.2 }) do add(h, "Zaunpfosten", "decor", lx, 2.4, lz, 0.4, 2.8, 0.4, DGREEN, "Metal", { collide = true }) end end
 	local ti = 0
-	for _, lx in ipairs({ -13, 0, 13 }) do
+	for _, lx in ipairs({ -W / 3, -W / 9, W / 9, W / 3 }) do
 		for _, lz in ipairs({ -12, -20 }) do
 			ti = ti + 1
 			add(h, "Tisch", "decor", lx, 3.4, lz, 0.4, 3.4, 3.4, { 240, 238, 230 }, "SmoothPlastic", { shape = "Cylinder", roll = 90, collide = true })
@@ -1088,7 +1086,110 @@ local function styleKaffee(h, o, rng)
 	label(h, "front", 8.4, y0 + 3.4, 4.5, 2.6, 1.4, "MENUE", WHITE2)
 end
 
-local STYLES = { feuerwache = styleFeuerwache, polizei = stylePolizei, klinik = styleKlinik, buero = styleBuero, kino = styleKino, kaffee = styleKaffee }
+-- Parkhaus am Klinikum: Erdgeschoss plus 1. und 2. Stock (je 11 hoch) als offene Decks mit Stützen, Brüstungen, Lamellen an der Front, Stellplatzlinien,
+-- Schriftzug, Einfahrt mit Schranke und Kassenhäuschen, Treppenhäusern und einer Auffahrt ins 1. Obergeschoss an der Ostseite (außerhalb des Grundrisses).
+local function styleParkhaus(h, o, rng)
+	local W, D, y0 = h.width, h.depth, o.floorY
+	local CONC, DARK, BLUE, WHITE = { 176, 176, 172 }, { 120, 122, 124 }, { 36, 84, 170 }, { 244, 244, 246 }
+	local LV, TOP = 11, 33
+	h.floors, h.height, h.facade, h.roof = 3, TOP, CONC, "flat"
+	add(h, "Body", "body", 0, y0 + TOP + 0.6, D / 2, W, 1.2, D, CONC, "Concrete", { collide = true }) -- Dach
+	for k = 0, 2 do
+		local yt = y0 + k * LV
+		add(h, "Parkdeck", "trim", 0, yt - 0.6, D / 2, W, 1.2, D, DARK, "Concrete", { collide = true })
+		for i = 0, 6 do
+			for j = 0, 4 do
+				add(h, "Stuetze", "trim", -W / 2 + 1 + i * (W - 2) / 6, yt + LV / 2 - 0.6, 1 + j * (D - 2) / 4, 2, LV - 1.2, 2, CONC, "Concrete", { collide = true })
+			end
+		end
+		add(h, "Bruestung", "trim", 0, yt + 1.7, 0.4, W, 3.4, 0.8, CONC, "Concrete", { collide = true })
+		add(h, "Bruestung", "trim", 0, yt + 1.7, D - 0.4, W, 3.4, 0.8, CONC, "Concrete", { collide = true })
+		for _, sd in ipairs({ -1, 1 }) do add(h, "Bruestung", "trim", sd * (W / 2 - 0.4), yt + 1.7, D / 2, 0.8, 3.4, D, CONC, "Concrete", { collide = true }) end
+		add(h, "Gurt", "trim", 0, yt + LV - 1.8, -0.4, W, 1.2, 0.8, { 150, 150, 146 }, "Concrete")
+		for i = 0, math.floor(W / 4) do add(h, "Lamelle", "trim", -W / 2 + 1 + i * (W - 2) / math.floor(W / 4), yt + 6.4, -0.3, 0.7, 5.6, 1, { 190, 190, 186 }, "Concrete") end
+		-- Stellplätze: zwei Reihen (vorn und hinten), Fahrgasse in der Mitte, Linien alle 5,4 Studs
+		for _, band in ipairs({ { 4, 16 }, { D - 20, 16 } }) do
+			for i = 0, 27 do add(h, "StellplatzLinie", "dash", -W / 2 + 6 + i * (W - 12) / 27, yt + 0.06, band[1] + band[2] / 2, 0.3, 0.1, band[2], WHITE, "SmoothPlastic") end
+		end
+		for i = 0, 8 do add(h, "Deckenlicht", "trim", -W / 2 + 10 + i * (W - 20) / 8, yt + LV - 1.5, D / 2, 4, 0.3, 0.6, { 255, 250, 232 }, "Neon") end
+		add(h, "Geschossschild", "decor", -W / 2 + 14, yt + 7.2, 1.2, 8, 2.4, 0.3, BLUE, "SmoothPlastic")
+		add(h, "Schrift", "text", -W / 2 + 14, yt + 7.2, 1.0, 7, 1.8, 0.2, WHITE, "SmoothPlastic", { kind = "text", yaw = 180, text = { s = ({ "EG", "1. OG", "2. OG" })[k + 1], color = WHITE } })
+	end
+	-- Schriftzug und P-Schild
+	add(h, "Schildband", "trim", 0, y0 + TOP - 2.4, -1.2, 60, 4.4, 1, BLUE, "SmoothPlastic")
+	label(h, "front", 0, y0 + TOP - 2.4, 1.8, 56, 3.2, "PARKHAUS KLINIKUM", WHITE)
+	add(h, "Pylon", "decor", W / 2 - 14, y0 + 8, -4, 1, 16, 1, { 80, 82, 86 }, "Metal", { collide = true })
+	add(h, "PylonSchild", "decor", W / 2 - 14, y0 + 17, -4, 6, 6, 0.4, BLUE, "SmoothPlastic")
+	label(h, "front", W / 2 - 14, y0 + 17, 4.3, 5, 5, "P", WHITE)
+	-- Einfahrt (Mitte): Kassenhäuschen und rot-weiße Schranke, Ausfahrt daneben
+	for k, u in ipairs({ -10, 10 }) do
+		add(h, "Kassenhaeuschen", "trim", u + (k == 1 and -4.5 or 4.5), y0 + 3, -5, 3, 6, 4, WHITE, "SmoothPlastic", { collide = true })
+		add(h, "Kassendach", "trim", u + (k == 1 and -4.5 or 4.5), y0 + 6.3, -5, 4.4, 0.6, 5.4, BLUE, "SmoothPlastic")
+		for i = 1, 4 do add(h, "Schranke", "trim", u - 3 + (i - 0.5) * 1.5 + (k == 1 and 0 or 0), y0 + 4.2, -5, 1.5, 0.5, 0.5, (i % 2 == 1) and { 200, 40, 40 } or WHITE, "SmoothPlastic", { collide = true, tag = "Schranke", attrs = { Offen = false, Gruppe = k == 1 and "ParkhausEin" or "ParkhausAus" } }) end
+	end
+	label(h, "front", -10, y0 + 8.4, 6.4, 10, 1.2, "EINFAHRT", { 120, 240, 160 })
+	label(h, "front", 10, y0 + 8.4, 6.4, 10, 1.2, "AUSFAHRT", { 255, 150, 120 })
+	-- Treppenhäuser an den hinteren Ecken (Glasfront), Fahrstuhlkern
+	for _, sd in ipairs({ -1, 1 }) do
+		add(h, "Treppenhaus", "trim", sd * (W / 2 - 8), y0 + TOP / 2, D - 7, 10, TOP, 12, { 150, 150, 146 }, "Concrete", { collide = true })
+		add(h, "TreppenhausGlas", "glass", sd * (W / 2 - 8), y0 + 8, D - 13.2, 6, 14, 0.3, { 130, 160, 180 }, "Glass", { kind = "glass" })
+	end
+	-- Auffahrt ins 1. Obergeschoss an der Ostseite (außerhalb des Grundrisses), Neigung 13 Grad
+	local rl = 46
+	add(h, "Auffahrt", "trim", W / 2 + rl / 2, y0 + LV / 2, 14, math.sqrt(rl * rl + LV * LV), 1, 18, DARK, "Asphalt", { collide = true, roll = -math.deg(math.atan2(LV, rl)) })
+	for _, sd in ipairs({ 6, 22 }) do add(h, "AuffahrtMauer", "trim", W / 2 + rl / 2, y0 + LV / 2 + 1.2, sd, math.sqrt(rl * rl + LV * LV), 2.4, 0.6, CONC, "Concrete", { collide = true, roll = -math.deg(math.atan2(LV, rl)) }) end
+end
+
+-- Bank (Volksbank, erster grober Entwurf): dreigeschossiger heller Bau mit blauem Sockelband und orangem Akzent, Glasfront mit Schalterhalle, Eingangsvordach mit Drehtür,
+-- zwei Geldautomaten, großer Schriftzug "Volksbank" (nur Wortmarke, kein Logo), Vorplatz mit Fahnenmasten.
+local function styleBank(h, o, rng)
+	local W, D, y0 = h.width, h.depth, o.floorY
+	local H = 38
+	local BLUE, ORANGE, WHITE, GLASS2 = { 0, 76, 150 }, { 240, 112, 24 }, { 236, 238, 240 }, { 130, 166, 190 }
+	h.floors, h.height, h.facade, h.roof = 3, H, WHITE, "flat"
+	add(h, "Body", "body", 0, y0 + H / 2, D / 2, W, H, D, WHITE, "SmoothPlastic", { collide = true })
+	add(h, "Sockel", "trim", 0, y0 + 1.2, -0.3, W, 2.4, 0.6, { 110, 112, 116 }, "Concrete")
+	add(h, "Dach", "roof", 0, y0 + H + 0.3, D / 2, W + 1, 0.6, D + 1, { 96, 96, 100 }, "Concrete", { collide = true })
+	add(h, "Attika", "trim", 0, y0 + H + 1.6, 0.4, W + 1, 2, 0.8, WHITE, "Concrete")
+	add(h, "BlauBand", "trim", 0, y0 + 14.8, -0.5, W + 0.6, 2.2, 1, BLUE, "SmoothPlastic")
+	add(h, "OrangeBand", "trim", 0, y0 + 16.2, -0.6, W + 0.6, 0.6, 1.2, ORANGE, "SmoothPlastic")
+	add(h, "BlauBand", "trim", 0, y0 + H - 1, -0.5, W + 0.6, 2, 1, BLUE, "SmoothPlastic")
+	ribbon(h, o, rng, "front", y0 + 7.4, 10.4, -W / 2 + 2, -8, 5, GLASS, BLUE, 0.3, nil)
+	ribbon(h, o, rng, "front", y0 + 7.4, 10.4, 8, W / 2 - 2, 5, GLASS, BLUE, 0.3, nil)
+	for _, row in ipairs({ { 22.5, 6 }, { 31, 5 } }) do
+		ribbon(h, o, rng, "front", y0 + row[1], row[2], -W / 2 + 2, W / 2 - 2, 7, GLASS2, { 90, 96, 104 }, 0.3, o.litChance)
+		for _, face in ipairs({ "+x", "-x" }) do ribbon(h, o, rng, face, y0 + row[1], row[2], 6, D - 6, 8, GLASS2, { 90, 96, 104 }, 0.3, o.litChance) end
+	end
+	-- Eingang: Drehtür in Glas, Vordach, Schriftzug
+	add(h, "Eingangsrahmen", "trim", 0, y0 + 5.4, -0.4, 9, 10.8, 0.5, BLUE, "Metal")
+	add(h, "Drehtuer", "glass", 0, y0 + 5, -0.6, 7, 10, 0.3, { 150, 180, 196 }, "Glass", { tag = "ShopDoor" })
+	add(h, "Vordach", "trim", 0, y0 + 12.4, -4, 22, 0.8, 8, BLUE, "SmoothPlastic", { collide = true })
+	for _, sd in ipairs({ -1, 1 }) do add(h, "VordachStuetze", "trim", sd * 10, y0 + 6, -7.4, 0.8, 12, 0.8, { 150, 154, 158 }, "Metal", { collide = true }) end
+	add(h, "VordachRand", "trim", 0, y0 + 12.4, -8.1, 22.4, 1.2, 0.5, ORANGE, "SmoothPlastic")
+	add(h, "Schriftband", "trim", 0, y0 + H - 6.8, -0.7, 54, 7, 0.8, BLUE, "SmoothPlastic")
+	label(h, "front", 0, y0 + H - 6.8, 1.2, 50, 5, "Volksbank", WHITE)
+	add(h, "SchriftOrange", "trim", 0, y0 + H - 10.7, -0.7, 54, 0.8, 0.8, ORANGE, "SmoothPlastic")
+	-- Geldautomaten links neben dem Eingang (Nische mit zwei Geräten) und Öffnungszeiten
+	for k, u in ipairs({ -15, -21 }) do
+		add(h, "Geldautomat", "trim", u, y0 + 4.2, -1.2, 4.4, 7.4, 2.4, BLUE, "SmoothPlastic", { collide = true })
+		add(h, "GeldautomatBildschirm", "decor", u, y0 + 5.6, -2.5, 3, 2.2, 0.2, { 255, 170, 60 }, "Neon")
+		add(h, "GeldautomatFach", "decor", u, y0 + 3, -2.5, 3, 0.8, 0.3, { 24, 24, 28 }, "SmoothPlastic")
+	end
+	label(h, "front", -18, y0 + 9.6, 3, 8, 1.4, "GELD 24 H", ORANGE)
+	label(h, "front", 17, y0 + 6.6, 0.7, 9, 3.2, "Mo-Fr 9-17", { 40, 50, 70 })
+	-- Vorplatz, Fahnenmaste, Pflanzkübel, Bänke
+	add(h, "Vorplatz", "trim", 0, 0.5, -10, W + 6, 1, 20, { 168, 172, 174 }, "Concrete", { collide = true })
+	for _, sd in ipairs({ -1, 1 }) do
+		add(h, "Fahnenmast", "decor", sd * (W / 2 - 4), y0 + 9, -5, 0.5, 18, 0.5, { 200, 200, 204 }, "Metal", { collide = true })
+		add(h, "Fahne", "decor", sd * (W / 2 - 4) + 1.9, y0 + 15, -5, 3.4, 4, 0.2, (sd < 0) and BLUE or ORANGE, "Fabric")
+		add(h, "Kuebel", "decor", sd * 14, 1.9, -2.6, 2.8, 1.8, 2.8, { 70, 66, 62 }, "Concrete", { collide = true })
+		add(h, "KuebelBusch", "bush", sd * 14, 4.2, -2.6, 4, 4, 4, { 46, 92, 52 }, "Grass", { shape = "Ball" })
+	end
+	benchAt(h, -W / 2 + 12, -14, 0)
+	benchAt(h, W / 2 - 12, -14, 0)
+end
+
+local STYLES = { feuerwache = styleFeuerwache, polizei = stylePolizei, klinik = styleKlinik, buero = styleBuero, kino = styleKino, kaffee = styleKaffee, parkhaus = styleParkhaus, bank = styleBank }
 
 
 -- Teil in Weltkoordinaten (für Anlagen, die nicht zum Haus-Koordinatensystem passen: Tankstelle, Polizeihof)
@@ -1352,6 +1453,39 @@ local function parkingLot(h, spec)
 	end
 end
 
+-- Öffentlicher Parkplatz (Weltkoordinaten): Asphaltplatte mit Randstein, Stellplätze (8 breit, 16 tief) in einer oder zwei Reihen an den Längsseiten,
+-- dazwischen die Fahrgasse, Pfosten mit blauem P-Schild. Querformat (breiter als tief): Reihen im Norden/Süden, Hochformat: Reihen im Westen/Osten.
+local function parkingArea(h, r)
+	local x0, z0, x1, z1 = r[1], r[2], r[3], r[4]
+	local WHITE, KERB = { 244, 244, 246 }, { 190, 188, 182 }
+	local w, d, S = x1 - x0, z1 - z0, 8
+	W3(h, "Parkplatz", "trim", (x0 + x1) / 2, 0.4, (z0 + z1) / 2, w, 1.2, d, { 78, 80, 86 }, "Asphalt", { collide = true })
+	W3(h, "Parkplatzkante", "trim", (x0 + x1) / 2, 1.25, z0 + 0.4, w, 0.5, 0.8, KERB, "Concrete", { collide = true })
+	W3(h, "Parkplatzkante", "trim", (x0 + x1) / 2, 1.25, z1 - 0.4, w, 0.5, 0.8, KERB, "Concrete", { collide = true })
+	local wide = w >= d
+	local len = wide and w or d
+	local rows = (math.min(w, d) >= 40) and 2 or 1
+	local n = math.floor((len - 2) / S)
+	local off = (len - n * S) / 2
+	for row = 1, rows do
+		for i = 0, n do
+			local t = off + i * S
+			local back = (row == 1) and 0 or 1 -- Reihe 1 an der Nordkante/Westkante, Reihe 2 an der Gegenkante
+			if wide then
+				local zc = back == 0 and z0 + 1.2 + 8 or z1 - 1.2 - 8
+				W3(h, "StellplatzLinie", "dash", x0 + t, 1.07, zc, 0.3, 0.1, 16, WHITE, "SmoothPlastic")
+			else
+				local xc = back == 0 and x0 + 1.2 + 8 or x1 - 1.2 - 8
+				W3(h, "StellplatzLinie", "dash", xc, 1.07, z0 + t, 16, 0.1, 0.3, WHITE, "SmoothPlastic")
+			end
+		end
+	end
+	local px, pz = x0 + 3, z0 + 3
+	W3(h, "ParkplatzPfosten", "decor", px, 4, pz, 0.4, 6.6, 0.4, { 80, 82, 86 }, "Metal", { collide = true })
+	W3(h, "ParkplatzSchild", "decor", px, 7.6, pz, 3.2, 3.2, 0.3, { 36, 84, 170 }, "SmoothPlastic")
+	W3(h, "Schrift", "text", px, 7.6, pz - 0.25, 2.6, 2.6, 0.2, { 255, 255, 255 }, "SmoothPlastic", { text = { s = "P", color = { 255, 255, 255 } } })
+end
+
 -- Sonderbau (Bank, Wache, Krankenhaus ...) als Platzhalter-Gebäude auf einer Rechteckfläche.
 -- spec = { name, x0, z0, x1, z1, facing = "N"|"S"|"E"|"W" (Seite zur Straße), floors, color, canopy = { x0, z0, x1, z1 } }
 function Planner.planSpecial(spec, opts)
@@ -1389,6 +1523,7 @@ function Planner.planSpecial(spec, opts)
 		lotDecor(h, spec)
 		if spec.parking then parkingLot(h, spec) end
 	end
+	for _, r in ipairs(spec.lots or {}) do parkingArea(h, r) end
 	if spec.compound then COMPOUNDS[spec.compound](h, spec, o) end
 	return { houses = { h } }
 end
