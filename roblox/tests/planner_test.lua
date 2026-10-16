@@ -624,6 +624,32 @@ do
 	end
 end
 
+-- ===== Schaufenster an der Leopoldstraße =====
+do
+	local shops, kinds = 0, {}
+	for _, b in ipairs(Blocks) do
+		local plan = Planner.planBlock(b, { seed = 1 })
+		for _, h in ipairs(plan.houses) do
+			local glass, names = 0, {}
+			for _, p in ipairs(h.parts) do
+				if p.name == "SchauGlas" then glass = glass + 1 end
+				if p.name == "LadenSchrift" then names[#names + 1] = p.text.s end
+			end
+			if b.shopSide == h.side and h.width >= 24 then
+				check(glass >= 1 and #names == glass, h.name .. ": Schaufenster " .. glass)
+				shops = shops + glass
+				for _, n in ipairs(names) do kinds[n] = true end
+			else
+				check(glass == 0, h.name .. " hat Schaufenster abseits der Leopoldstraße")
+			end
+		end
+	end
+	local n = 0
+	for _ in pairs(kinds) do n = n + 1 end
+	check(shops >= 8 and n >= 4, "Schaufenster: " .. shops .. " Läden, " .. n .. " Namen")
+	print(string.format("Schaufenster: %d Läden (%d verschiedene Namen)", shops, n))
+end
+
 if failures > 0 then
 	print(failures .. " FEHLER")
 	error("Tests fehlgeschlagen")

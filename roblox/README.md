@@ -165,3 +165,4 @@ Der Terrain-Schritt setzt `Terrain.Decoration = false` (keine Gras-Büschel, die
 - **Bushaltestellen** (`Bushaltestellen.lua`, `Config.busstops`): 18 Wartehäuschen mit Bank, Fahrplan und Schild „H“ auf den Gehwegen (Attribut `Haltestelle`).
 - Neue Schritte `skyline` und `bus` in `BuildAll`.
 
+- **Schaufenster an der Leopoldstraße** (`storefront` in `Planner.lua`, Blöcke mit `shopSide` in `Blocks.lua`: C/F Ostseite, G Westseite): vor der Fassade Vitrine mit Glas, Rahmen und Namensschild, nicht begehbar. Vier Arten: Mode (Schaufensterpuppen, Kleiderstange, SALE), Bar (Tresen, Flaschenregal, Neonröhren, Hocker), Café (Tische, Stühle, Kuchentheke, Pendelleuchten, gestreifte Markise, Kreidetafel), Schuhe (Regale mit Kartons). Aktuell 9 Läden an 5 Häusern; die Tür daneben bleibt Wohnungseingang.

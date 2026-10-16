@@ -498,6 +498,114 @@ if h.simple or noSill then return end
 lx, lz = onFace(h, face, u, 0.5 + shift)
 add(h, "Sill" .. label, "trim", lx, yc - hgt / 2 - 1.1, lz, w + 3, 0.6, 1.0, { 200, 196, 188 }, "Concrete", { yaw = ey })
 end
+local SHOPNAMES = {
+mode = { "MODA LEO", "URBAN STYLE", "SCHICK & CO", "TEXTIL 77", "FASHION HAUS" },
+bar = { "BAR NOIR", "SKYLINE BAR", "LEOS PUB", "CLUB 54" },
+cafe = { "CAFÉ LEOPOLD", "KAFFEEHAUS ROSA", "ESPRESSO BAR", "EISDIELE" },
+schuhe = { "SCHUHHAUS", "SNEAKER BOX", "BOUTIQUE" },
+}
+local SHOPKINDS = { "mode", "bar", "cafe", "schuhe", "mode", "cafe" }
+local BACKDROP = { mode = { 236, 232, 226 }, bar = { 58, 28, 34 }, cafe = { 240, 224, 190 }, schuhe = { 206, 218, 230 } }
+local SIGNCOL = { mode = { 30, 30, 34 }, bar = { 24, 20, 30 }, cafe = { 96, 56, 40 }, schuhe = { 34, 60, 96 } }
+local CLOTHES = { { 200, 60, 70 }, { 60, 90, 170 }, { 240, 200, 70 }, { 70, 150, 100 }, { 230, 230, 230 }, { 150, 70, 160 } }
+local function storefront(h, rng, kind, name, u, w, y0)
+local yb, wh = y0 + 1.8, 9.4 -- Fensterunterkante, Fensterhöhe
+local fl = yb + 0.1 -- Warenboden
+local function put(n, k, lx, y, lz, sx, sy, sz, col, mat, extra) add(h, n, k, u + lx, y, lz, sx, sy, sz, col, mat, extra) end
+local back = BACKDROP[kind]
+put("SchauKulisse", "body", 0, yb + wh / 2, -0.4, w, wh, 0.2, back, "SmoothPlastic")
+put("SchauBoden", "trim", 0, fl, -1.4, w, 0.3, 2.2, kind == "bar" and { 40, 30, 28 } or { 150, 118, 86 }, "Wood")
+for _, sd in ipairs({ -1, 1 }) do put("SchauSeite", "body", sd * (w / 2 - 0.1), yb + wh / 2, -1.3, 0.2, wh, 2.0, back, "SmoothPlastic") end
+put("SchauLicht", "trim", 0, yb + wh - 0.4, -1.2, w - 2, 0.2, 0.5, kind == "bar" and { 255, 90, 150 } or { 255, 236, 190 }, "Neon")
+put("SchauGlas", "glass", 0, yb + wh / 2, -2.3, w, wh, 0.15, { 170, 205, 225 }, "Glass", { tag = "HouseWindow", lit = true })
+put("SchauRahmenOben", "frame", 0, yb + wh + 0.25, -2.3, w + 0.8, 0.5, 0.6, { 40, 40, 44 }, "Metal")
+put("SchauRahmenUnten", "frame", 0, yb - 0.25, -2.3, w + 0.8, 0.5, 0.6, { 40, 40, 44 }, "Metal")
+for _, sd in ipairs({ -1, 1 }) do put("SchauRahmenSeite", "frame", sd * (w / 2 + 0.2), yb + wh / 2, -2.3, 0.5, wh, 0.6, { 40, 40, 44 }, "Metal") end
+if w > 17 then put("SchauSprosse", "frame", 0, yb + wh / 2, -2.3, 0.4, wh, 0.5, { 40, 40, 44 }, "Metal") end
+put("LadenSchild", "trim", 0, y0 + 12.7, -0.6, w + 1, 2.3, 0.4, SIGNCOL[kind], "SmoothPlastic")
+put("LadenSchrift", "sign", 0, y0 + 12.7, -0.85, w - 1, 1.7, 0.1, { 0, 0, 0 }, "SmoothPlastic", { text = { s = name, color = kind == "bar" and { 255, 120, 190 } or { 244, 238, 220 } } })
+if kind == "mode" then
+local n = math.max(2, math.floor(w / 5))
+for i = 1, n do
+local x = -w / 2 + (i - 0.5) * (w * 0.6 / n) + 1
+local top, pant = rng.pick(CLOTHES), rng.pick({ { 40, 50, 80 }, { 30, 30, 34 }, { 120, 100, 80 } })
+put("PuppePfosten", "trim", x, fl + 1.2, -1.4, 0.2, 2.4, 0.2, { 60, 60, 64 }, "Metal")
+put("PuppeBeine", "trim", x, fl + 3.0, -1.4, 0.9, 3.2, 0.6, pant, "Fabric")
+put("PuppeTorso", "trim", x, fl + 5.8, -1.4, 1.5, 2.6, 0.8, top, "Fabric")
+put("PuppeKopf", "trim", x, fl + 7.5, -1.4, 0.9, 0.9, 0.9, { 226, 214, 200 }, "SmoothPlastic", { shape = "Ball" })
+end
+local rx = w / 2 - w * 0.2 - 1 -- Kleiderstange rechts
+put("Kleiderstange", "trim", rx, fl + 6.4, -0.9, w * 0.34, 0.15, 0.15, { 190, 190, 196 }, "Metal")
+for i = 1, math.max(3, math.floor(w * 0.34 / 1.3)) do
+put("Kleidung", "trim", rx - w * 0.17 + i * 1.3, fl + 5.1, -0.9, 0.9, 2.6, 0.35, rng.pick(CLOTHES), "Fabric")
+end
+put("SaleSchild", "trim", -w / 2 + 2.6, yb + wh - 1.8, -2.0, 3.2, 1.4, 0.1, { 220, 40, 50 }, "SmoothPlastic")
+put("SaleSchrift", "sign", -w / 2 + 2.6, yb + wh - 1.8, -2.08, 3.0, 1.2, 0.1, { 0, 0, 0 }, "SmoothPlastic", { text = { s = "SALE", color = { 255, 255, 255 } } })
+elseif kind == "bar" then
+put("Tresen", "trim", 0, fl + 1.8, -1.0, w * 0.8, 3.6, 1.0, { 92, 56, 36 }, "Wood")
+put("TresenPlatte", "trim", 0, fl + 3.7, -1.15, w * 0.8 + 0.4, 0.3, 1.5, { 30, 24, 22 }, "Wood")
+for _, yy in ipairs({ 5.8, 7.6 }) do
+put("Regalbrett", "trim", 0, fl + yy, -0.6, w * 0.8, 0.2, 0.5, { 120, 84, 56 }, "Wood")
+for i = 1, math.floor(w * 0.8 / 1.4) do
+local col = rng.pick({ { 40, 120, 70 }, { 200, 130, 40 }, { 40, 90, 170 }, { 170, 40, 50 } })
+put("Flasche", "trim", -w * 0.4 + i * 1.4 - 0.7, fl + yy + 0.9, -0.6, 0.5, 1.6, 0.5, col, "Glass", { shape = "Cylinder", roll = 90 })
+end
+end
+for i = 1, math.max(2, math.floor(w / 5)) do
+local x = -w * 0.4 + (i - 0.5) * (w * 0.8 / math.max(2, math.floor(w / 5)))
+put("Hockerbein", "trim", x, fl + 1.1, -2.0, 0.2, 2.2, 0.2, { 80, 80, 86 }, "Metal")
+put("Hockersitz", "trim", x, fl + 2.3, -2.0, 1.1, 0.3, 1.1, { 170, 40, 60 }, "Fabric", { shape = "Cylinder", roll = 90 })
+end
+for _, e in ipairs({ { 0, 8.4, w * 0.5, 0.2 }, { 0, 6.6, w * 0.5, 0.2 } }) do -- Neonröhren im Fenster
+put("Neon", "trim", e[1], fl + e[2] + 0.3, -2.0, e[3], e[4], 0.2, rng.pick({ { 255, 70, 160 }, { 70, 220, 255 } }), "Neon")
+end
+elseif kind == "cafe" then
+for i = 1, 2 do
+local x = -w / 2 + (i - 0.5) * w * 0.28 + 1.5
+put("Tischbein", "trim", x, fl + 1.3, -1.5, 0.2, 2.6, 0.2, { 60, 60, 64 }, "Metal")
+put("Tischplatte", "trim", x, fl + 2.7, -1.5, 0.2, 2.2, 2.2, { 244, 240, 230 }, "SmoothPlastic", { shape = "Cylinder", roll = 90 })
+for _, sd in ipairs({ -1.8, 1.8 }) do
+put("Stuhl", "trim", x + sd, fl + 1.4, -1.5, 1.0, 0.3, 1.0, { 150, 90, 60 }, "Wood")
+put("StuhlLehne", "trim", x + sd * 1.3, fl + 2.6, -1.5, 0.2, 2.2, 1.0, { 150, 90, 60 }, "Wood")
+end
+put("Pendelleuchte", "trim", x, fl + 7.4, -1.5, 1.2, 1.2, 1.2, { 255, 214, 140 }, "Neon", { shape = "Ball" })
+end
+local kx = w / 2 - w * 0.2 -- Kuchentheke rechts
+put("Kuchentheke", "trim", kx, fl + 1.8, -1.0, w * 0.34, 3.6, 1.2, { 236, 226, 210 }, "SmoothPlastic")
+put("KuchenGlas", "glass", kx, fl + 4.1, -1.0, w * 0.34, 1.0, 1.2, { 190, 220, 235 }, "Glass", { tag = "HouseWindow", lit = true })
+for i = 1, math.max(2, math.floor(w * 0.34 / 1.6)) do
+put("Kuchen", "trim", kx - w * 0.17 + i * 1.6 - 0.8, fl + 3.9, -1.0, 1.0, 0.7, 0.9, rng.pick({ { 240, 150, 170 }, { 120, 70, 40 }, { 250, 220, 120 }, { 230, 230, 220 } }), "SmoothPlastic")
+end
+local stripes = math.max(4, math.floor(w / 2))
+for i = 1, stripes do
+put("Markise", "trim", -w / 2 + (i - 0.5) * w / stripes, y0 + 11.9, -2.8, w / stripes, 0.3, 2.2, i % 2 == 0 and { 240, 240, 236 } or { 190, 50, 50 }, "Fabric", { pitch = 14 })
+end
+put("Kreidetafel", "trim", -w / 2 + 3, y0 + 2.4, -3.6, 2.2, 3.6, 0.3, { 30, 40, 36 }, "SmoothPlastic", { pitch = 8 })
+else -- schuhe
+for _, yy in ipairs({ 2.4, 4.8, 7.2 }) do
+put("Schuhregal", "trim", 0, fl + yy, -0.9, w - 2, 0.2, 1.0, { 230, 230, 232 }, "SmoothPlastic")
+for i = 1, math.floor((w - 3) / 2.2) do
+put("Schuhkarton", "trim", -w / 2 + 1.5 + i * 2.2 - 1.1, fl + yy + 0.7, -0.9, 1.8, 1.2, 0.8, rng.pick(CLOTHES), "SmoothPlastic")
+end
+end
+put("Podest", "trim", 0, fl + 0.6, -1.6, w * 0.4, 1.0, 1.0, { 40, 40, 44 }, "SmoothPlastic")
+put("PodestSchuh", "trim", 0, fl + 1.5, -1.6, 1.8, 0.8, 0.7, { 220, 50, 50 }, "Fabric")
+end
+end
+local function storefronts(h, lo, hi, y0)
+local rng = newRng(hash(h.name .. "Laden"))
+local ws = hi - lo
+local n = math.max(1, math.min(3, math.floor(ws / 16)))
+local last
+for i = 1, n do
+local kind = rng.pick(SHOPKINDS)
+if kind == last then kind = SHOPKINDS[(rng.int(1, #SHOPKINDS) % 4) + 1] end
+if kind == last then kind = (kind == "bar") and "cafe" or "bar" end
+last = kind
+local w = ws / n
+storefront(h, rng, kind, rng.pick(SHOPNAMES[kind]), lo + (i - 0.5) * w, w - 1.2, y0)
+end
+end
 local function planHouse(h, o, rng, cornerA, cornerB)
 local W, D = h.width, h.depth
 local floors = rng.weighted(o.floorWeights)
@@ -608,7 +716,11 @@ local dx = doorSign * a
 add(h, "DoorFrame", "frame", dx, y0 + 5, -0.25, 6.4, 10, 0.5, { 70, 52, 42 }, "Wood")
 add(h, "Door", "door", dx, y0 + 4.5, -0.55, 5, 9, 0.3, { 110, 70, 45 }, "Wood")
 add(h, "DoorCanopy", "trim", dx, y0 + 10.6, -1, 7, 0.5, 2, { 120, 120, 124 }, "Concrete")
-if shop then
+if h.shopStreet and W >= 24 then
+local lo, hi = -W / 2 + 2, W / 2 - 2
+if doorSign > 0 then hi = dx - 4.5 else lo = dx + 4.5 end
+storefronts(h, lo, hi, y0)
+elseif shop then
 local lo, hi = -W / 2 + 2, W / 2 - 2
 if doorSign > 0 then hi = dx - 4.5 else lo = dx + 4.5 end
 local ws = hi - lo
@@ -720,6 +832,7 @@ yaw = side.yaw, width = width, depth = depth, parts = {},
 name = string.format("Haus_%s_%s%d", name, side.name, idx),
 }
 h.floorMul = o.raise and o.raise[h.name]
+h.shopStreet = side.shop
 t = t + width
 planHouse(h, o, rng, side.corners and ri == 1 and i == 1, side.corners and ri == #ranges and i == n)
 plan.houses[#plan.houses + 1] = h
@@ -783,6 +896,7 @@ local sides = {
 { name = "W", yaw = 90, sx = xmin + s, sz = zmax - s - D, ux = 0, uz = -1, len = (zmax - zmin) - 2 * s - 2 * D, corners = false },
 { name = "E", yaw = 270, sx = xmax - s, sz = zmin + s + D, ux = 0, uz = 1, len = (zmax - zmin) - 2 * s - 2 * D, corners = false },
 }
+for _, side in ipairs(sides) do side.shop = block.shopSide == side.name end
 for _, side in ipairs(sides) do
 local r = math.rad(side.yaw)
 local cs, sn = math.cos(r), math.sin(r)
@@ -1756,12 +1870,12 @@ local T = Config.tankstelle
 return {
 { name = "A_NordWest", xmin = -637, zmin = -448, xmax = -488.5, zmax = -313.5 },
 { name = "B_NordMitte", xmin = -431.5, zmin = -448, xmax = -263.5, zmax = -313.5, noInner = true }, -- Innenhof ist der Hinterhofpark
-{ name = "C_LeopoldWestNord", xmin = -206.5, zmin = -448, xmax = -55, zmax = -313.5, reserved = { { -127, -385, -55, -315 } } },
+{ name = "C_LeopoldWestNord", xmin = -206.5, zmin = -448, xmax = -55, zmax = -313.5, reserved = { { -127, -385, -55, -315 } }, shopSide = "E" },
 { name = "D_West", xmin = -637, zmin = -256.5, xmax = -488.5, zmax = 1.5, reserved = { { -599, -163, -527, -91 } } }, -- Hochhaus-West
 { name = "E_Mitte", xmin = -431.5, zmin = -256.5, xmax = -263.5, zmax = 1.5, reserved = { { -429.5, -200, -265.5, -100 } } },
-{ name = "F_LeopoldWestSued", xmin = -206.5, zmin = -256.5, xmax = -55, zmax = 1.5, reserved = { { -205, -250, -109, -140 }, { -125, -90, -55, 2 } } }, -- zweite Fläche: Kreisverkehr um das Siegestor
+{ name = "F_LeopoldWestSued", xmin = -206.5, zmin = -256.5, xmax = -55, zmax = 1.5, reserved = { { -205, -250, -109, -140 }, { -125, -90, -55, 2 } }, shopSide = "E" }, -- zweite Fläche: Kreisverkehr um das Siegestor
 { name = "M_MarienplatzSued", xmin = -632, zmin = 326, xmax = -215, zmax = 386, noInner = true }, -- Häuserzeile am Südrand des Marienplatzes (vorn zum Platz, hinten zum Ring)
-{ name = "G_LeopoldOst", xmin = 55, zmin = -448, xmax = 276, zmax = 4, reserved = { { T.lot[1], T.lot[2], 86, T.lot[4] }, { 55, -90, 125, 6 }, { 70, -448, 130, -388 }, { 138, -448, 190, -394 }, { 229, -448, 276, -400 }, { 128, -48, 192, 6 } }, lot = T.lot, avoidInner = { { 190, -400, 234, -108 } } }, -- Lücke in der Häuserzeile: Tankstelle liegt frei an der Straße, lot = ihr Grundstück
+{ name = "G_LeopoldOst", xmin = 55, zmin = -448, xmax = 276, zmax = 4, reserved = { { T.lot[1], T.lot[2], 86, T.lot[4] }, { 55, -90, 125, 6 }, { 70, -448, 130, -388 }, { 138, -448, 190, -394 }, { 229, -448, 276, -400 }, { 128, -48, 192, 6 } }, shopSide = "W", lot = T.lot, avoidInner = { { 190, -400, 234, -108 } } }, -- Lücke in der Häuserzeile: Tankstelle liegt frei an der Straße, lot = ihr Grundstück
 }
 
 end)()
