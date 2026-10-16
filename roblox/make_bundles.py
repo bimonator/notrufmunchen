@@ -21,8 +21,39 @@ def modules():
 
 
 script = """-- MapBuilder_Script.lua  (automatisch erzeugt mit make_bundles.py, nicht von Hand ändern)
--- Test: in ServerScriptService ein Script anlegen, alles einfügen, oben im Studio auf RUN (nicht Play) klicken.
--- Die Karte entsteht nur zur Laufzeit und ist nach dem Stoppen weg. Für dauerhaftes Bauen: MapBuilder_Plugin.lua.
+--
+-- NOTRUF MÜNCHEN: KOMPLETTE KARTE IN EINEM SCRIPT
+-- So geht's: 1) In Studio ein leeres Baseplate-Projekt öffnen (Baseplate gern löschen).
+--            2) In ServerScriptService ein Script anlegen, diesen ganzen Text einfügen.
+--            3) Oben auf RUN klicken (nicht Play). Das Bauen dauert 1-3 Minuten, Fortschritt steht im Output.
+--            4) Mit der Kamera (F im Viewport, WASD + Rechtsklick) zum Siegestor fliegen: Ursprung = (0, 0, 0).
+--            Die Karte ist nach dem Stoppen weg. Dauerhaft bauen: MapBuilder_Plugin.lua als lokales Plugin.
+--
+-- WAS GEBAUT WIRD (Schritte, in dieser Reihenfolge; Output zeigt je Schritt eine Zeile):
+--   terrain    Boden, Parks, Hügel (Monopteros), Terrasse (Friedensengel), Isar mit 3-stufiger Böschung, Bach, Tunnelgraben
+--   roads      Ring, Leopoldstraße/Ludwigstraße (Achse mit Siegestor-Unterführung), Schwabinger Raster, Diagonale, Isarspange,
+--              Maximilianstraße, Kreisel, Fußgängerzone mit Fliesen, Parkbuchten, 4 Brücken über die Isar (flach, auf Säulen),
+--              Maximilianbrücke (zwei Bögen, Statuen)
+--   lights     270 Laternen, 13 Ampelmasten (Mast + Ausleger), 2 Fußgängerampeln
+--   landmarks  Siegestor, Friedensengel, Frauenkirche, Chinesischer Turm
+--   gardens    Hofgarten, Englischer Garten, Monopteros-Tempel, Biergarten, Eisbachwelle, Isar-Uferwege, Prinz-Eins-Vorplatz
+--   houses     7 Häuserblöcke mit Rück- und Hinterhäusern, 13 Sonderbauten (Feuerwache, Polizeiwache mit Hof, Klinikum,
+--              Tankstelle mit Schirm und Shop, Bank, Parkhaus, ...)
+--   wall       Häuserband um die Karte (Mapgrenze) mit Toren und Flusstoren
+--
+-- WAS FUNKTIONIERT WIE:
+--   Ampeln      Starten automatisch nach dem Bauen. Kreuzungen: 30 s grün je Richtung (Einstellung Ampel.config.green weiter unten).
+--               Feuerwache: im Run-Modus in der Command Bar  workspace:SetAttribute("WacheAlarm", true)  -> V1/V2 gelb, dann rot;
+--               mit false wieder grün. Tag der Lampen: TrafficLight (Gruppen Wache_V1, Wache_V2, Achse_*).
+--   Tore/Schranken  Feuerwache-Tore (Tag FireGate) und Polizei-Schranken (Tag Schranke) sind Modelle, noch ohne Skript.
+--   Spawns      Polizeihof: 4 Flächen mit Tag VehicleSpawn (Attribut Team = Polizei).
+--   Fenster     Tag HouseWindow, Attribut Lit = leuchtet nachts (Tag-Nacht-Skript folgt). Laternen: Tag StreetLamp.
+--   Eisbachwelle  Tags Eisbachwelle und SurfZone (Surf-Skript folgt).
+--   Alle Maße   in Config (weiter unten im Text, Block "local Config = (function()"): Straßen, Isar, Brücken, Tankstelle, Gärten.
+--
+-- OUTPUT-ZEILEN, auf die du achten kannst: [boden] (Bodenhöhe), [wasser] ok, [roads], [lights], [landmarks], [gardens], [houses], [wall].
+-- Steht irgendwo "FEHLER:", schick mir die Zeile.
+--
 local STEPS = { "terrain", "roads", "lights", "landmarks", "gardens", "houses", "wall" } -- Teilmenge möglich, z. B. { "roads" }
 local ONLY = nil -- nur bestimmte Häuserblöcke, z. B. { "B_NordMitte" }; nil = alle
 local ORIGIN = Vector3.new(0, 0, 0) -- Position des Siegestors
