@@ -542,6 +542,10 @@ do
 		if p.yaw % 180 == 90 then hx, hz = hz, hx end
 		if p.yaw % 90 ~= 0 then hx = math.max(hx, hz) hz = hx end
 		if p.shape == "Cylinder" and p.roll == 90 then hx, hz = p.size[2] / 2, p.size[2] / 2 end
+		if p.pitch ~= 0 then -- geneigte Platten (Dach, Markise): waagerechte Ausdehnung
+			local c, sn = math.abs(math.cos(math.rad(p.pitch))), math.abs(math.sin(math.rad(p.pitch)))
+			if p.yaw % 180 == 90 then hx = hx * c + p.size[2] / 2 * sn else hz = hz * c + p.size[2] / 2 * sn end
+		end
 		if not string.find(p.name, "^Taxi") and p.name ~= "Fuge" and p.name ~= "Pflaster" then
 			if p.pos[1] - hx < S.x0 - 0.5 or p.pos[1] + hx > S.x1 + 0.5 or p.pos[3] - hz < S.z0 - 0.5 or p.pos[3] + hz > S.z1 + 0.5 then
 				outside = outside + 1
@@ -550,7 +554,7 @@ do
 		end
 		if p.text then texts[p.text.s] = (texts[p.text.s] or 0) + 1 end
 		-- Durchgang des Karlstors frei: |z - cz| < 6, y < 12 über dem Pflaster, x im Torbau
-		if p.collide and math.abs(p.pos[1] - (S.cx - S.ac)) < 11 and p.pos[2] - p.size[2] / 2 < 12 and p.pos[2] + p.size[2] / 2 > 2 and math.abs(p.pos[3] - S.cz) - hz < 5.5 and not string.find(p.name, "^Gebaeude") then
+		if p.collide and math.abs(p.pos[1] - (S.x0 + S.depth / 2)) < 11 and p.pos[2] - p.size[2] / 2 < 12 and p.pos[2] + p.size[2] / 2 > 2 and math.abs(p.pos[3] - S.cz) - hz < 5.5 and not string.find(p.name, "^Gebaeude") then
 			passage = passage + 1
 			print("Durchgang blockiert: " .. p.name)
 		end

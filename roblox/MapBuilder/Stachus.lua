@@ -1,9 +1,9 @@
 -- Stachus.lua
--- Der Platz am Odeonsplatz wird zum Stachus (Karlsplatz): Halbkreis aus Geschäftshäusern (Ellipse mit geraden Schenkeln), offen zur Leopoldstraße,
+-- Der Platz am Odeonsplatz wird zum Stachus (Karlsplatz): eckiger Hof aus Geschäftshäusern (Nord-, West- und Südzeile), offen zur Leopoldstraße,
 -- in der Westmitte das Karlstor (Mittelbau mit Spitzbogen zwischen zwei Zinnentürmen), in der Mitte der große Springbrunnen mit Strahlen und Pollern,
 -- Granitpflaster, Kugelleuchten, Platanen und ein Taxistand (Beschriftung "TAXI" auf den Parkbuchten der Leopoldstraße). Erdgeschoss mit Läden (auch ein
 -- Burger-Lokal), Dachschrift "OSRUM" (Anspielung, kein echter Name), zwei U-Bahn-Abgänge (nach Foto: Betonrahmen, Treppe zwischen zwei Rolltreppen),
--- Verbindungsbau zum Neuen Rathaus, Endtürme mit flachem Walmdach. Reine Geometrie; Teilefelder wie in den anderen Planern.
+-- Nord- und Südzeile schließen Wand an Wand an das Neue Rathaus bzw. die Häuserzeile am Marienplatz an, Endtürme mit flachem Walmdach. Reine Geometrie; Teilefelder wie in den anderen Planern.
 
 local Geo = require(script and script.Parent.Geo or "Geo")
 
@@ -121,35 +121,7 @@ function Stachus.plan(cfg)
 		add("Sitzstein", "plaza", cx + (R + 11) * math.cos(a), 2.3, cz + (R + 11) * math.sin(a), 3.4, 2.6, 2.6, { 160, 156, 148 }, "Granite", { yaw = i * 23, collide = true })
 	end
 
-	-- Halbkreis-Gebäude: Mittellinie einer Ellipse (West), vorn zum Brunnen, mit geraden Schenkeln nach Osten
-	local function centre(th) return cx - ac * math.sin(th), cz - bc * math.cos(th) end
-	local function psiAt(th)
-		local fx, fz = math.sin(th) / ac, math.cos(th) / bc
-		local l = math.sqrt(fx * fx + fz * fz)
-		return math.deg(math.atan2(-fx / l, -fz / l)) % 360
-	end
-	local samples, total = { { 0, 0 } }, 0
-	do
-		local px, pz = centre(0)
-		for k = 1, 720 do
-			local th = math.pi * k / 720
-			local x, z = centre(th)
-			total = total + math.sqrt((x - px) ^ 2 + (z - pz) ^ 2)
-			samples[#samples + 1] = { th, total }
-			px, pz = x, z
-		end
-	end
-	local function thetaAt(s)
-		for k = 2, #samples do
-			if samples[k][2] >= s then
-				local a, b = samples[k - 1], samples[k]
-				return a[1] + (b[1] - a[1]) * (s - a[2]) / math.max(1e-9, b[2] - a[2])
-			end
-		end
-		return math.pi
-	end
-	local n = S.segments
-	local L = total / n
+	-- Gebäudezeilen: Nordzeile (Front nach Süden), Südzeile (Front nach Norden), Westzeile mit Karlstor (Front nach Osten); alle Wand an Wand
 	local shopNo, roofSigns = 0, {}
 	local function segment(x, z, psi, len, idx, opts)
 		opts = opts or {}
@@ -159,7 +131,7 @@ function Stachus.plan(cfg)
 		put("Gebaeude", "body", 0, Y0 + H / 2, 0, W, H, D, SAND, "SmoothPlastic", { collide = true })
 		put("Sockel", "trim", 0, Y0 + 1.2, -D / 2 - 0.25, W, 2.4, 0.5, { 140, 136, 130 }, "Concrete")
 		for k = 1, S.floors - 1 do put("Gesims", "trim", 0, Y0 + 14 + 12 * (k - 1), -D / 2 - 0.4, W, 0.7, 0.8, { 214, 200, 170 }, "Concrete") end
-		put("Kranzgesims", "trim", 0, Y0 + H - 0.8, 0, W + 1.2, 1.6, D + 1.2, { 244, 236, 214 }, "Concrete")
+		put("Kranzgesims", "trim", 0, Y0 + H - 0.8, 0, W + 0.4, 1.6, D + 0.8, { 244, 236, 214 }, "Concrete")
 		-- Mansarddach innen und außen
 		local rise, run = 7, 4
 		local ln = math.sqrt(run * run + rise * rise)
@@ -208,7 +180,7 @@ function Stachus.plan(cfg)
 		stats.towers = stats.towers + 1
 		put("Turm", "body", 0, Y0 + Ht / 2, 0, Wt, Ht, D, SAND2, "SmoothPlastic", { collide = true })
 		put("TurmSockel", "trim", 0, Y0 + 1.2, -D / 2 - 0.25, Wt, 2.4, 0.5, { 140, 136, 130 }, "Concrete")
-		put("TurmKranz", "trim", 0, Y0 + Ht - 0.8, 0, Wt + 1.4, 1.6, D + 1.4, { 244, 236, 214 }, "Concrete")
+		put("TurmKranz", "trim", 0, Y0 + Ht - 0.8, 0, Wt + 1.4, 1.6, D + 0.8, { 244, 236, 214 }, "Concrete")
 		for k = 1, 5 do put("TurmGesims", "trim", 0, Y0 + 14 + 12 * (k - 1), -D / 2 - 0.4, Wt, 0.7, 0.8, { 214, 200, 170 }, "Concrete") end
 		for k = 1, 5 do
 			local yb = Y0 + 14 + 12 * (k - 1)
@@ -224,7 +196,7 @@ function Stachus.plan(cfg)
 		local layers, rise = 8, 10
 		for i = 0, layers - 1 do
 			local t = i / layers
-			put("Walmdach", "roof", 0, Y0 + Ht + 0.8 + (i + 0.5) * rise / layers, 0, Wt * (1 - 0.92 * t) + 1.4, rise / layers + 0.05, D - (Wt * 0.92) * t + 1.4, ROOF, "Metal")
+			put("Walmdach", "roof", 0, Y0 + Ht + 0.8 + (i + 0.5) * rise / layers, 0, Wt * (1 - 0.92 * t) + 1.4, rise / layers + 0.05, D - (Wt * 0.92) * t + 0.8, ROOF, "Metal")
 		end
 		put("Turmkugel", "roof", 0, Y0 + Ht + rise + 2, 0, 2.2, 2.2, 2.2, { 226, 184, 72 }, "Metal", { shape = "Ball" })
 		for _, lx in ipairs({ -5, 5 }) do -- Dachfenster im Walmdach
@@ -232,48 +204,37 @@ function Stachus.plan(cfg)
 			put("TurmGaubeDach", "roof", lx, Y0 + Ht + 4.9, -D / 2 + 6, 4, 0.5, 3, ROOF, "Metal")
 		end
 	end
-	local function skipGate(z, len) return math.abs(z - cz) < S.gate + len * 0.1 end
-	local skipped, firstSkip, lastSkip = {}, nil, nil
-	for k = 1, n do
-		local _, z = centre(thetaAt((k - 0.5) * L))
-		if skipGate(z, L) then
-			skipped[k] = true
-			firstSkip, lastSkip = firstSkip or k, k
-		end
-	end
-	local idx = 0
-	for k = 1, n do
-		if not skipped[k] then
-			local th = thetaAt((k - 0.5) * L)
-			local x, z = centre(th)
-			local ang = psiAt(th)
-			idx = idx + 1
-			segment(x, z, ang, L, idx, { burger = (k == 6 or k == 7) })
-			if k == 14 or k == n - 13 then roofSigns[#roofSigns + 1] = { x = x, z = z, psi = ang } end
-		end
-	end
 	local TW = 26 -- Breite der Endtürme
-	do -- Türme an den Torenden der Flügel
-		local thN, thS = thetaAt((firstSkip - 1) * L - TW / 2), thetaAt(lastSkip * L + TW / 2)
-		for _, th in ipairs({ thN, thS }) do
-			local x, z = centre(th)
-			tower(x, z, psiAt(th), TW, nil)
-		end
-	end
-	-- gerade Schenkel nach Osten (Nordende: Front nach Süden, Südende: Front nach Norden) und Endturm an der Leopoldstraße
-	for _, e in ipairs({ { th = 0, side = -1 }, { th = math.pi, side = 1 } }) do
-		local x0, z0 = centre(e.th)
-		local psi = psiAt(e.th)
-		for k = 1, S.legs do
+	local zN = S.rowN -- Mittellinie der Nordzeile; die Südzeile liegt spiegelbildlich zur Platzmitte
+	local zS = 2 * cz - zN
+	local xW = S.x0 + D / 2 -- Mittellinie der Westzeile
+	local idx = 0
+	local function rowEW(z, psi, side, burgerAt) -- Zeile von der Platzkante x0 bis zum Ostende, am Ende ein Turm
+		local xa, xb = S.x0 + 0.7, S.eastEnd - 0.7
+		local m = math.floor((xb - xa) / S.seg + 0.5)
+		local Lr = (xb - xa) / m
+		for k = 1, m do
 			idx = idx + 1
-			segment(x0 + (k - 0.5) * L, z0, psi, L, idx, {})
+			segment(xa + (k - 0.5) * Lr, z, psi, Lr, idx, { burger = burgerAt and (k == burgerAt or k == burgerAt + 1) })
+			if k == math.floor(m / 2) then roofSigns[#roofSigns + 1] = { x = xa + (k - 0.5) * Lr, z = z, psi = psi } end
 		end
-		tower(x0 + S.legs * L + 0.7 - TW / 2, z0, psi, TW, e.side)
+		tower(S.eastEnd - TW / 2 - 0.7, z, psi, TW, side)
 	end
-	-- Verbindungsbau zum Neuen Rathaus: gerader Gebäudestreifen vom Rathaus-Ostgiebel (x0 des Platzes) nach Osten bis zum Bogen, gleiche Höhe
-	for k = 1, S.rathaus.count do
-		idx = idx + 1
-		segment(S.x0 + 0.8 + (k - 0.5) * L, S.rathaus.z, 180, L, idx, {})
+	rowEW(zN, 180, -1, 11)
+	rowEW(zS, 0, 1, nil)
+	do -- Westzeile zwischen den beiden Zeilen, Lücke fürs Karlstor, daneben je ein Turm
+		local za, zb = zN + D / 2, zS - D / 2
+		local m = math.floor((zb - za) / S.seg + 0.5)
+		local Lr = (zb - za) / m
+		for k = 1, m do
+			local z = za + (k - 0.5) * Lr
+			if math.abs(z - cz) >= S.gate + Lr * 0.1 then
+				idx = idx + 1
+				segment(xW, z, 270, Lr, idx, {})
+			end
+		end
+		tower(xW, cz - S.gate - TW / 2, 270, TW, nil)
+		tower(xW, cz + S.gate + TW / 2, 270, TW, nil)
 	end
 	-- Dachschrift OSRUM auf beiden Flügeln
 	for _, rs in ipairs(roofSigns) do
@@ -286,7 +247,7 @@ function Stachus.plan(cfg)
 
 	-- Karlstor (so hoch wie die Flügel, Zinnen bis zur Traufe): Mittelbau mit Bogendurchgang zwischen zwei Zinnentürmen; Front (lz < 0) zum Brunnen
 	do
-		local gx, gz = cx - ac, cz
+		local gx, gz = xW, cz
 		local put = frame(gx, gz, 270)
 		local GD = D - 1.6
 		local WALL, WALL2 = { 238, 236, 228 }, { 226, 222, 210 }
