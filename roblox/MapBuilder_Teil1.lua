@@ -232,6 +232,12 @@ pts = { { 640, -257 }, { 642, -226 }, { 665, -31 }, { 672, 194 }, { 650, 330 }, 
 layers = { { 0, -4, 13 }, { -4, -7, 7 } }, waterTop = -4,
 fills = { { -11, -4, 13, "Sand" } }, -- Bachbett und Böschung aus Sand
 },
+kanal = {
+pts = { { 661, 262 }, { 650, 330 }, { 632, 378 } },
+layers = { { 0, -4, 13 }, { -4, -8, 13 } }, waterTop = -4,
+fills = { { -12, -8, 13, "Slate" } },
+bank = { from = 14, width = 16, zmin = 326, material = "Ground" },
+},
 }
 C.siegestorCorners = { r0 = 92, depth = 28, ranges = { { name = "Nordwest", th = { 186, 223 } }, { name = "Nordost", th = { 317, 354 } } } }
 C.parks = { -- Gras-Oberfläche (Terrain)

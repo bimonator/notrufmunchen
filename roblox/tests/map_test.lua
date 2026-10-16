@@ -580,8 +580,8 @@ do
 	check(wave and wave.tag == "Eisbachwelle" and zone and zone.tag == "SurfZone", "Eisbachwelle ohne Tags")
 	if wave then
 		check(Geo.polyDist(wave.pos[1], wave.pos[3], Config.water.bach.pts) < 1, "Welle liegt nicht im Bach")
-		check(wave.pos[2] - wave.size[2] / 2 > -7 and wave.pos[2] + wave.size[2] / 2 > Config.water.bach.waterTop + 1, "Welle ragt nicht aus dem Wasser")
-		check(wave.size[1] <= 2 * Config.water.bach.layers[2][3], "Welle breiter als der Bach")
+		check(wave.pos[2] - wave.size[2] / 2 > Config.water.kanal.layers[2][2] and wave.pos[2] + wave.size[2] / 2 > Config.water.bach.waterTop + 1, "Welle ragt nicht aus dem Wasser")
+		check(wave.size[1] <= 2 * Config.water.kanal.layers[1][3], "Welle breiter als der Kanal")
 		for _, sp in ipairs(Specials) do
 			check(not (wave.pos[1] > sp.x0 - 10 and wave.pos[1] < sp.x1 + 10 and wave.pos[3] > sp.z0 - 10 and wave.pos[3] < sp.z1 + 10), "Welle zu nah an " .. sp.name)
 		end
@@ -598,12 +598,26 @@ do
 	end
 	for _, p in ipairs(g) do check(p.tag ~= "Statist" and p.name ~= "Surfbrett", "Eisbachwelle: Figuren/Bretter sind nicht gewünscht") end
 	check(wave and wave.pos[3] > southEdge + 6 and wave.pos[3] < southEdge + 20, "Welle nicht direkt flussabwärts der Brücke")
-	for z = br.z - 28, southEdge, 4 do -- Widerlager lassen den Bach (Wasserbreite 14) frei
+	local kw = Config.water.kanal.layers[1][3]
+	for z = br.z - 28, southEdge, 4 do -- Widerlager lassen den Kanal (Wasserbreite 26) frei
 		local bx = bachX(z)
 		for _, p in ipairs(parts) do
 			if p.name == "BrueckeWiderlager" then
-				check(not (bx - 7 < p.pos[1] + p.size[1] / 2 and bx + 7 > p.pos[1] - p.size[1] / 2), "Widerlager versperrt den Eisbach bei z=" .. z)
+				check(not (bx - kw < p.pos[1] + p.size[1] / 2 and bx + kw > p.pos[1] - p.size[1] / 2), "Widerlager versperrt den Eisbach bei z=" .. z)
 			end
+		end
+	end
+	-- Eisbach-Szene: gemauerter Kanal mit Plateau, Stufen und Gischt; Brücke mit zwei Bögen, Mittelpfeiler, Rosetten und Eckpfosten (keine Figuren)
+	local function cnt(list, name)
+		local n = 0
+		for _, p in ipairs(list) do if p.name == name then n = n + 1 end end
+		return n
+	end
+	check(cnt(g, "Kanalmauer") == 4 and cnt(g, "Plateau") == 1 and cnt(g, "Kanalstufe") == 4 and cnt(g, "Holzstufe") == 3 and cnt(g, "Gischt") >= 100, "Eisbach: Kanal/Plateau/Stufen/Gischt unvollständig")
+	check(cnt(parts, "EisbachPfeiler") == 1 and cnt(parts, "EisbachBogen") >= 24 and cnt(parts, "EisbachRosette") == 6 and cnt(parts, "EisbachBruestung") == 2 and cnt(parts, "EisbachPfosten") == 4, "Eisbachbrücke: Bögen/Rosetten unvollständig")
+	for _, p in ipairs(g) do
+		if p.name == "Kanalmauer" then
+			check(Geo.polyDist(p.pos[1], p.pos[3], Config.water.kanal.pts) < kw + 3 and p.pos[3] > southEdge, "Kanalmauer liegt nicht am Kanal unterhalb der Brücke")
 		end
 	end
 end

@@ -169,6 +169,14 @@ C.water = {
 		layers = { { 0, -4, 13 }, { -4, -7, 7 } }, waterTop = -4,
 		fills = { { -11, -4, 13, "Sand" } }, -- Bachbett und Böschung aus Sand
 	},
+	-- Eisbach-Kanal: gemauertes Stück unter der Maximilianbrücke bis vor die Luitpoldbrücke, gleiche Mittellinie wie der Bach (Teilstück von bach.pts),
+	-- aber senkrechte Wände (26 breit, Wasser bis -4, Sohle -8) statt Sandböschung. Mauern und Welle: Garden.lua. bank = Erdstreifen neben dem Kanal.
+	kanal = {
+		pts = { { 661, 262 }, { 650, 330 }, { 632, 378 } },
+		layers = { { 0, -4, 13 }, { -4, -8, 13 } }, waterTop = -4,
+		fills = { { -12, -8, 13, "Slate" } },
+		bank = { from = 14, width = 16, zmin = 326, material = "Ground" },
+	},
 }
 
 -- Eckhäuser am Siegestor: gebogene Gebäude (Fassadenplatten auf dem Kreis um die Mitte, Radius r0 = Außenkante des Gehwegs + Abstand), Winkelbereiche in Grad (z nach Süden)

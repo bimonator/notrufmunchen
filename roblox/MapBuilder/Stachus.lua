@@ -76,17 +76,17 @@ function Stachus.plan(cfg)
 	end
 	for x = S.x0 + 8, S.x1 - 4, 8 do
 		if x > px0 and x < px1 then -- Fuge längs z, an den Gruben unterbrochen
-			for i = 1, #zs - 1, 2 do add("Fuge", "plaza", x, 1.03, (zs[i] + zs[i + 1]) / 2, 0.18, 0.06, zs[i + 1] - zs[i], { 172, 166, 156 }, "SmoothPlastic") end
+			for i = 1, #zs - 1, 2 do add("Fuge", "plaza", x, 1.1, (zs[i] + zs[i + 1]) / 2, 0.3, 0.2, zs[i + 1] - zs[i], { 172, 166, 156 }, "SmoothPlastic") end
 		else
-			add("Fuge", "plaza", x, 1.03, (S.z0 + S.z1) / 2, 0.18, 0.06, S.z1 - S.z0, { 172, 166, 156 }, "SmoothPlastic")
+			add("Fuge", "plaza", x, 1.1, (S.z0 + S.z1) / 2, 0.3, 0.2, S.z1 - S.z0, { 172, 166, 156 }, "SmoothPlastic")
 		end
 	end
 	for z = S.z0 + 8, S.z1 - 4, 8 do
 		if inPit(px0 + 1, z) then
-			add("Fuge", "plaza", (S.x0 + px0) / 2, 1.03, z, px0 - S.x0, 0.06, 0.18, { 172, 166, 156 }, "SmoothPlastic")
-			add("Fuge", "plaza", (px1 + S.x1) / 2, 1.03, z, S.x1 - px1, 0.06, 0.18, { 172, 166, 156 }, "SmoothPlastic")
+			add("Fuge", "plaza", (S.x0 + px0) / 2, 1.1, z, px0 - S.x0, 0.2, 0.3, { 172, 166, 156 }, "SmoothPlastic")
+			add("Fuge", "plaza", (px1 + S.x1) / 2, 1.1, z, S.x1 - px1, 0.2, 0.3, { 172, 166, 156 }, "SmoothPlastic")
 		else
-			add("Fuge", "plaza", (S.x0 + S.x1) / 2, 1.03, z, S.x1 - S.x0, 0.06, 0.18, { 172, 166, 156 }, "SmoothPlastic")
+			add("Fuge", "plaza", (S.x0 + S.x1) / 2, 1.1, z, S.x1 - S.x0, 0.2, 0.3, { 172, 166, 156 }, "SmoothPlastic")
 		end
 	end
 	for i, rr in ipairs({ 52, 49, 46 }) do vcyl("Pflasterring", "plaza", cx, 1.08 + i * 0.01, cz, 0.08, 2 * rr, i == 2 and { 150, 96, 84 } or { 186, 180, 170 }, "Granite") end

@@ -171,7 +171,7 @@ SmoothPlastic = Enum.Material.SmoothPlastic, Concrete = Enum.Material.Concrete, 
 Glass = Enum.Material.Glass, Wood = Enum.Material.Wood, Metal = Enum.Material.Metal, Asphalt = Enum.Material.Asphalt,
 Pavement = Enum.Material.Pavement, Grass = Enum.Material.Grass, Water = Enum.Material.Water, Neon = Enum.Material.Neon, Sand = Enum.Material.Sand, Rock = Enum.Material.Rock,
 Marble = Enum.Material.Marble, Fabric = Enum.Material.Fabric, Ground = Enum.Material.Ground, Air = Enum.Material.Air,
-Granite = Enum.Material.Granite, Slate = Enum.Material.Slate, Cobblestone = Enum.Material.Cobblestone,
+Snow = Enum.Material.Snow, Granite = Enum.Material.Granite, Slate = Enum.Material.Slate, Cobblestone = Enum.Material.Cobblestone,
 }
 local function buildPart(spec, origin)
 local p = Instance.new("Part")
@@ -247,7 +247,6 @@ end
 function Builder.applyTerrain(ops, origin)
 local terrain = Workspace.Terrain
 pcall(function()
-terrain.Decoration = false
 terrain.WaterTransparency = 0.45
 terrain.WaterColor = Color3.fromRGB(38, 104, 128)
 terrain.WaterReflectance = 0.35
@@ -261,6 +260,48 @@ terrain:FillBlock(cf, Vector3.new(op.size[1], op.size[2], op.size[3]), MATERIALS
 end
 breathe(10)
 end
+end
+local PAVED = { road = true, walk = true, plaza = true, path = true, corner = true, bike = true }
+function Builder.paveUnder(specs, origin, nearGrass)
+local terrain = Workspace.Terrain
+local rows = {}
+for _, s in ipairs(specs) do
+if PAVED[s.kind] and s.size[2] <= 3 and s.pos[2] > -6 and nearGrass(s) then
+local r = math.rad(s.yaw or 0)
+local ux, uz = math.cos(r), -math.sin(r) -- lokale x-Achse in der Draufsicht (lokale z-Achse: (sin, cos))
+local hx, hz = s.size[1] / 2 + 1, s.size[3] / 2 + 1
+local cx, cz = origin.X + s.pos[1], origin.Z + s.pos[3]
+local rad = hx + hz
+local y0 = math.floor((origin.Y + s.pos[2] - 6) / 4) * 4
+for gx = math.floor((cx - rad) / 4), math.floor((cx + rad) / 4) do
+for gz = math.floor((cz - rad) / 4), math.floor((cz + rad) / 4) do
+local dx, dz = gx * 4 + 2 - cx, gz * 4 + 2 - cz
+if math.abs(dx * ux + dz * uz) <= hx and math.abs(-dx * uz + dz * ux) <= hz then
+local key = y0 .. ":" .. gz
+rows[key] = rows[key] or { y0 = y0, gz = gz, cells = {} }
+rows[key].cells[gx] = true
+end
+end
+end
+end
+end
+local n = 0
+for _, row in pairs(rows) do
+local xs = {}
+for gx in pairs(row.cells) do xs[#xs + 1] = gx end
+table.sort(xs)
+local i = 1
+while i <= #xs do -- zusammenhängende Zellen einer Reihe in einem Aufruf
+local j = i
+while xs[j + 1] == xs[j] + 1 do j = j + 1 end
+local region = Region3.new(Vector3.new(xs[i] * 4, row.y0, row.gz * 4), Vector3.new((xs[j] + 1) * 4, row.y0 + 12, (row.gz + 1) * 4))
+terrain:ReplaceMaterial(region, 4, Enum.Material.Grass, Enum.Material.Pavement)
+n = n + 1
+breathe(80)
+i = j + 1
+end
+end
+return n
 end
 function Builder.measureGround(origin)
 local params = RaycastParams.new()
@@ -361,13 +402,81 @@ local Garden = Garden
 local TerrainPlanner = TerrainPlanner
 local WallPlanner = WallPlanner
 local Builder = Builder
+local Geo = Geo
 local BuildAll = {}
+local function nearGrass(x, z, r)
+for _, p in ipairs(Config.parks) do
+if x + r > p.x0 - 8 and x - r < p.x1 + 8 and z + r > p.z0 - 8 and z - r < p.z1 + 8 then return true end
+end
+local t = Config.terrace
+if x + r > t.x0 - 8 and x - r < t.x1 + 8 and z + r > t.z0 - 8 and z - r < t.z1 + 8 then return true end
+for _, h in ipairs(Config.hills) do
+if math.sqrt((x - h.x) ^ 2 + (z - h.z) ^ 2) < h.layers[1][1] + r + 8 then return true end
+end
+return Geo.polyDist(x, z, Config.water.isar.pts) < Config.water.isar.layers[1][3] + 10 + r
+end
 local STEPS = {
 terrain = function(opts, origin)
 if opts.clearTerrain ~= false then Builder.clearTerrain() end
 local ops = TerrainPlanner.plan(Config)
 Builder.applyTerrain(ops, origin)
 return string.format("%d Terrain-Operationen", #ops)
+end,
+kanal = function(opts, origin) -- nur der Eisbach-Kanal (Terrain), wenn das übrige Terrain schon steht; bei "terrain" ist er schon dabei
+local ops = TerrainPlanner.planKanal(Config)
+Builder.applyTerrain(ops, origin)
+return string.format("%d Terrain-Operationen (Eisbach-Kanal)", #ops)
+end,
+eisbach = function(opts, origin) -- Eisbach-Szene in der fertigen Karte gezielt erneuern (Kanal-Terrain, Brückenbögen, Welle, Mauern), übrige Ordner bleiben unberührt
+local map = game:GetService("Workspace"):FindFirstChild("Map")
+local roads, gardens = map.Strassen, map.Gruenanlagen
+Builder.applyTerrain(TerrainPlanner.planKanal(Config), origin)
+local OLD = {} -- Namen der früheren und der neuen Eisbach-Teile im Umkreis der Welle
+for _, n in ipairs({ "Eisbachwelle", "Schussrinne", "Kanalwasser", "Kanalboden", "Wellenschaum", "Wellental", "Gischt", "SurfZone", "Ufermauer", "Kanalmauer", "Mauerkappe", "Kanalstufe", "Plateau", "Plateaubalken",
+"Plateauquerbalken", "Plateaupfosten", "Holzstufe", "RettungsringPfosten", "Rettungsring", "EisStamm", "EisKrone", "Zuschauerdeck", "DeckGelaender", "Schild", "SchildPfosten", "Schrift",
+"BankSitz", "BankLehne", "BankBein" }) do OLD[n] = true end
+local removed = 0
+for _, c in ipairs(gardens:GetChildren()) do
+if c:IsA("BasePart") and OLD[c.Name] and c.Position.X > 600 and c.Position.X < 700 and c.Position.Z > 315 and c.Position.Z < 400 then c:Destroy() removed = removed + 1 end
+end
+for _, c in ipairs(roads:GetChildren()) do
+if c.Name:sub(1, 7) == "Eisbach" then c:Destroy() removed = removed + 1 end
+end
+local bridge = {}
+for _, p in ipairs(RoadsPlanner.plan(Config).parts) do
+if p.name:sub(1, 7) == "Eisbach" then bridge[#bridge + 1] = p end
+end
+Builder.buildParts(bridge, roads, origin)
+local scene = Garden.planEisbach(Config)
+Builder.buildParts(scene, gardens, origin)
+return string.format("%d alte Teile entfernt, %d Brückenteile und %d Teile der Szene neu", removed, #bridge, #scene)
+end,
+fugen = function(opts, origin) -- Plattenfugen und Bänder (Stachus, Marienplatz) in der fertigen Karte erneuern, übrige Teile bleiben
+local map = game:GetService("Workspace"):FindFirstChild("Map")
+local n = 0
+local function redo(folder, parts)
+for _, c in ipairs(folder:GetChildren()) do
+if c.Name == "Fuge" or c.Name == "Band" then c:Destroy() end
+end
+local list = {}
+for _, p in ipairs(parts) do
+if p.name == "Fuge" or p.name == "Band" then list[#list + 1] = p end
+end
+Builder.buildParts(list, folder, origin)
+n = n + #list
+end
+redo(map.Stachus, Stachus.plan(Config).parts)
+redo(map.Marienplatz, Marienplatz.plan(Config).parts)
+return string.format("%d Fugen und Bänder erneuert", n)
+end,
+pave = function(opts, origin) -- Terrain unter Wegen und Straßen von Gras zu Pflaster, damit dort keine Gras-Büschel wachsen
+local roadPlan = RoadsPlanner.plan(Config)
+local specs = {}
+for _, list in ipairs({ roadPlan.parts, Garden.plan(Config, roadPlan, Specials).parts }) do
+for _, p in ipairs(list) do specs[#specs + 1] = p end
+end
+local n = Builder.paveUnder(specs, origin, function(p) return nearGrass(p.pos[1], p.pos[3], math.max(p.size[1], p.size[3]) / 2) end)
+return string.format("%d Zellenreihen unter Wegen und Straßen von Gras zu Pflaster", n)
 end,
 roads = function(opts, origin)
 local plan = RoadsPlanner.plan(Config)
@@ -464,7 +573,7 @@ local st = Planner.stats(plan)
 return string.format("%d Gebäude, %d Teile", st.houses, st.parts + #plan.parts)
 end,
 }
-BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "stachus", "gardens", "houses", "skyline", "bus", "wall" }
+BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "stachus", "gardens", "pave", "houses", "skyline", "bus", "wall" }
 local function afterTerrain(base)
 local ground = Builder.measureGround(base)
 print(string.format("[boden] Terrain-Oberkante gemessen: %.1f, alle weiteren Teile werden daran ausgerichtet", ground))

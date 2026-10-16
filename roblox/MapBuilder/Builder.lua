@@ -12,7 +12,7 @@ local MATERIALS = {
 	Glass = Enum.Material.Glass, Wood = Enum.Material.Wood, Metal = Enum.Material.Metal, Asphalt = Enum.Material.Asphalt,
 	Pavement = Enum.Material.Pavement, Grass = Enum.Material.Grass, Water = Enum.Material.Water, Neon = Enum.Material.Neon, Sand = Enum.Material.Sand, Rock = Enum.Material.Rock,
 	Marble = Enum.Material.Marble, Fabric = Enum.Material.Fabric, Ground = Enum.Material.Ground, Air = Enum.Material.Air,
-	Granite = Enum.Material.Granite, Slate = Enum.Material.Slate, Cobblestone = Enum.Material.Cobblestone,
+	Snow = Enum.Material.Snow, Granite = Enum.Material.Granite, Slate = Enum.Material.Slate, Cobblestone = Enum.Material.Cobblestone,
 }
 
 local function buildPart(spec, origin)
@@ -95,9 +95,8 @@ end
 
 function Builder.applyTerrain(ops, origin)
 	local terrain = Workspace.Terrain
-	-- Keine Gras-Büschel (ragen sonst durch Wege und Straßen), Wasser deckend genug, dass man es von oben als Wasser sieht
+	-- Wasser deckend genug, dass man es von oben als Wasser sieht (Gras-Büschel bleiben an; unter Wegen und Straßen sorgt paveUnder dafür, dass keine wachsen)
 	pcall(function()
-		terrain.Decoration = false
 		terrain.WaterTransparency = 0.45
 		terrain.WaterColor = Color3.fromRGB(38, 104, 128)
 		terrain.WaterReflectance = 0.35
@@ -111,6 +110,52 @@ function Builder.applyTerrain(ops, origin)
 		end
 		breathe(10)
 	end
+end
+
+-- Gras-Büschel (Terrain.Decoration) wachsen nur auf Gras-Terrain und ragen sonst durch flache Wege und Straßen. Deshalb wird das Terrain unter flachen Teilen der
+-- Arten road/walk/plaza/path/corner/bike von Gras zu Pflaster umgefärbt: ganze 4-Studs-Zellen, deren Mitte höchstens 1 Stud neben dem Teil liegt.
+-- nearGrass(spec) wählt vorab die Teile in Grasnähe. Liefert die Zahl der Zellenreihen.
+local PAVED = { road = true, walk = true, plaza = true, path = true, corner = true, bike = true }
+function Builder.paveUnder(specs, origin, nearGrass)
+	local terrain = Workspace.Terrain
+	local rows = {}
+	for _, s in ipairs(specs) do
+		if PAVED[s.kind] and s.size[2] <= 3 and s.pos[2] > -6 and nearGrass(s) then
+			local r = math.rad(s.yaw or 0)
+			local ux, uz = math.cos(r), -math.sin(r) -- lokale x-Achse in der Draufsicht (lokale z-Achse: (sin, cos))
+			local hx, hz = s.size[1] / 2 + 1, s.size[3] / 2 + 1
+			local cx, cz = origin.X + s.pos[1], origin.Z + s.pos[3]
+			local rad = hx + hz
+			local y0 = math.floor((origin.Y + s.pos[2] - 6) / 4) * 4
+			for gx = math.floor((cx - rad) / 4), math.floor((cx + rad) / 4) do
+				for gz = math.floor((cz - rad) / 4), math.floor((cz + rad) / 4) do
+					local dx, dz = gx * 4 + 2 - cx, gz * 4 + 2 - cz
+					if math.abs(dx * ux + dz * uz) <= hx and math.abs(-dx * uz + dz * ux) <= hz then
+						local key = y0 .. ":" .. gz
+						rows[key] = rows[key] or { y0 = y0, gz = gz, cells = {} }
+						rows[key].cells[gx] = true
+					end
+				end
+			end
+		end
+	end
+	local n = 0
+	for _, row in pairs(rows) do
+		local xs = {}
+		for gx in pairs(row.cells) do xs[#xs + 1] = gx end
+		table.sort(xs)
+		local i = 1
+		while i <= #xs do -- zusammenhängende Zellen einer Reihe in einem Aufruf
+			local j = i
+			while xs[j + 1] == xs[j] + 1 do j = j + 1 end
+			local region = Region3.new(Vector3.new(xs[i] * 4, row.y0, row.gz * 4), Vector3.new((xs[j] + 1) * 4, row.y0 + 12, (row.gz + 1) * 4))
+			terrain:ReplaceMaterial(region, 4, Enum.Material.Grass, Enum.Material.Pavement)
+			n = n + 1
+			breathe(80)
+			i = j + 1
+		end
+	end
+	return n
 end
 
 -- Tatsächliche Höhe der Terrain-Oberkante: Strahl von oben auf mehrere ebene Stellen, Median. 0, wenn nichts getroffen wird.

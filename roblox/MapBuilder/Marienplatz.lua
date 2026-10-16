@@ -39,23 +39,23 @@ function Marienplatz.plan(cfg)
 	rect("Pflaster", P.x0, U.z1, P.x1, P.z1, 1, 2, GRANITE, "Granite", pave)
 	rect("Pflaster", P.x0, U.z0, U.x0, U.z1, 1, 2, GRANITE, "Granite", pave)
 	rect("Pflaster", U.x1, U.z0, P.x1, U.z1, 1, 2, GRANITE, "Granite", pave)
-	local function line(name, x0, z0, x1, z1, w, color, y) -- Linie längs x (z0 == z1) oder längs z, am U-Bahn-Abgang unterbrochen
+	local function line(name, x0, z0, x1, z1, w, color, y, h) -- Linie (Höhe h, nicht zu dünn: dünnere Linien flackern gegen den Boden) längs x (z0 == z1) oder längs z, am U-Bahn-Abgang unterbrochen
 		local spans = { { 0, 1 } }
 		if z0 == z1 and z0 > U.z0 and z0 < U.z1 then spans = { { 0, (U.x0 - x0) / (x1 - x0) }, { (U.x1 - x0) / (x1 - x0), 1 } } end
 		if x0 == x1 and x0 > U.x0 and x0 < U.x1 then spans = { { 0, (U.z0 - z0) / (z1 - z0) }, { (U.z1 - z0) / (z1 - z0), 1 } } end
 		for _, sp in ipairs(spans) do
 			local ax, az, bx, bz = x0 + (x1 - x0) * sp[1], z0 + (z1 - z0) * sp[1], x0 + (x1 - x0) * sp[2], z0 + (z1 - z0) * sp[2]
-			if z0 == z1 and bx - ax > 0.5 then add(name, (ax + bx) / 2, y, z0, bx - ax, 0.06, w, color, "SmoothPlastic") end
-			if x0 == x1 and bz - az > 0.5 then add(name, x0, y, (az + bz) / 2, w, 0.06, bz - az, color, "SmoothPlastic") end
+			if z0 == z1 and bx - ax > 0.5 then add(name, (ax + bx) / 2, y, z0, bx - ax, h, w, color, "SmoothPlastic") end
+			if x0 == x1 and bz - az > 0.5 then add(name, x0, y, (az + bz) / 2, w, h, bz - az, color, "SmoothPlastic") end
 		end
 	end
-	for x = P.x0 + 8, P.x1 - 4, 8 do line("Fuge", x, P.z0, x, P.z1, 0.18, JOINT, 1.03) end
-	for z = P.z0 + 8, P.z1 - 4, 8 do line("Fuge", P.x0, z, P.x1, z, 0.18, JOINT, 1.03) end
-	for _, z in ipairs({ 120, 200, 280 }) do line("Band", P.x0, z, P.x1, z, 2.4, BAND, 1.05) end
-	for _, x in ipairs({ -560, -450, -380 }) do line("Band", x, P.z0, x, P.z1, 2.4, BAND, 1.05) end
-	line("Band", P.x0 + 1.2, P.z0, P.x0 + 1.2, P.z1, 2.4, BAND, 1.05)
-	line("Band", P.x1 - 1.2, P.z0, P.x1 - 1.2, P.z1, 2.4, BAND, 1.05)
-	line("Band", P.x0, P.z1 - 1.2, P.x1, P.z1 - 1.2, 2.4, BAND, 1.05)
+	for x = P.x0 + 8, P.x1 - 4, 8 do line("Fuge", x, P.z0, x, P.z1, 0.3, JOINT, 1.1, 0.2) end
+	for z = P.z0 + 8, P.z1 - 4, 8 do line("Fuge", P.x0, z, P.x1, z, 0.3, JOINT, 1.1, 0.2) end
+	for _, z in ipairs({ 120, 200, 280 }) do line("Band", P.x0, z, P.x1, z, 2.4, BAND, 1.15, 0.3) end
+	for _, x in ipairs({ -560, -450, -380 }) do line("Band", x, P.z0, x, P.z1, 2.4, BAND, 1.15, 0.3) end
+	line("Band", P.x0 + 1.2, P.z0, P.x0 + 1.2, P.z1, 2.4, BAND, 1.15, 0.3)
+	line("Band", P.x1 - 1.2, P.z0, P.x1 - 1.2, P.z1, 2.4, BAND, 1.15, 0.3)
+	line("Band", P.x0, P.z1 - 1.2, P.x1, P.z1 - 1.2, 2.4, BAND, 1.15, 0.3)
 
 	-- Mariensäule: Kreis im Pflaster, achteckige Stufen, Balustrade mit Blumen, Sockel, Putten, Marmorschaft, Kapitell, goldene Madonna
 	local MARBLE, RED, BRONZE, GOLD, PINK = { 214, 206, 194 }, { 150, 58, 58 }, { 64, 68, 60 }, { 230, 188, 70 }, { 222, 86, 140 }

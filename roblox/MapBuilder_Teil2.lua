@@ -30,17 +30,17 @@ end
 local TILE, JOINT, JOINT_COLOR = 6, 0.18, { 150, 144, 136 }
 local function tileJoints(parts, cx, cz, ux, uz, len, w, top, yaw, seg)
 local nx, nz = -uz, ux
-local y = top + 0.03
+local y = top + 0.1 -- Fugen 0,2 hoch: dünnere flackern gegen den Boden
 local k = 1
 while k * TILE < len do -- Fugen quer zur Länge
 local t = -len / 2 + k * TILE
-part(parts, "Fuge", "joint", cx + ux * t, y, cz + uz * t, JOINT, 0.06, w, yaw, JOINT_COLOR, "SmoothPlastic", { collide = false, seg = seg })
+part(parts, "Fuge", "joint", cx + ux * t, y, cz + uz * t, JOINT, 0.2, w, yaw, JOINT_COLOR, "SmoothPlastic", { collide = false, seg = seg })
 k = k + 1
 end
 k = 1
 while k * TILE < w do -- Fugen in Längsrichtung
 local v = -w / 2 + k * TILE
-part(parts, "Fuge", "joint", cx + nx * v, y, cz + nz * v, len, 0.06, JOINT, yaw, JOINT_COLOR, "SmoothPlastic", { collide = false, seg = seg })
+part(parts, "Fuge", "joint", cx + nx * v, y, cz + nz * v, len, 0.2, JOINT, yaw, JOINT_COLOR, "SmoothPlastic", { collide = false, seg = seg })
 k = k + 1
 end
 end
@@ -312,6 +312,44 @@ part(parts, "StatueSockel", "deck", x, 3.5, z, 5, 5, 5, b.yaw, BODY, "Concrete",
 part(parts, "StatueGewand", "deck", x, 8.5, z, 3.2, 5, 3.2, b.yaw, STATUE, "Concrete", { collide = false })
 part(parts, "StatueTorso", "deck", x, 12.2, z, 2.6, 2.6, 2, b.yaw, STATUE, "Concrete", { collide = false })
 part(parts, "StatueKopf", "deck", x, 14.3, z, 1.6, 1.8, 1.6, b.yaw, STATUE, "Concrete", { collide = false })
+end
+if b.culvert then
+local xc, L = b.culvert.s, total - 4
+local PIER = 4
+local ah = (b.culvert.w - PIER) / 4 -- halbe Spannweite je Bogen
+local ys, f, crown = -5.0, 4.0, -1.0 -- Kämpfer, Pfeilhöhe, Scheitel der Untersicht (Unterkante Fahrbahn)
+local R = (ah * ah + f * f) / (2 * f)
+local GREY, LIGHT = { 150, 146, 134 }, { 214, 208, 194 }
+local px, pz = at(xc, 0)
+part(parts, "EisbachPfeiler", "deck", px, -5, pz, PIER, 8, L, b.yaw, GREY, "Cobblestone", {})
+for _, sc in ipairs({ xc - PIER / 2 - ah, xc + PIER / 2 + ah }) do
+local n = 16
+local w = 2 * ah / n
+for k = 1, n do
+local sm = sc - ah + (k - 0.5) * w
+local soffit = ys + math.sqrt(R * R - (sm - sc) ^ 2) - (R - f)
+if soffit < crown - 0.05 then
+local x, z = at(sm, 0)
+part(parts, "EisbachBogen", "deck", x, (soffit + crown) / 2, z, w + 0.05, crown - soffit, L, b.yaw, GREY, "Cobblestone", {})
+end
+end
+end
+for _, sd in ipairs({ -1, 1 }) do
+local lat = sd * (b.wid / 2 + b.walk - 0.4)
+local x, z = at(xc, lat)
+part(parts, "EisbachBruestung", "rail", x, 2.2, z, b.culvert.w + 4, 2.8, 1.0, b.yaw, { 172, 166, 152 }, "Concrete", {})
+for _, s in ipairs({ xc - PIER / 2 - ah, xc, xc + PIER / 2 + ah }) do -- Rosetten über den Bögen und dem Pfeiler
+local rx, rz = at(s, lat + sd * 0.55)
+part(parts, "EisbachRosette", "decor", rx, 2.3, rz, 0.3, 2.0, 2.0, b.yaw + 90, LIGHT, "Concrete", { shape = "Cylinder", collide = false })
+rx, rz = at(s, lat + sd * 0.5)
+part(parts, "EisbachRosettenring", "decor", rx, 2.3, rz, 0.2, 2.7, 2.7, b.yaw + 90, { 120, 116, 106 }, "Concrete", { shape = "Cylinder", collide = false })
+end
+for _, sp in ipairs({ -1, 1 }) do -- Eckpfosten mit Kugel
+local ex, ez = at(xc + sp * (b.culvert.w / 2 + 2.4), lat)
+part(parts, "EisbachPfosten", "decor", ex, 3.0, ez, 1.6, 5.0, 1.6, b.yaw, { 160, 154, 140 }, "Concrete", {})
+part(parts, "EisbachPfostenKugel", "decor", ex, 5.9, ez, 1.4, 1.4, 1.4, b.yaw, { 160, 154, 140 }, "Concrete", { shape = "Ball", collide = false })
+end
+end
 end
 for _, s in ipairs({ -b.span, 0, b.span }) do
 for _, sd in ipairs({ -1, 1 }) do
@@ -1248,23 +1286,23 @@ rect("Pflaster", P.x0, P.z0, P.x1, U.z0, 1, 2, GRANITE, "Granite", pave)
 rect("Pflaster", P.x0, U.z1, P.x1, P.z1, 1, 2, GRANITE, "Granite", pave)
 rect("Pflaster", P.x0, U.z0, U.x0, U.z1, 1, 2, GRANITE, "Granite", pave)
 rect("Pflaster", U.x1, U.z0, P.x1, U.z1, 1, 2, GRANITE, "Granite", pave)
-local function line(name, x0, z0, x1, z1, w, color, y) -- Linie längs x (z0 == z1) oder längs z, am U-Bahn-Abgang unterbrochen
+local function line(name, x0, z0, x1, z1, w, color, y, h) -- Linie (Höhe h, nicht zu dünn: dünnere Linien flackern gegen den Boden) längs x (z0 == z1) oder längs z, am U-Bahn-Abgang unterbrochen
 local spans = { { 0, 1 } }
 if z0 == z1 and z0 > U.z0 and z0 < U.z1 then spans = { { 0, (U.x0 - x0) / (x1 - x0) }, { (U.x1 - x0) / (x1 - x0), 1 } } end
 if x0 == x1 and x0 > U.x0 and x0 < U.x1 then spans = { { 0, (U.z0 - z0) / (z1 - z0) }, { (U.z1 - z0) / (z1 - z0), 1 } } end
 for _, sp in ipairs(spans) do
 local ax, az, bx, bz = x0 + (x1 - x0) * sp[1], z0 + (z1 - z0) * sp[1], x0 + (x1 - x0) * sp[2], z0 + (z1 - z0) * sp[2]
-if z0 == z1 and bx - ax > 0.5 then add(name, (ax + bx) / 2, y, z0, bx - ax, 0.06, w, color, "SmoothPlastic") end
-if x0 == x1 and bz - az > 0.5 then add(name, x0, y, (az + bz) / 2, w, 0.06, bz - az, color, "SmoothPlastic") end
+if z0 == z1 and bx - ax > 0.5 then add(name, (ax + bx) / 2, y, z0, bx - ax, h, w, color, "SmoothPlastic") end
+if x0 == x1 and bz - az > 0.5 then add(name, x0, y, (az + bz) / 2, w, h, bz - az, color, "SmoothPlastic") end
 end
 end
-for x = P.x0 + 8, P.x1 - 4, 8 do line("Fuge", x, P.z0, x, P.z1, 0.18, JOINT, 1.03) end
-for z = P.z0 + 8, P.z1 - 4, 8 do line("Fuge", P.x0, z, P.x1, z, 0.18, JOINT, 1.03) end
-for _, z in ipairs({ 120, 200, 280 }) do line("Band", P.x0, z, P.x1, z, 2.4, BAND, 1.05) end
-for _, x in ipairs({ -560, -450, -380 }) do line("Band", x, P.z0, x, P.z1, 2.4, BAND, 1.05) end
-line("Band", P.x0 + 1.2, P.z0, P.x0 + 1.2, P.z1, 2.4, BAND, 1.05)
-line("Band", P.x1 - 1.2, P.z0, P.x1 - 1.2, P.z1, 2.4, BAND, 1.05)
-line("Band", P.x0, P.z1 - 1.2, P.x1, P.z1 - 1.2, 2.4, BAND, 1.05)
+for x = P.x0 + 8, P.x1 - 4, 8 do line("Fuge", x, P.z0, x, P.z1, 0.3, JOINT, 1.1, 0.2) end
+for z = P.z0 + 8, P.z1 - 4, 8 do line("Fuge", P.x0, z, P.x1, z, 0.3, JOINT, 1.1, 0.2) end
+for _, z in ipairs({ 120, 200, 280 }) do line("Band", P.x0, z, P.x1, z, 2.4, BAND, 1.15, 0.3) end
+for _, x in ipairs({ -560, -450, -380 }) do line("Band", x, P.z0, x, P.z1, 2.4, BAND, 1.15, 0.3) end
+line("Band", P.x0 + 1.2, P.z0, P.x0 + 1.2, P.z1, 2.4, BAND, 1.15, 0.3)
+line("Band", P.x1 - 1.2, P.z0, P.x1 - 1.2, P.z1, 2.4, BAND, 1.15, 0.3)
+line("Band", P.x0, P.z1 - 1.2, P.x1, P.z1 - 1.2, 2.4, BAND, 1.15, 0.3)
 local MARBLE, RED, BRONZE, GOLD, PINK = { 214, 206, 194 }, { 150, 58, 58 }, { 64, 68, 60 }, { 230, 188, 70 }, { 222, 86, 140 }
 vcyl("SaeulenKreis", S.x, 1.04, S.z, 0.08, 46, BAND, "Granite")
 vcyl("SaeulenKreis", S.x, 1.07, S.z, 0.08, 40, GRANITE, "Granite")
@@ -1465,17 +1503,17 @@ return false
 end
 for x = S.x0 + 8, S.x1 - 4, 8 do
 if x > px0 and x < px1 then -- Fuge längs z, an den Gruben unterbrochen
-for i = 1, #zs - 1, 2 do add("Fuge", "plaza", x, 1.03, (zs[i] + zs[i + 1]) / 2, 0.18, 0.06, zs[i + 1] - zs[i], { 172, 166, 156 }, "SmoothPlastic") end
+for i = 1, #zs - 1, 2 do add("Fuge", "plaza", x, 1.1, (zs[i] + zs[i + 1]) / 2, 0.3, 0.2, zs[i + 1] - zs[i], { 172, 166, 156 }, "SmoothPlastic") end
 else
-add("Fuge", "plaza", x, 1.03, (S.z0 + S.z1) / 2, 0.18, 0.06, S.z1 - S.z0, { 172, 166, 156 }, "SmoothPlastic")
+add("Fuge", "plaza", x, 1.1, (S.z0 + S.z1) / 2, 0.3, 0.2, S.z1 - S.z0, { 172, 166, 156 }, "SmoothPlastic")
 end
 end
 for z = S.z0 + 8, S.z1 - 4, 8 do
 if inPit(px0 + 1, z) then
-add("Fuge", "plaza", (S.x0 + px0) / 2, 1.03, z, px0 - S.x0, 0.06, 0.18, { 172, 166, 156 }, "SmoothPlastic")
-add("Fuge", "plaza", (px1 + S.x1) / 2, 1.03, z, S.x1 - px1, 0.06, 0.18, { 172, 166, 156 }, "SmoothPlastic")
+add("Fuge", "plaza", (S.x0 + px0) / 2, 1.1, z, px0 - S.x0, 0.2, 0.3, { 172, 166, 156 }, "SmoothPlastic")
+add("Fuge", "plaza", (px1 + S.x1) / 2, 1.1, z, S.x1 - px1, 0.2, 0.3, { 172, 166, 156 }, "SmoothPlastic")
 else
-add("Fuge", "plaza", (S.x0 + S.x1) / 2, 1.03, z, S.x1 - S.x0, 0.06, 0.18, { 172, 166, 156 }, "SmoothPlastic")
+add("Fuge", "plaza", (S.x0 + S.x1) / 2, 1.1, z, S.x1 - S.x0, 0.2, 0.3, { 172, 166, 156 }, "SmoothPlastic")
 end
 end
 for i, rr in ipairs({ 52, 49, 46 }) do vcyl("Pflasterring", "plaza", cx, 1.08 + i * 0.01, cz, 0.08, 2 * rr, i == 2 and { 150, 96, 84 } or { 186, 180, 170 }, "Granite") end
@@ -1995,6 +2033,27 @@ end
 end
 end
 end
+function TerrainPlanner.kanal(ops, cfg)
+local K = cfg.water.kanal
+K.name = "kanal"
+river(ops, K)
+for _, sm in ipairs(TerrainPlanner.riverSamples(K.pts)) do
+if sm.z > K.bank.zmin then
+local alongZ = math.abs(sm.uz) >= math.abs(sm.ux)
+local sx, sz
+if alongZ then sx, sz = K.bank.width / math.abs(sm.uz), STEP + 2 else sx, sz = STEP + 2, K.bank.width / math.abs(sm.ux) end
+for _, side in ipairs({ -1, 1 }) do
+local c = side * (K.bank.from + K.bank.width / 2)
+block(ops, K.bank.material, sm.x - sm.uz * c, -4, sm.z + sm.ux * c, sx, 8, sz, "kanal_bank")
+end
+end
+end
+end
+function TerrainPlanner.planKanal(cfg)
+local ops = {}
+TerrainPlanner.kanal(ops, cfg)
+return ops
+end
 function TerrainPlanner.plan(cfg)
 local ops = {}
 local G = cfg.groundTop
@@ -2041,6 +2100,7 @@ end
 cfg.water.isar.name, cfg.water.bach.name = "isar", "bach"
 river(ops, cfg.water.isar)
 river(ops, cfg.water.bach)
+if cfg.water.kanal then TerrainPlanner.kanal(ops, cfg) end
 return ops
 end
 return TerrainPlanner
@@ -2341,6 +2401,7 @@ end
 end
 local function eisbach(cfg, add)
 local pts = cfg.water.bach.pts
+local hw = cfg.water.kanal.layers[1][3]
 local zc = cfg.landmarks.eisbach.z
 local function bachAt(z) -- Mittelpunkt und Laufrichtung des Bachs bei z
 for i = 1, #pts - 1 do
@@ -2356,31 +2417,87 @@ local cz = zc
 local nx, nz = -uz, ux -- zeigt vom Bach nach Westen (Zuschauerseite)
 local function at(a, l) return cx + ux * a + nx * l, cz + uz * a + nz * l end
 local yawU, yawN = Geo.yawOf(ux, uz), Geo.yawOf(nx, nz)
+local rng, rngTree = newRng(23), newRng(31) -- eigene Zufallsfolgen, damit die übrigen Grünanlagen unverändert bleiben
+local WALL, CAP, CONC, WOOD, DARKW = { 150, 146, 134 }, { 190, 184, 170 }, { 170, 168, 160 }, { 132, 100, 68 }, { 86, 64, 46 }
+local aEnd = 40 -- Ende der Mauern (vor der Luitpoldbrücke)
 local wx, wz = at(0, 0)
-add("Eisbachwelle", "wave", wx, -3.7, wz, 13, 5.5, 5.5, { 214, 234, 246 }, "SmoothPlastic", { shape = "Cylinder", yaw = yawN, transparency = 0.2, tag = "Eisbachwelle", attrs = { Surf = true } })
-local sx, sz = at(-1.6, 0)
-add("Wellenschaum", "wave", sx, -1.3, sz, 13, 0.6, 2.8, { 248, 252, 255 }, "SmoothPlastic", { yaw = yawN, transparency = 0.1 })
-local tx, tz = at(3.6, 0)
-add("Wellental", "wave", tx, -3.85, tz, 13, 0.3, 6, { 190, 220, 238 }, "SmoothPlastic", { yaw = yawN, transparency = 0.4 })
-add("SurfZone", "zone", wx, -2.5, wz, 14, 6, 14, { 255, 255, 255 }, "SmoothPlastic", { yaw = yawN, transparency = 1, tag = "SurfZone", attrs = { Welle = "Eisbach" } })
-local STONEW = { 170, 164, 150 }
-for _, side in ipairs({ -1, 1 }) do -- Ufermauern an beiden Ufern, flussabwärts der Brücke
-local mx, mz = at(14, side * 13.6)
-add("Ufermauer", "wall", mx, -1.4, mz, 30, 5.2, 1.2, STONEW, "Concrete", { yaw = yawU, collide = true })
+add("Eisbachwelle", "wave", wx, -4, wz, 2 * hw, 7, 14, { 206, 232, 244 }, "SmoothPlastic", { shape = "Cylinder", yaw = yawN, transparency = 0.2, tag = "Eisbachwelle", attrs = { Surf = true } })
+local rx0, rz0 = at(-8, 0)
+add("Schussrinne", "wave", rx0, -3.9, rz0, 14, 0.2, 2 * hw - 0.4, { 40, 96, 88 }, "SmoothPlastic", { yaw = yawU, transparency = 0.55 })
+local bx0, bz0 = at(13.5, 0)
+add("Kanalboden", "wave", bx0, -5.9, bz0, 57, 0.2, 2 * hw - 0.4, { 36, 84, 96 }, "SmoothPlastic", { yaw = yawU }) -- dunkles Bachbett unter dem Wasser (verdeckt das Muster des Terrain-Grunds)
+local kx, kz = at(20.5, 0)
+add("Kanalwasser", "wave", kx, -3.9, kz, 43, 0.2, 2 * hw - 0.4, { 52, 112, 132 }, "SmoothPlastic", { yaw = yawU, transparency = 0.25 })
+local fx, fz = at(15, 0)
+add("Wellenschaum", "wave", fx, -3.75, fz, 26, 0.3, 2 * hw - 0.4, { 248, 252, 255 }, "SmoothPlastic", { yaw = yawU, transparency = 0.5 })
+for i = 0, 19 do -- Schaumkamm auf dem Wellenrücken
+local x, z = at(0.3 + rng() * 3.4, -hw + 1 + i * (2 * hw - 2) / 19 + (rng() - 0.5))
+local d = 1.6 + rng() * 1.4
+add("Gischt", "wave", x, -1.5 + rng() * 0.7, z, d, d, d, { 250, 252, 255 }, "Snow", { shape = "Ball", transparency = 0.1 + rng() * 0.2 })
+end
+for _ = 1, 90 do -- Schaumfeld hinter der Welle: flache Flecken, die auf dem Wasser liegen
+local d = 2.5 + rng() * 3
+local x, z = at(3 + rng() * 27, (rng() - 0.5) * 2 * (hw - 1.5))
+add("Gischt", "wave", x, -3.75 + rng() * 0.25, z, 0.3 + rng() * 0.3, d, d, { 250, 252, 255 }, "Snow", { shape = "Cylinder", roll = 90, yaw = rng() * 360, transparency = 0.2 + rng() * 0.3 })
+end
+for _ = 1, 70 do -- kleine Bläschen darüber
+local d = 0.8 + rng() * 1.4
+local x, z = at(2 + rng() * 28, (rng() - 0.5) * 2 * (hw - 1.5))
+add("Gischt", "wave", x, -3.8 + d * 0.3, z, d, d, d, { 250, 252, 255 }, "Snow", { shape = "Ball", transparency = 0.15 + rng() * 0.3 })
+end
+add("SurfZone", "zone", wx, -2.5, wz, 2 * hw, 6, 18, { 255, 255, 255 }, "SmoothPlastic", { yaw = yawN, transparency = 1, tag = "SurfZone", attrs = { Welle = "Eisbach" } })
+local function wall(side, a0, a1)
+local x, z = at((a0 + a1) / 2, side * (hw + 1.2))
+add("Kanalmauer", "wall", x, -4.05, z, a1 - a0, 9.9, 2.4, WALL, "Cobblestone", { yaw = yawU, collide = true })
+add("Mauerkappe", "wall", x, 1.2, z, a1 - a0, 0.4, 3.0, CAP, "Concrete", { yaw = yawU, collide = true })
+end
+wall(1, -7, -3) -- Anfang jeweils hinter der Brückenkante (der Kanal verläuft schräg zur Brücke, daher im Westen später als im Osten)
+wall(1, 21, aEnd)
+wall(-1, -17, -4)
+wall(-1, 0, aEnd)
+for i, top in ipairs({ -0.2, -1.5, -2.8, -3.6 }) do -- Betonstufen im Westen (a -2 bis 20), die letzte knapp über dem Wasser
+local x, z = at(9, hw + 1.5 - (i - 1) * 1.8)
+add("Kanalstufe", "steps", x, (top - 9) / 2, z, 22, top + 9, 1.8, CONC, "Concrete", { yaw = yawU, collide = true })
+end
+local px, pz = at(9, -(hw - 2.9))
+add("Plateau", "deck", px, -3.6, pz, 22, 0.4, 5.8, WOOD, "Wood", { yaw = yawU, collide = true })
+local bx, bz = at(9, -(hw - 6))
+add("Plateaubalken", "deck", bx, -3.1, bz, 22, 0.7, 0.7, DARKW, "Wood", { yaw = yawU, collide = true })
+for a = -1, 19, 4 do
+local qx, qz = at(a, -(hw - 2.9))
+add("Plateauquerbalken", "deck", qx, -3.35, qz, 0.6, 0.35, 6.2, DARKW, "Wood", { yaw = yawU })
+end
+for _, a in ipairs({ -1, 19 }) do
+for _, l in ipairs({ -(hw - 0.4), -(hw - 5.8) }) do
+local qx, qz = at(a, l)
+add("Plateaupfosten", "deck", qx, -6, qz, 0.6, 4.4, 0.6, DARKW, "Wood", { yaw = yawU })
+end
+end
+for i, top in ipairs({ -0.5, -1.6, -2.7 }) do -- Holztreppe in der Mauerlücke (a -4 bis 0)
+local x, z = at(-2, -(hw + 1.6 - (i - 1) * 1.0))
+add("Holzstufe", "steps", x, (top - 9) / 2, z, 4, top + 9, 1.0, WOOD, "Wood", { yaw = yawU, collide = true })
+end
+local lx, lz = at(30, hw + 3.6)
+add("RettungsringPfosten", "decor", lx, 2.4, lz, 0.3, 4.8, 0.3, { 230, 200, 60 }, "Metal", { collide = true })
+local ox, oz = at(30, hw + 2.9)
+add("Rettungsring", "decor", ox, 3.6, oz, 0.5, 2.2, 2.2, { 210, 44, 40 }, "SmoothPlastic", { shape = "Cylinder", yaw = yawN })
+for _, q in ipairs({ { 6, -25 }, { 18, -29 }, { 30, -26 }, { 40, -29 } }) do
+local x, z = at(q[1], q[2])
+tree(add, rngTree, x, 0, z, 1.15, "Eis")
 end
 local dx, dz = at(20, 21)
 add("Zuschauerdeck", "deck", dx, 0.25, dz, 26, 0.5, 10, { 140, 104, 70 }, "Wood", { yaw = yawU, collide = true })
-local rx, rz = at(20, 15.8)
+local rx, rz = at(20, 16.2)
 add("DeckGelaender", "deck", rx, 1.2, rz, 26, 1.2, 0.3, { 70, 62, 56 }, "Metal", { yaw = yawU, collide = true })
 for _, a in ipairs({ -8, 0, 8 }) do
-local bx, bz = at(20 + a, 24.2)
-bench(add, bx, 0.5, bz, math.deg(math.atan2(nx, nz)))
+local x, z = at(20 + a, 24.2)
+bench(add, x, 0.5, z, math.deg(math.atan2(nx, nz)))
 end
-local px, pz = at(8, 16.2)
+local sx, sz = at(36, 16.5)
 local signYaw = yawU + 180
-add("Schild", "decor", px, 3.4, pz, 9, 2.4, 0.3, { 36, 70, 110 }, "SmoothPlastic", { yaw = signYaw })
-add("SchildPfosten", "decor", px, 1.6, pz, 0.5, 3.2, 0.5, { 70, 62, 56 }, "Metal", { yaw = signYaw, collide = true })
-local tx2, tz2 = px + nx * 0.25, pz + nz * 0.25
+add("Schild", "decor", sx, 3.4, sz, 9, 2.4, 0.3, { 36, 70, 110 }, "SmoothPlastic", { yaw = signYaw })
+add("SchildPfosten", "decor", sx, 1.6, sz, 0.5, 3.2, 0.5, { 70, 62, 56 }, "Metal", { yaw = signYaw, collide = true })
+local tx2, tz2 = sx + nx * 0.25, sz + nz * 0.25
 add("Schrift", "text", tx2, 3.4, tz2, 8.4, 1.8, 0.2, { 255, 255, 255 }, "SmoothPlastic", { yaw = signYaw, text = { s = "EISBACHWELLE", color = { 255, 255, 255 } } })
 end
 local function biergarten(cfg, add, rng, free)
@@ -2452,6 +2569,11 @@ if free(tx, tz) then tree(add, rng, tx, 0, tz, 1.0, "West") n = n + 1 end
 end
 end
 return n
+end
+function Garden.planEisbach(cfg)
+local parts = {}
+eisbach(cfg, emitter(parts))
+return parts
 end
 function Garden.plan(cfg, roadPlan, specials)
 local parts = {}

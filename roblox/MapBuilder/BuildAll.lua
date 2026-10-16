@@ -20,8 +20,22 @@ local Garden = require(script and script.Parent.Garden or "Garden")
 local TerrainPlanner = require(script and script.Parent.TerrainPlanner or "TerrainPlanner")
 local WallPlanner = require(script and script.Parent.WallPlanner or "WallPlanner")
 local Builder = require(script and script.Parent.Builder or "Builder")
+local Geo = require(script and script.Parent.Geo or "Geo")
 
 local BuildAll = {}
+
+-- Liegt der Punkt (Radius r) in der Nähe von Gras-Terrain (Parks, Terrasse, Hügel, Isar-Uferweg)? Nur dort muss das Terrain unter Wegen umgefärbt werden.
+local function nearGrass(x, z, r)
+	for _, p in ipairs(Config.parks) do
+		if x + r > p.x0 - 8 and x - r < p.x1 + 8 and z + r > p.z0 - 8 and z - r < p.z1 + 8 then return true end
+	end
+	local t = Config.terrace
+	if x + r > t.x0 - 8 and x - r < t.x1 + 8 and z + r > t.z0 - 8 and z - r < t.z1 + 8 then return true end
+	for _, h in ipairs(Config.hills) do
+		if math.sqrt((x - h.x) ^ 2 + (z - h.z) ^ 2) < h.layers[1][1] + r + 8 then return true end
+	end
+	return Geo.polyDist(x, z, Config.water.isar.pts) < Config.water.isar.layers[1][3] + 10 + r
+end
 
 local STEPS = {
 	terrain = function(opts, origin)
@@ -29,6 +43,62 @@ local STEPS = {
 		local ops = TerrainPlanner.plan(Config)
 		Builder.applyTerrain(ops, origin)
 		return string.format("%d Terrain-Operationen", #ops)
+	end,
+	kanal = function(opts, origin) -- nur der Eisbach-Kanal (Terrain), wenn das übrige Terrain schon steht; bei "terrain" ist er schon dabei
+		local ops = TerrainPlanner.planKanal(Config)
+		Builder.applyTerrain(ops, origin)
+		return string.format("%d Terrain-Operationen (Eisbach-Kanal)", #ops)
+	end,
+	eisbach = function(opts, origin) -- Eisbach-Szene in der fertigen Karte gezielt erneuern (Kanal-Terrain, Brückenbögen, Welle, Mauern), übrige Ordner bleiben unberührt
+		local map = game:GetService("Workspace"):FindFirstChild("Map")
+		local roads, gardens = map.Strassen, map.Gruenanlagen
+		Builder.applyTerrain(TerrainPlanner.planKanal(Config), origin)
+		local OLD = {} -- Namen der früheren und der neuen Eisbach-Teile im Umkreis der Welle
+		for _, n in ipairs({ "Eisbachwelle", "Schussrinne", "Kanalwasser", "Kanalboden", "Wellenschaum", "Wellental", "Gischt", "SurfZone", "Ufermauer", "Kanalmauer", "Mauerkappe", "Kanalstufe", "Plateau", "Plateaubalken",
+			"Plateauquerbalken", "Plateaupfosten", "Holzstufe", "RettungsringPfosten", "Rettungsring", "EisStamm", "EisKrone", "Zuschauerdeck", "DeckGelaender", "Schild", "SchildPfosten", "Schrift",
+			"BankSitz", "BankLehne", "BankBein" }) do OLD[n] = true end
+		local removed = 0
+		for _, c in ipairs(gardens:GetChildren()) do
+			if c:IsA("BasePart") and OLD[c.Name] and c.Position.X > 600 and c.Position.X < 700 and c.Position.Z > 315 and c.Position.Z < 400 then c:Destroy() removed = removed + 1 end
+		end
+		for _, c in ipairs(roads:GetChildren()) do
+			if c.Name:sub(1, 7) == "Eisbach" then c:Destroy() removed = removed + 1 end
+		end
+		local bridge = {}
+		for _, p in ipairs(RoadsPlanner.plan(Config).parts) do
+			if p.name:sub(1, 7) == "Eisbach" then bridge[#bridge + 1] = p end
+		end
+		Builder.buildParts(bridge, roads, origin)
+		local scene = Garden.planEisbach(Config)
+		Builder.buildParts(scene, gardens, origin)
+		return string.format("%d alte Teile entfernt, %d Brückenteile und %d Teile der Szene neu", removed, #bridge, #scene)
+	end,
+	fugen = function(opts, origin) -- Plattenfugen und Bänder (Stachus, Marienplatz) in der fertigen Karte erneuern, übrige Teile bleiben
+		local map = game:GetService("Workspace"):FindFirstChild("Map")
+		local n = 0
+		local function redo(folder, parts)
+			for _, c in ipairs(folder:GetChildren()) do
+				if c.Name == "Fuge" or c.Name == "Band" then c:Destroy() end
+			end
+			local list = {}
+			for _, p in ipairs(parts) do
+				if p.name == "Fuge" or p.name == "Band" then list[#list + 1] = p end
+			end
+			Builder.buildParts(list, folder, origin)
+			n = n + #list
+		end
+		redo(map.Stachus, Stachus.plan(Config).parts)
+		redo(map.Marienplatz, Marienplatz.plan(Config).parts)
+		return string.format("%d Fugen und Bänder erneuert", n)
+	end,
+	pave = function(opts, origin) -- Terrain unter Wegen und Straßen von Gras zu Pflaster, damit dort keine Gras-Büschel wachsen
+		local roadPlan = RoadsPlanner.plan(Config)
+		local specs = {}
+		for _, list in ipairs({ roadPlan.parts, Garden.plan(Config, roadPlan, Specials).parts }) do
+			for _, p in ipairs(list) do specs[#specs + 1] = p end
+		end
+		local n = Builder.paveUnder(specs, origin, function(p) return nearGrass(p.pos[1], p.pos[3], math.max(p.size[1], p.size[3]) / 2) end)
+		return string.format("%d Zellenreihen unter Wegen und Straßen von Gras zu Pflaster", n)
 	end,
 	roads = function(opts, origin)
 		local plan = RoadsPlanner.plan(Config)
@@ -126,7 +196,7 @@ local STEPS = {
 	end,
 }
 
-BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "stachus", "gardens", "houses", "skyline", "bus", "wall" }
+BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "stachus", "gardens", "pave", "houses", "skyline", "bus", "wall" }
 
 -- Nach dem Terrain: echte Bodenhöhe messen (alles weitere wird daran ausgerichtet) und prüfen, ob Wasser da ist.
 local function afterTerrain(base)

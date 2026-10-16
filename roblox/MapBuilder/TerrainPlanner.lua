@@ -59,6 +59,31 @@ local function river(ops, rv)
 	end
 end
 
+-- Eisbach-Kanal: wie ein Fluss (senkrechte Wände), dazu links und rechts ein Streifen Erde (bank) flussabwärts der Maximilianbrücke
+function TerrainPlanner.kanal(ops, cfg)
+	local K = cfg.water.kanal
+	K.name = "kanal"
+	river(ops, K)
+	for _, sm in ipairs(TerrainPlanner.riverSamples(K.pts)) do
+		if sm.z > K.bank.zmin then
+			local alongZ = math.abs(sm.uz) >= math.abs(sm.ux)
+			local sx, sz
+			if alongZ then sx, sz = K.bank.width / math.abs(sm.uz), STEP + 2 else sx, sz = STEP + 2, K.bank.width / math.abs(sm.ux) end
+			for _, side in ipairs({ -1, 1 }) do
+				local c = side * (K.bank.from + K.bank.width / 2)
+				block(ops, K.bank.material, sm.x - sm.uz * c, -4, sm.z + sm.ux * c, sx, 8, sz, "kanal_bank")
+			end
+		end
+	end
+end
+
+-- nur die Kanal-Operationen (für den Schritt "kanal", wenn das übrige Terrain schon steht)
+function TerrainPlanner.planKanal(cfg)
+	local ops = {}
+	TerrainPlanner.kanal(ops, cfg)
+	return ops
+end
+
 function TerrainPlanner.plan(cfg)
 	local ops = {}
 	local G = cfg.groundTop
@@ -111,6 +136,7 @@ function TerrainPlanner.plan(cfg)
 	cfg.water.isar.name, cfg.water.bach.name = "isar", "bach"
 	river(ops, cfg.water.isar)
 	river(ops, cfg.water.bach)
+	if cfg.water.kanal then TerrainPlanner.kanal(ops, cfg) end
 	return ops
 end
 

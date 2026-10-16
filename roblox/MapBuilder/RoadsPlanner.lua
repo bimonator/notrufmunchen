@@ -31,17 +31,17 @@ end
 local TILE, JOINT, JOINT_COLOR = 6, 0.18, { 150, 144, 136 }
 local function tileJoints(parts, cx, cz, ux, uz, len, w, top, yaw, seg)
 	local nx, nz = -uz, ux
-	local y = top + 0.03
+	local y = top + 0.1 -- Fugen 0,2 hoch: dünnere flackern gegen den Boden
 	local k = 1
 	while k * TILE < len do -- Fugen quer zur Länge
 		local t = -len / 2 + k * TILE
-		part(parts, "Fuge", "joint", cx + ux * t, y, cz + uz * t, JOINT, 0.06, w, yaw, JOINT_COLOR, "SmoothPlastic", { collide = false, seg = seg })
+		part(parts, "Fuge", "joint", cx + ux * t, y, cz + uz * t, JOINT, 0.2, w, yaw, JOINT_COLOR, "SmoothPlastic", { collide = false, seg = seg })
 		k = k + 1
 	end
 	k = 1
 	while k * TILE < w do -- Fugen in Längsrichtung
 		local v = -w / 2 + k * TILE
-		part(parts, "Fuge", "joint", cx + nx * v, y, cz + nz * v, len, 0.06, JOINT, yaw, JOINT_COLOR, "SmoothPlastic", { collide = false, seg = seg })
+		part(parts, "Fuge", "joint", cx + nx * v, y, cz + nz * v, len, 0.2, JOINT, yaw, JOINT_COLOR, "SmoothPlastic", { collide = false, seg = seg })
 		k = k + 1
 	end
 end
@@ -342,6 +342,45 @@ function RoadsPlanner.plan(cfg)
 			part(parts, "StatueGewand", "deck", x, 8.5, z, 3.2, 5, 3.2, b.yaw, STATUE, "Concrete", { collide = false })
 			part(parts, "StatueTorso", "deck", x, 12.2, z, 2.6, 2.6, 2, b.yaw, STATUE, "Concrete", { collide = false })
 			part(parts, "StatueKopf", "deck", x, 14.3, z, 1.6, 1.8, 1.6, b.yaw, STATUE, "Concrete", { collide = false })
+		end
+		-- Eisbach-Durchlass als Steinbrücke mit zwei Bögen und Mittelpfeiler (wie an der Eisbachwelle), darüber eine höhere Brüstung mit Rosetten und Eckpfosten
+		if b.culvert then
+			local xc, L = b.culvert.s, total - 4
+			local PIER = 4
+			local ah = (b.culvert.w - PIER) / 4 -- halbe Spannweite je Bogen
+			local ys, f, crown = -5.0, 4.0, -1.0 -- Kämpfer, Pfeilhöhe, Scheitel der Untersicht (Unterkante Fahrbahn)
+			local R = (ah * ah + f * f) / (2 * f)
+			local GREY, LIGHT = { 150, 146, 134 }, { 214, 208, 194 }
+			local px, pz = at(xc, 0)
+			part(parts, "EisbachPfeiler", "deck", px, -5, pz, PIER, 8, L, b.yaw, GREY, "Cobblestone", {})
+			for _, sc in ipairs({ xc - PIER / 2 - ah, xc + PIER / 2 + ah }) do
+				local n = 16
+				local w = 2 * ah / n
+				for k = 1, n do
+					local sm = sc - ah + (k - 0.5) * w
+					local soffit = ys + math.sqrt(R * R - (sm - sc) ^ 2) - (R - f)
+					if soffit < crown - 0.05 then
+						local x, z = at(sm, 0)
+						part(parts, "EisbachBogen", "deck", x, (soffit + crown) / 2, z, w + 0.05, crown - soffit, L, b.yaw, GREY, "Cobblestone", {})
+					end
+				end
+			end
+			for _, sd in ipairs({ -1, 1 }) do
+				local lat = sd * (b.wid / 2 + b.walk - 0.4)
+				local x, z = at(xc, lat)
+				part(parts, "EisbachBruestung", "rail", x, 2.2, z, b.culvert.w + 4, 2.8, 1.0, b.yaw, { 172, 166, 152 }, "Concrete", {})
+				for _, s in ipairs({ xc - PIER / 2 - ah, xc, xc + PIER / 2 + ah }) do -- Rosetten über den Bögen und dem Pfeiler
+					local rx, rz = at(s, lat + sd * 0.55)
+					part(parts, "EisbachRosette", "decor", rx, 2.3, rz, 0.3, 2.0, 2.0, b.yaw + 90, LIGHT, "Concrete", { shape = "Cylinder", collide = false })
+					rx, rz = at(s, lat + sd * 0.5)
+					part(parts, "EisbachRosettenring", "decor", rx, 2.3, rz, 0.2, 2.7, 2.7, b.yaw + 90, { 120, 116, 106 }, "Concrete", { shape = "Cylinder", collide = false })
+				end
+				for _, sp in ipairs({ -1, 1 }) do -- Eckpfosten mit Kugel
+					local ex, ez = at(xc + sp * (b.culvert.w / 2 + 2.4), lat)
+					part(parts, "EisbachPfosten", "decor", ex, 3.0, ez, 1.6, 5.0, 1.6, b.yaw, { 160, 154, 140 }, "Concrete", {})
+					part(parts, "EisbachPfostenKugel", "decor", ex, 5.9, ez, 1.4, 1.4, 1.4, b.yaw, { 160, 154, 140 }, "Concrete", { shape = "Ball", collide = false })
+				end
+			end
 		end
 		-- Laternen: Pfosten mit Leuchtkasten (Tag StreetLamp), am Pfeiler und über den Bogenansätzen
 		for _, s in ipairs({ -b.span, 0, b.span }) do

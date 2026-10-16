@@ -333,11 +333,12 @@ local function club(cfg, add, spec)
 	end
 end
 
--- Eisbachwelle wie in München: direkt flussabwärts (südlich) der Maximilianbrücke, deren südlicher Gehweg als Aussichtsplatz dient
--- (Aussichtsplatz am Geländer), darunter die stehende Welle; am Westufer ein Deck mit Bänken und das Schild.
--- Tags Eisbachwelle und SurfZone für ein späteres Surf-Skript.
+-- Eisbachwelle wie in München: gemauerter Kanal (Terrain: cfg.water.kanal) flussabwärts der Maximilianbrücke, die stehende Welle direkt hinter der Brücke,
+-- links ein Holzplateau zum Stehen (Ostseite), rechts Betonstufen (Westseite), Zuschauerdeck am Westufer, Erdufer mit Kastanien. Keine Figuren.
+-- Tags Eisbachwelle und SurfZone für ein späteres Surf-Skript. Lokales Maß: a = flussabwärts (nach Süden) ab der Welle, l = nach Westen (Zuschauerseite).
 local function eisbach(cfg, add)
 	local pts = cfg.water.bach.pts
+	local hw = cfg.water.kanal.layers[1][3]
 	local zc = cfg.landmarks.eisbach.z
 	local function bachAt(z) -- Mittelpunkt und Laufrichtung des Bachs bei z
 		for i = 1, #pts - 1 do
@@ -353,32 +354,96 @@ local function eisbach(cfg, add)
 	local nx, nz = -uz, ux -- zeigt vom Bach nach Westen (Zuschauerseite)
 	local function at(a, l) return cx + ux * a + nx * l, cz + uz * a + nz * l end
 	local yawU, yawN = Geo.yawOf(ux, uz), Geo.yawOf(nx, nz)
+	local rng, rngTree = newRng(23), newRng(31) -- eigene Zufallsfolgen, damit die übrigen Grünanlagen unverändert bleiben
+	local WALL, CAP, CONC, WOOD, DARKW = { 150, 146, 134 }, { 190, 184, 170 }, { 170, 168, 160 }, { 132, 100, 68 }, { 86, 64, 46 }
+	local aEnd = 40 -- Ende der Mauern (vor der Luitpoldbrücke)
+
+	-- Welle: Wellenrücken quer zum Bach, davor schnelles glattes Wasser, dahinter Schaumfeld mit Gischt
 	local wx, wz = at(0, 0)
-	add("Eisbachwelle", "wave", wx, -3.7, wz, 13, 5.5, 5.5, { 214, 234, 246 }, "SmoothPlastic", { shape = "Cylinder", yaw = yawN, transparency = 0.2, tag = "Eisbachwelle", attrs = { Surf = true } })
-	local sx, sz = at(-1.6, 0)
-	add("Wellenschaum", "wave", sx, -1.3, sz, 13, 0.6, 2.8, { 248, 252, 255 }, "SmoothPlastic", { yaw = yawN, transparency = 0.1 })
-	local tx, tz = at(3.6, 0)
-	add("Wellental", "wave", tx, -3.85, tz, 13, 0.3, 6, { 190, 220, 238 }, "SmoothPlastic", { yaw = yawN, transparency = 0.4 })
-	add("SurfZone", "zone", wx, -2.5, wz, 14, 6, 14, { 255, 255, 255 }, "SmoothPlastic", { yaw = yawN, transparency = 1, tag = "SurfZone", attrs = { Welle = "Eisbach" } })
-	local STONEW = { 170, 164, 150 }
-	for _, side in ipairs({ -1, 1 }) do -- Ufermauern an beiden Ufern, flussabwärts der Brücke
-		local mx, mz = at(14, side * 13.6)
-		add("Ufermauer", "wall", mx, -1.4, mz, 30, 5.2, 1.2, STONEW, "Concrete", { yaw = yawU, collide = true })
+	add("Eisbachwelle", "wave", wx, -4, wz, 2 * hw, 7, 14, { 206, 232, 244 }, "SmoothPlastic", { shape = "Cylinder", yaw = yawN, transparency = 0.2, tag = "Eisbachwelle", attrs = { Surf = true } })
+	local rx0, rz0 = at(-8, 0)
+	add("Schussrinne", "wave", rx0, -3.9, rz0, 14, 0.2, 2 * hw - 0.4, { 40, 96, 88 }, "SmoothPlastic", { yaw = yawU, transparency = 0.55 })
+	local bx0, bz0 = at(13.5, 0)
+	add("Kanalboden", "wave", bx0, -5.9, bz0, 57, 0.2, 2 * hw - 0.4, { 36, 84, 96 }, "SmoothPlastic", { yaw = yawU }) -- dunkles Bachbett unter dem Wasser (verdeckt das Muster des Terrain-Grunds)
+	local kx, kz = at(20.5, 0)
+	add("Kanalwasser", "wave", kx, -3.9, kz, 43, 0.2, 2 * hw - 0.4, { 52, 112, 132 }, "SmoothPlastic", { yaw = yawU, transparency = 0.25 })
+	local fx, fz = at(15, 0)
+	add("Wellenschaum", "wave", fx, -3.75, fz, 26, 0.3, 2 * hw - 0.4, { 248, 252, 255 }, "SmoothPlastic", { yaw = yawU, transparency = 0.5 })
+	for i = 0, 19 do -- Schaumkamm auf dem Wellenrücken
+		local x, z = at(0.3 + rng() * 3.4, -hw + 1 + i * (2 * hw - 2) / 19 + (rng() - 0.5))
+		local d = 1.6 + rng() * 1.4
+		add("Gischt", "wave", x, -1.5 + rng() * 0.7, z, d, d, d, { 250, 252, 255 }, "Snow", { shape = "Ball", transparency = 0.1 + rng() * 0.2 })
 	end
-	-- Westufer: Deck mit Geländer und drei Bänken
+	for _ = 1, 90 do -- Schaumfeld hinter der Welle: flache Flecken, die auf dem Wasser liegen
+		local d = 2.5 + rng() * 3
+		local x, z = at(3 + rng() * 27, (rng() - 0.5) * 2 * (hw - 1.5))
+		add("Gischt", "wave", x, -3.75 + rng() * 0.25, z, 0.3 + rng() * 0.3, d, d, { 250, 252, 255 }, "Snow", { shape = "Cylinder", roll = 90, yaw = rng() * 360, transparency = 0.2 + rng() * 0.3 })
+	end
+	for _ = 1, 70 do -- kleine Bläschen darüber
+		local d = 0.8 + rng() * 1.4
+		local x, z = at(2 + rng() * 28, (rng() - 0.5) * 2 * (hw - 1.5))
+		add("Gischt", "wave", x, -3.8 + d * 0.3, z, d, d, d, { 250, 252, 255 }, "Snow", { shape = "Ball", transparency = 0.15 + rng() * 0.3 })
+	end
+	add("SurfZone", "zone", wx, -2.5, wz, 2 * hw, 6, 18, { 255, 255, 255 }, "SmoothPlastic", { yaw = yawN, transparency = 1, tag = "SurfZone", attrs = { Welle = "Eisbach" } })
+
+	-- Kanalmauern aus Naturstein an beiden Ufern; im Westen Lücke für die Betonstufen, im Osten kleine Lücke für die Holztreppe
+	local function wall(side, a0, a1)
+		local x, z = at((a0 + a1) / 2, side * (hw + 1.2))
+		add("Kanalmauer", "wall", x, -4.05, z, a1 - a0, 9.9, 2.4, WALL, "Cobblestone", { yaw = yawU, collide = true })
+		add("Mauerkappe", "wall", x, 1.2, z, a1 - a0, 0.4, 3.0, CAP, "Concrete", { yaw = yawU, collide = true })
+	end
+	wall(1, -7, -3) -- Anfang jeweils hinter der Brückenkante (der Kanal verläuft schräg zur Brücke, daher im Westen später als im Osten)
+	wall(1, 21, aEnd)
+	wall(-1, -17, -4)
+	wall(-1, 0, aEnd)
+	for i, top in ipairs({ -0.2, -1.5, -2.8, -3.6 }) do -- Betonstufen im Westen (a -2 bis 20), die letzte knapp über dem Wasser
+		local x, z = at(9, hw + 1.5 - (i - 1) * 1.8)
+		add("Kanalstufe", "steps", x, (top - 9) / 2, z, 22, top + 9, 1.8, CONC, "Concrete", { yaw = yawU, collide = true })
+	end
+	-- Holzplateau im Osten, dicht über dem Wasser: Bohlen, Randbalken, Querbalken, Pfosten
+	local px, pz = at(9, -(hw - 2.9))
+	add("Plateau", "deck", px, -3.6, pz, 22, 0.4, 5.8, WOOD, "Wood", { yaw = yawU, collide = true })
+	local bx, bz = at(9, -(hw - 6))
+	add("Plateaubalken", "deck", bx, -3.1, bz, 22, 0.7, 0.7, DARKW, "Wood", { yaw = yawU, collide = true })
+	for a = -1, 19, 4 do
+		local qx, qz = at(a, -(hw - 2.9))
+		add("Plateauquerbalken", "deck", qx, -3.35, qz, 0.6, 0.35, 6.2, DARKW, "Wood", { yaw = yawU })
+	end
+	for _, a in ipairs({ -1, 19 }) do
+		for _, l in ipairs({ -(hw - 0.4), -(hw - 5.8) }) do
+			local qx, qz = at(a, l)
+			add("Plateaupfosten", "deck", qx, -6, qz, 0.6, 4.4, 0.6, DARKW, "Wood", { yaw = yawU })
+		end
+	end
+	for i, top in ipairs({ -0.5, -1.6, -2.7 }) do -- Holztreppe in der Mauerlücke (a -4 bis 0)
+		local x, z = at(-2, -(hw + 1.6 - (i - 1) * 1.0))
+		add("Holzstufe", "steps", x, (top - 9) / 2, z, 4, top + 9, 1.0, WOOD, "Wood", { yaw = yawU, collide = true })
+	end
+	-- Rettungsring an der Westmauer
+	local lx, lz = at(30, hw + 3.6)
+	add("RettungsringPfosten", "decor", lx, 2.4, lz, 0.3, 4.8, 0.3, { 230, 200, 60 }, "Metal", { collide = true })
+	local ox, oz = at(30, hw + 2.9)
+	add("Rettungsring", "decor", ox, 3.6, oz, 0.5, 2.2, 2.2, { 210, 44, 40 }, "SmoothPlastic", { shape = "Cylinder", yaw = yawN })
+	-- Kastanien am Ostufer (im Park); am Westufer steht Prinz Eins
+	for _, q in ipairs({ { 6, -25 }, { 18, -29 }, { 30, -26 }, { 40, -29 } }) do
+		local x, z = at(q[1], q[2])
+		tree(add, rngTree, x, 0, z, 1.15, "Eis")
+	end
+
+	-- Westufer: Deck mit Geländer und drei Bänken, Schild
 	local dx, dz = at(20, 21)
 	add("Zuschauerdeck", "deck", dx, 0.25, dz, 26, 0.5, 10, { 140, 104, 70 }, "Wood", { yaw = yawU, collide = true })
-	local rx, rz = at(20, 15.8)
+	local rx, rz = at(20, 16.2)
 	add("DeckGelaender", "deck", rx, 1.2, rz, 26, 1.2, 0.3, { 70, 62, 56 }, "Metal", { yaw = yawU, collide = true })
 	for _, a in ipairs({ -8, 0, 8 }) do
-		local bx, bz = at(20 + a, 24.2)
-		bench(add, bx, 0.5, bz, math.deg(math.atan2(nx, nz)))
+		local x, z = at(20 + a, 24.2)
+		bench(add, x, 0.5, z, math.deg(math.atan2(nx, nz)))
 	end
-	local px, pz = at(8, 16.2)
+	local sx, sz = at(36, 16.5)
 	local signYaw = yawU + 180
-	add("Schild", "decor", px, 3.4, pz, 9, 2.4, 0.3, { 36, 70, 110 }, "SmoothPlastic", { yaw = signYaw })
-	add("SchildPfosten", "decor", px, 1.6, pz, 0.5, 3.2, 0.5, { 70, 62, 56 }, "Metal", { yaw = signYaw, collide = true })
-	local tx2, tz2 = px + nx * 0.25, pz + nz * 0.25
+	add("Schild", "decor", sx, 3.4, sz, 9, 2.4, 0.3, { 36, 70, 110 }, "SmoothPlastic", { yaw = signYaw })
+	add("SchildPfosten", "decor", sx, 1.6, sz, 0.5, 3.2, 0.5, { 70, 62, 56 }, "Metal", { yaw = signYaw, collide = true })
+	local tx2, tz2 = sx + nx * 0.25, sz + nz * 0.25
 	add("Schrift", "text", tx2, 3.4, tz2, 8.4, 1.8, 0.2, { 255, 255, 255 }, "SmoothPlastic", { yaw = signYaw, text = { s = "EISBACHWELLE", color = { 255, 255, 255 } } })
 end
 
@@ -461,6 +526,13 @@ local function westPark(cfg, add, rng, free)
 		end
 	end
 	return n
+end
+
+-- nur die Teile der Eisbach-Szene (für den Schritt "eisbach", der eine fertige Karte gezielt aktualisiert); Garden.plan enthält dieselben Teile
+function Garden.planEisbach(cfg)
+	local parts = {}
+	eisbach(cfg, emitter(parts))
+	return parts
 end
 
 function Garden.plan(cfg, roadPlan, specials)
