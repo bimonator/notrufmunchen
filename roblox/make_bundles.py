@@ -1,12 +1,19 @@
-"""Erzeugt aus den Modulen in MapBuilder/ zwei Einzeldateien zum Einfügen ins Studio:
+"""Erzeugt aus den Modulen in MapBuilder/ die Dateien zum Einfügen ins Studio:
   MapBuilder_Script.lua  - Script für ServerScriptService, baut beim Klick auf Run (Test, nicht dauerhaft)
   MapBuilder_Plugin.lua  - als lokales Plugin speichern, baut per Knopf im Edit-Modus (dauerhaft)
+  MapBuilder_Teil1.lua, MapBuilder_Teil2.lua - ModuleScripts "Teil1" und "Teil2" als Kinder des Scripts (für beide Varianten gleich)
+Roblox begrenzt ein Script auf ca. 200 000 Zeichen, darum sind die Planer auf zwei ModuleScripts verteilt.
 Aufruf: python3 make_bundles.py"""
 import os
 import re
 
 here = os.path.dirname(os.path.abspath(__file__))
-ORDER = ["Geo", "Config", "Planner", "Blocks", "Specials", "RoadsPlanner", "LightsPlanner", "Landmarks", "Ampel", "TerrainPlanner", "Garden", "WallPlanner", "Builder", "BuildAll"]
+PARTS = [ # ModuleScripts (Name, Module); jedes Teil bekommt die Module der vorigen Teile über die Tabelle M
+    ("Teil1", ["Geo", "Config", "Planner", "Blocks", "Specials"]),
+    ("Teil2", ["RoadsPlanner", "LightsPlanner", "Landmarks", "Rathaus", "Marienplatz", "TerrainPlanner", "Garden", "WallPlanner"]),
+]
+MAIN = ["Ampel", "Builder", "BuildAll"]
+LIMIT = 190000  # Sicherheitsabstand zur Roblox-Grenze von ca. 200 000 Zeichen je Script
 
 
 def read(name):
@@ -18,17 +25,38 @@ def read(name):
     return re.sub(r'require\(script and script\.Parent\.(\w+) or "\w+"\)', r"\1", text)
 
 
-def modules():
-    return "".join("local %s = (function()\n%s\nend)()\n\n" % (n, read(n)) for n in ORDER)
+def body(names):
+    return "".join("local %s = (function()\n%s\nend)()\n" % (n, read(n)) for n in names)
+
+
+def part_module(name, names, before):
+    head = "-- MapBuilder_%s.lua  (automatisch erzeugt mit make_bundles.py, nicht von Hand ändern)\n" % name
+    head += "-- ModuleScript mit dem Namen \"%s\" als Kind des Scripts MapBuilder (bzw. des Plugin-Scripts) anlegen und diesen Text einfügen.\n" % name
+    pre = "".join("local %s = M.%s\n" % (n, n) for n in before)
+    post = "".join("M.%s = %s\n" % (n, n) for n in names)
+    return head + "return function(M)\n" + pre + body(names) + post + "end\n"
+
+
+ALL = [n for _, names in PARTS for n in names]
+LOADER = ("local M = {}\n"
+          "for _, n in ipairs({ %s }) do\n"
+          "\tlocal mod = script:FindFirstChild(n)\n"
+          "\tassert(mod, \"ModuleScript '\" .. n .. \"' fehlt als Kind dieses Scripts (siehe Anleitung oben)\")\n"
+          "\trequire(mod)(M)\n"
+          "end\n" % ", ".join('"%s"' % n for n, _ in PARTS)
+          + "".join("local %s = M.%s\n" % (n, n) for n in ALL) + "\n")
 
 
 script = """-- MapBuilder_Script.lua  (automatisch erzeugt mit make_bundles.py, nicht von Hand ändern)
 --
 -- NOTRUF MÜNCHEN: KOMPLETTE KARTE IN EINEM SCRIPT
 -- So geht's: 1) In Studio ein leeres Baseplate-Projekt öffnen (Baseplate gern löschen).
---            2) In ServerScriptService ein Script anlegen, diesen ganzen Text einfügen.
---            3) Oben auf RUN klicken (nicht Play). Das Bauen dauert 1-3 Minuten, Fortschritt steht im Output.
---            4) Mit der Kamera (F im Viewport, WASD + Rechtsklick) zum Siegestor fliegen: Ursprung = (0, 0, 0).
+--            2) In ServerScriptService ein Script "MapBuilder" anlegen, diesen ganzen Text einfügen.
+--            3) Unter diesem Script zwei ModuleScripts anlegen (Rechtsklick auf das Script > Insert Object > ModuleScript),
+--               umbenennen in "Teil1" und "Teil2" und die Texte aus MapBuilder_Teil1.lua bzw. MapBuilder_Teil2.lua einfügen.
+--               (Roblox erlaubt pro Script nur ca. 200 000 Zeichen, darum drei Teile.)
+--            4) Oben auf RUN klicken (nicht Play). Das Bauen dauert 1-3 Minuten, Fortschritt steht im Output.
+--            5) Mit der Kamera (F im Viewport, WASD + Rechtsklick) zum Siegestor fliegen: Ursprung = (0, 0, 0).
 --            Die Karte ist nach dem Stoppen weg. Dauerhaft bauen: MapBuilder_Plugin.lua als lokales Plugin.
 --
 -- WAS GEBAUT WIRD (Schritte, in dieser Reihenfolge; Output zeigt je Schritt eine Zeile):
@@ -37,6 +65,7 @@ script = """-- MapBuilder_Script.lua  (automatisch erzeugt mit make_bundles.py, 
 --              Maximilianstraße, Isar-Allee (Ostufer: Straße mit Parkstreifen, Laternen, roter Radweg, Baumreihe, Ufergehweg), Friedensengel-Oval, Kreisverkehr, gerundete Gehwegecken, 12 Zebrastreifen, Parkbuchten, 4 Brücken über die Isar (flach, auf Säulen),
 --              Maximilianbrücke (zwei Bögen, Statuen)
 --   lights     270 Laternen (runder Mast, Bogenarm, Leuchtkopf), 13 Ampelmasten (Rundmast, Ausleger, Linsenköpfe mit Blenden)
+--   marienplatz Neues Rathaus, Mariensäule, U-Bahn-Abgang, Pflaster, Kugelleuchten, Platanen, Cafés (Frauenkirche verkleinert im Nordwesten)
 --   landmarks  Siegestor auf Mittelinsel, Friedensengel (Engel mit Flügeln, Ölzweig, Nike; rundes Becken), Frauenkirche (runde Zwiebelhauben),
 --              Chinesischer Turm
 --   gardens    Hofgarten, Englischer Garten, Monopteros-Tempel, Biergarten, Eisbachwelle, Isar-Uferwege, Prinz-Eins-Vorplatz
@@ -58,19 +87,20 @@ script = """-- MapBuilder_Script.lua  (automatisch erzeugt mit make_bundles.py, 
 -- OUTPUT-ZEILEN, auf die du achten kannst: [boden] (Bodenhöhe), [wasser] ok, [roads], [lights], [landmarks], [gardens], [houses], [wall].
 -- Steht irgendwo "FEHLER:", schick mir die Zeile.
 --
-local STEPS = { "terrain", "roads", "lights", "landmarks", "gardens", "houses", "wall" } -- Teilmenge möglich, z. B. { "roads" }
+local STEPS = { "terrain", "roads", "lights", "landmarks", "marienplatz", "gardens", "houses", "wall" } -- Teilmenge möglich, z. B. { "roads" }
 local ONLY = nil -- nur bestimmte Häuserblöcke, z. B. { "B_NordMitte" }; nil = alle
 local ORIGIN = Vector3.new(0, 0, 0) -- Position des Siegestors
 
-""" + modules() + "BuildAll.run({ steps = STEPS, only = ONLY, origin = ORIGIN, afterBuild = Ampel.start })\n"
+""" + LOADER + body(MAIN) + "BuildAll.run({ steps = STEPS, only = ONLY, origin = ORIGIN, afterBuild = Ampel.start })\n"
 
 plugin = """-- MapBuilder_Plugin.lua  (automatisch erzeugt mit make_bundles.py, nicht von Hand ändern)
--- Dauerhaft bauen: in Workspace ein Script anlegen, alles einfügen, Rechtsklick auf das Script >
--- "Als lokales Plugin speichern". Danach das Script löschen. Im Reiter Plugins erscheint der Knopf "Karte bauen".
+-- Dauerhaft bauen: in Workspace ein Script anlegen, alles einfügen. Darunter zwei ModuleScripts "Teil1" und "Teil2" mit den Texten aus
+-- MapBuilder_Teil1.lua und MapBuilder_Teil2.lua anlegen. Dann Rechtsklick auf das Script > "Als lokales Plugin speichern" (die
+-- ModuleScripts werden mitgespeichert). Danach das Script löschen. Im Reiter Plugins erscheint der Knopf "Karte bauen".
 -- Der Knopf baut im Edit-Modus, die Objekte bleiben im Projekt erhalten (Strg+Z macht es rückgängig).
 local ORIGIN = Vector3.new(0, 0, 0) -- Position des Siegestors
 
-""" + modules() + """local AMPEL_SOURCE = [==[
+""" + LOADER + body(MAIN) + """local AMPEL_SOURCE = [==[
 local Ampel = (function()
 """ + read("Ampel") + """
 end)()
@@ -84,7 +114,13 @@ button.Click:Connect(function()
 end)
 """
 
-for name, text in (("MapBuilder_Script.lua", script), ("MapBuilder_Plugin.lua", plugin)):
+files = [("MapBuilder_Script.lua", script), ("MapBuilder_Plugin.lua", plugin)]
+before = []
+for name, names in PARTS:
+    files.append(("MapBuilder_%s.lua" % name, part_module(name, names, before)))
+    before = before + names
+for name, text in files:
+    assert len(text) <= LIMIT, "%s ist %d Zeichen lang (Grenze %d): Module neu auf die Teile verteilen" % (name, len(text), LIMIT)
     with open(os.path.join(here, name), "w", encoding="utf-8") as f:
         f.write(text)
-    print(name, len(text.splitlines()), "Zeilen")
+    print(name, len(text.splitlines()), "Zeilen,", len(text), "Zeichen")

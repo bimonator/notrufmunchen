@@ -13,5 +13,6 @@ return {
 	{ name = "D_West", xmin = -637, zmin = -256.5, xmax = -488.5, zmax = 1.5 },
 	{ name = "E_Mitte", xmin = -431.5, zmin = -256.5, xmax = -263.5, zmax = 1.5, reserved = { { -429.5, -200, -265.5, -100 } } },
 	{ name = "F_LeopoldWestSued", xmin = -206.5, zmin = -256.5, xmax = -55, zmax = 1.5, reserved = { { -205, -250, -109, -140 }, { -125, -90, -55, 2 } } }, -- zweite Fläche: Kreisverkehr um das Siegestor
+	{ name = "M_MarienplatzSued", xmin = -632, zmin = 326, xmax = -215, zmax = 386, noInner = true }, -- Häuserzeile am Südrand des Marienplatzes (vorn zum Platz, hinten zum Ring)
 	{ name = "G_LeopoldOst", xmin = 55, zmin = -448, xmax = 276, zmax = 4, reserved = { { T.lot[1], T.lot[2], 86, T.lot[4] }, { 55, -90, 125, 6 } }, lot = T.lot, avoidInner = { { 190, -400, 234, -108 } } }, -- Lücke in der Häuserzeile: Tankstelle liegt frei an der Straße, lot = ihr Grundstück
 }

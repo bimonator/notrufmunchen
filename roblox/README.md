@@ -6,9 +6,10 @@ Baut die Karte aus `docs/MAP_PLAN.md` und `docs/phase1_bauplan.html` per Code: T
 
 1. Studio öffnen, neues Projekt mit der Vorlage **Baseplate**. Die Baseplate **löschen** (der Builder legt das Terrain selbst an).
 2. In `Workspace` ein **Script** anlegen und den ganzen Inhalt von **`MapBuilder_Plugin.lua`** einfügen.
-3. Rechtsklick auf das Script > **Als lokales Plugin speichern**. Danach das Script löschen.
-4. Im Reiter **Plugins** erscheint der Knopf **Karte bauen**. Draufklicken, der Build dauert ca. 1–3 Minuten (Output-Fenster zeigt den Fortschritt).
-5. Im Output steht je Schritt eine Zeile. Erwartet:
+3. Unter diesem Script zwei **ModuleScripts** anlegen (Rechtsklick auf das Script > Insert Object > ModuleScript), umbenennen in **`Teil1`** und **`Teil2`** und die Inhalte von **`MapBuilder_Teil1.lua`** bzw. **`MapBuilder_Teil2.lua`** einfügen. Roblox erlaubt pro Script nur ca. 200 000 Zeichen, darum ist der Code auf drei Teile verteilt.
+4. Rechtsklick auf das Script > **Als lokales Plugin speichern** (die beiden ModuleScripts werden mitgespeichert). Danach das Script löschen.
+5. Im Reiter **Plugins** erscheint der Knopf **Karte bauen**. Draufklicken, der Build dauert ca. 1–3 Minuten (Output-Fenster zeigt den Fortschritt).
+6. Im Output steht je Schritt eine Zeile. Erwartet:
 
 ```
 [terrain] 1171 Terrain-Operationen
@@ -16,7 +17,8 @@ Baut die Karte aus `docs/MAP_PLAN.md` und `docs/phase1_bauplan.html` per Code: T
 [wasser] ok (... Wasser-Zellen am Messpunkt)
 [roads] 1475 Teile, 157 Parkbuchten
 [lights] 273 Laternen, 13 Ampelmasten, 3016 Teile
-[landmarks] ~680 Teile (Siegestor, Friedensengel, Frauenkirche, Chinesischer Turm)
+[landmarks] ~1100 Teile (Siegestor, Friedensengel, Frauenkirche, Chinesischer Turm)
+[marienplatz] 990 Teile (Rathaus 532, Platz 458), 15 Kugelleuchten, 8 Platanen, U-Bahn-Abgang mit 14 Stufen
 [gardens] 1050 Teile, 143 Bäume, 103 Uferweg-Platten, 50 Findlinge
 [houses] 154 Häuser, 12928 Teile
 [ampel] Script AmpelSteuerung in ServerScriptService angelegt
@@ -30,7 +32,7 @@ Strg+Z nimmt den ganzen Lauf zurück. Erneutes Bauen ersetzt die Ordner `Strasse
 
 ### Schnelltest ohne Plugin
 
-`MapBuilder_Script.lua` in ein Script in `ServerScriptService` einfügen, oben auf **Run** klicken (nicht Play). Oben in der Datei kann man `STEPS` auf einzelne Schritte beschränken, z. B. `{ "roads" }`. Die Karte ist nach dem Stoppen wieder weg. Geeignet, um einen Schritt auszuprobieren.
+`MapBuilder_Script.lua` in ein Script in `ServerScriptService` einfügen, darunter die ModuleScripts `Teil1` und `Teil2` wie oben anlegen, oben auf **Run** klicken (nicht Play). Oben in der Datei kann man `STEPS` auf einzelne Schritte beschränken, z. B. `{ "roads" }`. Die Karte ist nach dem Stoppen wieder weg. Geeignet, um einen Schritt auszuprobieren.
 
 ### Schritt für Schritt (wenn etwas nicht klappt)
 
@@ -47,7 +49,7 @@ Die Schritte laufen in dieser Reihenfolge und sind unabhängig voneinander ausf�
 | `MapBuilder/TerrainPlanner.lua` | Terrain-Operationen (Boden, Parks, Hügel, Terrasse, Isar, Bach) | ja (nur die Liste) |
 | `MapBuilder/WallPlanner.lua` | Mapgrenze mit Toren, Querriegel, Feldherrnhalle | ja |
 | `MapBuilder/Builder.lua`, `BuildAll.lua` | Erzeugt daraus Roblox-Objekte | **nur gegen eine Attrappe** |
-| `MapBuilder_Script.lua`, `MapBuilder_Plugin.lua` | Alles in einer Datei, erzeugt mit `python3 make_bundles.py` | wie Builder |
+| `MapBuilder_Script.lua`, `MapBuilder_Plugin.lua`, `MapBuilder_Teil1.lua`, `MapBuilder_Teil2.lua` | Script bzw. Plugin plus zwei ModuleScripts (Grenze ca. 200 000 Zeichen je Script), erzeugt mit `python3 make_bundles.py` | wie Builder |
 | `tests/` | `planner_test.lua`, `map_test.lua`, `bundle_smoke_test.py`, `run_with_lupa.py` | – |
 
 Nach jeder Änderung an `MapBuilder/*.lua` die Einzeldateien neu erzeugen: `python3 make_bundles.py`.
@@ -126,6 +128,10 @@ An allen rechtwinkligen Kreuzungen füllt `RoadsPlanner` das Eck zwischen den be
 ## Isar-Allee, Westufer und Hintergärten
 
 Auf der Isarseite gegenüber der Allee steht eine Häuserzeile mit Ufergehweg und Baumreihe (`Planner.planWestbank`) und dahinter ein Park. Die Ost-Häuser der Allee haben Hintergärten (Rasen, bei genug Platz zwei Bäume).
+
+## Marienplatz
+
+Im Südwesten (`Config.marienplatz`, Platz x −632…−215, z 60…326): Granitpflaster mit Fugen und rotbraunen Bändern; **Neues Rathaus** am Nordrand (`Rathaus.lua`, 140 breit: 9 Achsen, Arkaden, Balkone mit rosa Blumen, Spitzbogenfenster, Erker, Ecktürmchen, Schieferdach mit Gauben und Firstzier, Mittelturm mit Tor, Glockenspiel (Tags `Glockenspiel`, `GlockenspielFigur`), Uhr, Umgang, Glockenstube, Helm und Münchner Kindl, ca. 130 hoch); **Mariensäule** (Stufen, Balustrade mit Blumen, vier Putten, roter Marmorschaft, goldene Madonna); **U-Bahn-Abgang** vor dem Rathaus (14 Stufen bis 10,5 unter den Platz, Podest, Portal mit Schild „U S MARIENPLATZ“, beleuchteter Gang mit Fahrplan; Terrain-Aushub in `TerrainPlanner`); 15 **Kugelleuchten** (zwei Glaskugeln, Tag `StreetLamp`), 8 Platanen, Sitzstufen, zwei Café-Terrassen mit blauen Schirmen, Fahrräder, Bänke; Kiosk auf dem Platz; Häuserzeile am Südrand (Block `M_MarienplatzSued`). Die **Frauenkirche** steht im Nordwesten, auf 65 % verkleinert (`scale`), mit Lisenen, Maßwerkfriesen, Spitzbogenfenstern an den Türmen und heller Portal-Vorhalle mit Ziergiebel. Die Straße KirchplatzNord entfällt.
 
 ## Fußgängerüberwege
 

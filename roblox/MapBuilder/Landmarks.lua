@@ -394,13 +394,74 @@ function Landmarks.frauenkirche(cfg)
 		end
 		onion(add, tx, yb + H + 23, tz, GREEN)
 	end
-	-- Hauptportal mit Spitzbogen, Stufen und Rosette über dem Westportal
-	add("Portal", -len / 2 - 0.4, yb + 14, 0, 1, 28, 14, { 56, 40, 32 }, "Wood", { collide = false })
-	add("PortalRahmen", -len / 2 - 0.8, yb + 15, 0, 0.8, 32, 20, BAND, "Concrete", { collide = false })
-	add("PortalSpitze", -len / 2 - 0.8, yb + 33, 0, 0.8, 8, 10, BAND, "Concrete", { collide = false })
-	for i = 1, 4 do add("PortalStufe", -len / 2 - 2 - i * 2, yb - 0.4 - i * 0.2, 0, 3, 0.8, 24 + i * 2, { 160, 156, 148 }, "Concrete", { collide = true }) end
-	add("Westrosette", -len / 2 - 0.5, yb + 56, 0, 0.8, 20, 20, { 70, 86, 110 }, "Glass", { shape = "Cylinder", collide = false, kind = "glass" })
-	add("WestrosetteRand", -len / 2 - 0.3, yb + 56, 0, 0.6, 24, 24, BAND, "Concrete", { shape = "Cylinder", collide = false })
+	-- Details nach Fotos: Spitzbögen als Rechteck + 45-Grad-Raute; face "W" = Fläche quer zu x, sonst quer zu z
+	local LIGHT, DEEP = { 222, 210, 190 }, { 150, 128, 108 }
+	local function pointed(name, face, x, y, z, w, hgt, color, mat)
+		local hh, sq = hgt - w / 2, w / math.sqrt(2)
+		if face == "W" then
+			add(name, x, y + hh / 2, z, 0.8, hh, w, color, mat, { collide = false })
+			add(name, x, y + hh, z, 0.8, sq, sq, color, mat, { collide = false, pitch = 45 })
+		else
+			add(name, x, y + hh / 2, z, w, hh, 0.8, color, mat, { collide = false })
+			add(name, x, y + hh, z, sq, sq, 0.8, color, mat, { collide = false, roll = 45 })
+		end
+	end
+	-- Türme: Lisenen (helle Streifen), Maßwerkfriese (helles Band mit vier Blendbögen) und schlanke Spitzbogenfenster in zwei Reihen,
+	-- jeweils an der Westseite und an der Außenseite (Nord/Süd) jedes Turms
+	for _, sd in ipairs({ -1, 1 }) do
+		local tz = sd * (hw - tw / 2)
+		for _, st in ipairs({ { w = tw, y0 = 0, y1 = H1, friezes = { 30, 64, 98 }, wins = { 14, 44, 74 } }, { w = 42, y0 = H1 + 3, y1 = H, friezes = { H1 + 34 }, wins = { H1 + 12 } } }) do
+			local wx, wz = tx - st.w / 2 - 0.4, tz + sd * (st.w / 2 + 0.4) -- Westfläche (x) und Außenfläche (z)
+			for _, o in ipairs({ -st.w / 4, st.w / 4 }) do
+				add("Lisene", wx, yb + (st.y0 + st.y1) / 2, tz + o, 1.2, st.y1 - st.y0, 1.8, BAND, "Concrete", { collide = false })
+				add("Lisene", tx + o, yb + (st.y0 + st.y1) / 2, wz, 1.8, st.y1 - st.y0, 1.2, BAND, "Concrete", { collide = false })
+			end
+			for _, fy in ipairs(st.friezes) do
+				add("Masswerkfries", wx - 0.2, yb + fy, tz, 0.6, 6, st.w - 2, LIGHT, "Concrete", { collide = false })
+				add("Masswerkfries", tx, yb + fy, wz + sd * 0.2, st.w - 2, 6, 0.6, LIGHT, "Concrete", { collide = false })
+				for k = 0, 3 do
+					local o = -st.w / 2 + 1 + (k + 0.5) * (st.w - 2) / 4
+					pointed("Masswerkbogen", "W", wx - 0.6, yb + fy - 2.4, tz + o, 4, 4.6, DEEP, "Concrete")
+					pointed("Masswerkbogen", "Z", tx + o, yb + fy - 2.4, wz + sd * 0.6, 4, 4.6, DEEP, "Concrete")
+				end
+			end
+			for _, wy in ipairs(st.wins) do
+				for _, o in ipairs({ -st.w / 4 + 4, st.w / 4 - 4 }) do
+					pointed("Turmspitzfenster", "W", wx - 0.2, yb + wy, tz + o, 3, 12, { 40, 44, 52 }, "Glass")
+					pointed("Turmspitzfenster", "Z", tx + o, yb + wy, wz + sd * 0.2, 3, 12, { 40, 44, 52 }, "Glass")
+				end
+			end
+		end
+	end
+	-- Steinband in halber Höhe der Langhauswände
+	for _, sd in ipairs({ -1, 1 }) do add("Wandband", 0, yb + 24, sd * (hw + 0.3), len, 1.4, 0.6, BAND, "Concrete", { collide = false }) end
+	-- Westportal in einer hellen Vorhalle (wie im Foto): Spitzbogen mit drei Gewänden, Holztür, Figuren, Ziergiebel mit Kreuzblume und Fialen, Stufen;
+	-- darüber das hohe Westfenster
+	local px = -len / 2 - 8
+	add("Vorhalle", px + 4, yb + 22, 0, 8, 44, 30, LIGHT, "Concrete", { collide = true })
+	pointed("PortalGewaende", "W", px - 0.3, yb, 0, 22, 34, { 232, 222, 204 }, "Concrete")
+	pointed("PortalGewaende", "W", px - 0.6, yb, 0, 18, 30, { 206, 192, 170 }, "Concrete")
+	pointed("PortalNische", "W", px - 0.9, yb, 0, 14, 26, { 120, 104, 88 }, "Concrete")
+	pointed("Portal", "W", px - 1.2, yb, 0, 10, 20, { 56, 40, 32 }, "Wood")
+	for _, o in ipairs({ -6, 6 }) do add("Portalfigur", px - 1.4, yb + 14, o, 1.4, 5, 1.6, { 236, 228, 210 }, "Concrete", { collide = false }) end
+	add("Wimperg", px - 0.4, yb + 44.6, 0, 0.8, 15, 15, LIGHT, "Concrete", { pitch = 45, collide = false })
+	add("Kreuzblume", px - 0.6, yb + 56.4, 0, 2.4, 2.4, 2.4, LIGHT, "Concrete", { shape = "Ball", collide = false })
+	for _, o in ipairs({ -13.5, 13.5 }) do
+		add("Fiale", px - 0.4, yb + 28, o, 2, 56, 2, LIGHT, "Concrete", { collide = false })
+		add("FialeSpitze", px - 0.4, yb + 57.5, o, 1.6, 1.6, 1.6, LIGHT, "Concrete", { shape = "Ball", collide = false })
+	end
+	for i = 1, 4 do add("PortalStufe", px - 2 - i * 2, yb - 0.4 - i * 0.2, 0, 3, 0.8, 26 + i * 2, { 160, 156, 148 }, "Concrete", { collide = true }) end
+	pointed("WestfensterGewaende", "W", -len / 2 - 0.3, yb + 61, 0, 15, 54, LIGHT, "Concrete")
+	pointed("Westfenster", "W", -len / 2 - 0.6, yb + 63, 0, 11, 50, { 50, 62, 78 }, "Glass")
+	for k = 1, 3 do add("Westfensterpfosten", -len / 2 - 0.8, yb + 83, -5.5 + k * 2.75, 0.4, 40, 0.5, LIGHT, "Concrete", { collide = false }) end
+	-- verkleinern (scale) um die Kirchenmitte und den Sockel
+	local sc = L.scale or 1
+	if sc ~= 1 then
+		for _, p in ipairs(parts) do
+			p.pos = { Geo.round3(cxn + (p.pos[1] - cxn) * sc), Geo.round3(y0 + (p.pos[2] - y0) * sc), Geo.round3(L.z + (p.pos[3] - L.z) * sc) }
+			p.size = { Geo.round3(p.size[1] * sc), Geo.round3(p.size[2] * sc), Geo.round3(p.size[3] * sc) }
+		end
+	end
 	return parts
 end
 

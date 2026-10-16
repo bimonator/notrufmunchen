@@ -540,19 +540,23 @@ do
 		end
 	end
 	check(#Config.plazas == 0, "Plätze sollen vorerst entfernt sein")
-	check(maxX - minX >= 380 and maxZ - minZ >= 145, "Frauenkirche zu klein: " .. (maxX - minX) .. " x " .. (maxZ - minZ))
+	local sc = Config.landmarks.frauenkirche.scale or 1
+	check(maxX - minX >= 380 * sc and maxZ - minZ >= 145 * sc, "Frauenkirche zu klein: " .. (maxX - minX) .. " x " .. (maxZ - minZ))
+	local mp = Config.marienplatz
+	check(minX >= mp.plaza.x0 - 8 and maxX <= mp.rathaus.x0 - 5 and minZ >= 58.5 and maxZ <= mp.ubahn.z1 + 40, "Frauenkirche liegt nicht im Nordwesten des Marienplatzes: " .. minX .. ".." .. maxX .. ", " .. minZ .. ".." .. maxZ)
+	check(count(fk, "Lisene") == 16 and count(fk, "Masswerkfries") == 16 and count(fk, "Turmspitzfenster") == 64 and count(fk, "Wimperg") == 1 and count(fk, "Westfenster") == 2, "Frauenkirche: Turmdetails/Portal unvollständig")
 	check(count(fk, "Kuppel") == 2 and count(fk, "KuppelRing") == 54 and count(fk, "Uhr") == 4 and count(fk, "Dach") == 2, "Frauenkirche: Hauben/Uhren/Dach")
 	check(count(fk, "Uhrzeiger") == 8 and count(fk, "Uhrstrich") == 48 and count(fk, "Uhrziffer") == 16, "Frauenkirche: Ziffernblätter unvollständig")
 	check(count(fk, "Gaube") == 20 and count(fk, "Schallloch") == 8, "Frauenkirche: Gauben/Schalllöcher")
 	check(count(fk, "Fenster") >= 28, "Frauenkirche: Fenster " .. count(fk, "Fenster"))
-	check(maxY > 280 and maxY < 380, "Frauenkirche Höhe " .. maxY)
+	check(maxY > 280 * sc and maxY < 380 * sc, "Frauenkirche Höhe " .. maxY)
 	local roofs = 0
 	for _, p in ipairs(fk) do if p.name == "Dach" then roofs = roofs + 1 check(math.abs(p.pitch) > 35 and math.abs(p.pitch) < 60, "Dachneigung " .. p.pitch) end end
 	-- keine Straße führt mehr durch die Kirche (Kreisel entfällt), die Fußgängerzone beginnt hinter dem Chor
 	for _, rd in ipairs(Config.roads) do
 		check(rd.name ~= "Kreisel" and rd.name ~= "KreiselWest", "Kreisel-Straße noch vorhanden: " .. rd.name)
 		check(rd.name ~= "Fussgaengerzone", "Fußgängerzone soll entfernt sein")
-		if rd.name == "KirchplatzNord" then check(rd.pts[2][2] <= minZ, "Straße ragt in die Kirche") end
+		check(rd.name ~= "KirchplatzNord", "Straße zur Kirche soll entfallen")
 	end
 	local bg = Config.landmarks.biergarten
 	check(count(tm, "TurmDach") == 5 and count(tm, "TurmSaeule") == 8, "Chinesischer Turm: Dächer/Säulen")
@@ -642,6 +646,57 @@ do
 	end
 	check(road.stats.zebras == #Config.crossings and #Config.crossings == 12, "Zebrastreifen: " .. road.stats.zebras)
 	check(bars >= 70 and off == 0, "Zebra-Streifen: " .. bars .. ", davon " .. off .. " nicht auf der Fahrbahn")
+end
+
+-- ===== Marienplatz: Neues Rathaus, Mariensäule, U-Bahn-Abgang, Kugelleuchten, Platanen =====
+do
+	local Rathaus, Marienplatz, Landmarks2 = require("Rathaus"), require("Marienplatz"), require("Landmarks")
+	local M, U = Config.marienplatz, Config.marienplatz.ubahn
+	local rh, mp = Rathaus.plan(Config), Marienplatz.plan(Config)
+	local function count(list, name) local n = 0 for _, p in ipairs(list) do if p.name == name then n = n + 1 end end return n end
+	local maxY = 0
+	for _, p in ipairs(rh) do
+		maxY = math.max(maxY, p.pos[2] + p.size[2] / 2)
+		check(p.pos[1] >= M.rathaus.x0 - 1 and p.pos[1] <= M.rathaus.x1 + 1 and p.pos[3] >= M.rathaus.z0 - 1 and p.pos[3] <= M.rathaus.z1 + 6, "Rathaus: " .. p.name .. " liegt außerhalb des Grundrisses")
+	end
+	check(maxY > 120 and maxY < 140, "Rathaus Höhe " .. maxY)
+	check(count(rh, "Fenster") >= 90 and count(rh, "GlockenspielFigur") == 12 and count(rh, "Uhrzeiger") == 2 and count(rh, "Blumen") == 8 and count(rh, "Erker") == 2,
+		"Rathaus: Fenster " .. count(rh, "Fenster") .. ", Glockenspiel " .. count(rh, "GlockenspielFigur") .. ", Zeiger " .. count(rh, "Uhrzeiger"))
+	local lowest = 1e9
+	for _, p in ipairs(mp.parts) do
+		if p.name == "UBahnStufe" then lowest = math.min(lowest, p.pos[2] + p.size[2] / 2) end
+		if p.name == "Pflaster" then
+			local x0, z0, x1, z1 = p.pos[1] - p.size[1] / 2, p.pos[3] - p.size[3] / 2, p.pos[1] + p.size[1] / 2, p.pos[3] + p.size[3] / 2
+			check(not (x0 < U.x1 - 0.01 and x1 > U.x0 + 0.01 and z0 < U.z1 - 0.01 and z1 > U.z0 + 0.01), "Pflaster liegt über dem U-Bahn-Abgang")
+			check(x0 >= M.plaza.x0 - 0.01 and x1 <= M.plaza.x1 + 0.01 and z0 >= M.plaza.z0 - 0.01 and z1 <= M.plaza.z1 + 0.01, "Pflaster außerhalb des Platzes")
+		end
+	end
+	check(mp.stats.steps == 14 and math.abs(lowest - (1 - U.depth)) < 0.01, "U-Bahn: Stufen " .. mp.stats.steps .. ", unterste Stufe " .. lowest)
+	local carve = 0
+	for _, op in ipairs(TerrainPlanner.plan(Config)) do if op.tag == "ubahn" then carve = carve + 1 check(op.material == "Air", "U-Bahn-Aushub ist nicht Luft") end end
+	check(carve == 2, "U-Bahn: Aushub " .. carve)
+	check(count(mp.parts, "Mariensaeule") == 1 and count(mp.parts, "Madonna") >= 4 and count(mp.parts, "Putto") == 4, "Mariensäule unvollständig")
+	-- Leuchten und Bäume stehen auf dem Platz, nicht in Kirche, Rathaus, Kiosk, Grube oder Häuserzeile
+	local fk = Landmarks2.frauenkirche(Config)
+	local fx0, fz0, fx1, fz1 = 1e9, 1e9, -1e9, -1e9
+	for _, p in ipairs(fk) do
+		fx0, fx1 = math.min(fx0, p.pos[1] - p.size[1] / 2), math.max(fx1, p.pos[1] + p.size[1] / 2)
+		fz0, fz1 = math.min(fz0, p.pos[3] - p.size[3] / 2), math.max(fz1, p.pos[3] + p.size[3] / 2)
+	end
+	local kiosk
+	for _, sp in ipairs(require("Specials")) do if sp.name == "Kiosk" then kiosk = sp end end
+	for _, p in ipairs(mp.parts) do
+		if p.name == "KugelleuchteMast" or p.name == "PlataneStamm" or p.name == "CafeTisch" or p.name == "Sitzstufe" then
+			local x, z = p.pos[1], p.pos[3]
+			check(x > M.plaza.x0 and x < M.plaza.x1 and z > M.plaza.z0 and z < M.plaza.z1 - 2, p.name .. " nicht auf dem Platz")
+			check(not (x > fx0 - 2 and x < fx1 + 2 and z > fz0 - 2 and z < fz1 + 2), p.name .. " in der Frauenkirche bei " .. x .. "," .. z)
+			check(not (x > M.rathaus.x0 - 2 and x < M.rathaus.x1 + 2 and z > M.rathaus.z0 - 2 and z < M.rathaus.z1 + 6), p.name .. " im Rathaus")
+			check(not (x > kiosk.x0 - 2 and x < kiosk.x1 + 2 and z > kiosk.z0 - 2 and z < kiosk.z1 + 2), p.name .. " im Kiosk")
+			check(not (x > U.x0 - 3 and x < U.x1 + 3 and z > U.z0 - U.gang - 3 and z < U.z1 + 3), p.name .. " am U-Bahn-Abgang")
+		end
+	end
+	check(mp.stats.lamps >= 14 and mp.stats.trees >= 8 and mp.stats.bikes >= 12, "Marienplatz: Leuchten " .. mp.stats.lamps .. ", Bäume " .. mp.stats.trees .. ", Räder " .. mp.stats.bikes)
+	print(string.format("Marienplatz: Rathaus %d Teile, Platz %d Teile, %d Kugelleuchten, %d Platanen", #rh, #mp.parts, mp.stats.lamps, mp.stats.trees))
 end
 
 -- ===== Isar-Allee (Ostufer): Straße, Radweg, Laternen, Bäume, Parkbuchten =====

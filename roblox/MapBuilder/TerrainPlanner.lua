@@ -95,6 +95,12 @@ function TerrainPlanner.plan(cfg)
 	else
 		block(ops, "Grass", (t.x0 + t.x1) / 2, G + t.height / 2, (t.z0 + t.z1) / 2, t.x1 - t.x0, t.height, t.z1 - t.z0)
 	end
+	-- U-Bahn-Abgang am Marienplatz: Grube für Treppe und Podest, dahinter der Gang (Wände und Decke sind Teile aus Marienplatz.lua)
+	local U = cfg.marienplatz and cfg.marienplatz.ubahn
+	if U then
+		block(ops, "Air", (U.x0 + U.x1) / 2, -3, (U.z0 + U.z1) / 2, U.x1 - U.x0, 18, U.z1 - U.z0, "ubahn")
+		block(ops, "Air", (U.x0 + U.x1) / 2, -5.5, U.z0 - U.gang / 2, 16, 11, U.gang + 1, "ubahn")
+	end
 	-- 4. Isar und Bach
 	cfg.water.isar.name, cfg.water.bach.name = "isar", "bach"
 	river(ops, cfg.water.isar)

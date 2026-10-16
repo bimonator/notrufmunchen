@@ -69,7 +69,6 @@ C.roads = {
 	{ name = "Diagonale", profile = "std48", pts = { { 61, 30 }, { 290, 36 }, { 455, -77 }, { 605, -212 }, { 770, -347 }, { 790, -472 } } },
 	{ name = "Isarspange", profile = "std48", pts = { { 455, -77 }, { 700, -60 }, { 780, -40 }, { 1012, 3 }, { 1030, 70 }, { 1055, 140 }, { 1110, 190 }, { 1176, 210 } } },
 	{ name = "V3", profile = "std48", pts = { { 300, -472 }, { 300, 32 } } },
-	{ name = "KirchplatzNord", profile = "std48", pts = { { -550, 30 }, { -550, 140 } } }, -- endet am Kirchplatz der Frauenkirche
 	-- Isar-Allee: gerade, parallel zur (geraden) Isar am Ostufer; Mittellinie 127,5 Studs östlich der Isar-Mitte, endet am Knick der Isarspange
 	{ name = "IsarAllee", profile = "allee", pts = { { 1072.5, -472 }, { 1012, 3 } } },
 	{ name = "Maximilianstrasse", profile = "std48", pts = { { 395, 410 }, { 395, 298 }, { 906, 298 } } }, -- vom Ring über die Maximilianbrücke zum Friedensengel-Oval
@@ -228,10 +227,19 @@ do
 	end
 end
 
+-- Marienplatz (Südwest-Viertel): gepflasterter Platz, Neues Rathaus am Nordrand (Front nach Süden bei z1), Mariensäule, U-Bahn-Abgang vor dem Rathaus
+-- (Treppe fällt nach Norden auf depth ab, dahinter ein kurzer Gang), Frauenkirche im Nordwesten (landmarks.frauenkirche).
+C.marienplatz = {
+	plaza = { x0 = -632, z0 = 60, x1 = -215, z1 = 326 }, -- bis zur Häuserzeile Süd (Block M_MarienplatzSued)
+	rathaus = { x0 = -355, z0 = 66, x1 = -215, z1 = 106 },
+	saeule = { x = -285, z = 205 },
+	ubahn = { x0 = -302, x1 = -268, z0 = 128, z1 = 160, depth = 10.5, gang = 18 },
+}
+
 C.landmarks = {
 	siegestor = { x = 0, z = 0, baseY = 1.4, islandR = 52, ringR = 68 }, -- steht auf der Mittelinsel des Kreisverkehrs
 	friedensengel = { x = 1040, z = 298, baseY = 3.7 }, -- im östlichen Teil der Insel, der Blick geht nach Westen die Maximilianstraße hinunter
-	frauenkirche = { x0 = -610, x1 = -215, z = 254, baseY = 0.7, width = 150, wallH = 72, roofRise = 62, towerH = 210 }, -- auf dem Kirchplatz, Türme im Westen
+	frauenkirche = { x0 = -687.5, x1 = -292.5, z = 118, baseY = 1.0, width = 150, wallH = 72, roofRise = 62, towerH = 210, scale = 0.65 }, -- Maße vor der Skalierung (scale um die Mitte), Türme im Westen, am Nordrand des Marienplatzes
 	turm = { x = 573, z = 224, baseY = 0.2 }, -- Chinesischer Turm im Englischen Garten, Biergarten rundherum
 	biergarten = { x0 = 532, z0 = 186, x1 = 614, z1 = 262 },
 	eisbach = { z = 338 }, -- Eisbachwelle: Stelle am Bach, wo z so groß ist: unmittelbar flussabwärts (südlich) der Maximilianbrücke, neben Prinz Eins

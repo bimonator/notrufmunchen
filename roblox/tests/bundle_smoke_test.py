@@ -63,8 +63,26 @@ end
 workspace_ = services.Workspace
 '''
 
-lua = lua51.LuaRuntime()
-lua.execute(STUB)
+# Script und Plugin laden die ModuleScripts "Teil1"/"Teil2" als Kinder von script: Attrappe liest sie aus MapBuilder_TeilN.lua
+PARTS = {}
+for n in ("Teil1", "Teil2"):
+    with open(os.path.join(here, "..", "MapBuilder_%s.lua" % n), encoding="utf-8") as f:
+        PARTS[n] = f.read()
+CHILDREN = r'''
+script = { FindFirstChild = function(self, n) if PART_SOURCE[n] then return { Name = n } end end }
+require = function(mod) return assert(loadstring(PART_SOURCE[mod.Name], mod.Name))() end
+'''
+
+
+def new_runtime():
+    rt = lua51.LuaRuntime()
+    rt.execute(STUB)
+    rt.globals().PART_SOURCE = rt.table_from(PARTS)
+    rt.execute(CHILDREN)
+    return rt
+
+
+lua = new_runtime()
 with open(os.path.join(here, "..", "MapBuilder_Script.lua"), encoding="utf-8") as f:
     code = f.read()
 lua.execute(code)
@@ -78,8 +96,7 @@ assert lua.eval("count(workspace_, 'Model')") == models and lua.eval("count(work
 print("Smoke-Test bestanden (auch der zweite Lauf)")
 
 # Plugin-Bundle: Knopf bauen und prüfen, dass das Ampel-Skript angelegt wird
-lua = lua51.LuaRuntime()
-lua.execute(STUB)
+lua = new_runtime()
 lua.execute("""
 clicked = nil
 plugin = { CreateToolbar = function() return { CreateButton = function() return { Click = { Connect = function(_, f) clicked = f end } } end } end }

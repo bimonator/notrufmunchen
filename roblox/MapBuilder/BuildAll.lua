@@ -11,6 +11,8 @@ local Specials = require(script and script.Parent.Specials or "Specials")
 local RoadsPlanner = require(script and script.Parent.RoadsPlanner or "RoadsPlanner")
 local LightsPlanner = require(script and script.Parent.LightsPlanner or "LightsPlanner")
 local Landmarks = require(script and script.Parent.Landmarks or "Landmarks")
+local Rathaus = require(script and script.Parent.Rathaus or "Rathaus")
+local Marienplatz = require(script and script.Parent.Marienplatz or "Marienplatz")
 local Garden = require(script and script.Parent.Garden or "Garden")
 local TerrainPlanner = require(script and script.Parent.TerrainPlanner or "TerrainPlanner")
 local WallPlanner = require(script and script.Parent.WallPlanner or "WallPlanner")
@@ -39,6 +41,13 @@ local STEPS = {
 		local plan = Landmarks.plan(Config)
 		Builder.buildParts(plan.parts, Builder.container("Wahrzeichen"), origin)
 		return string.format("%d Teile (Siegestor, Friedensengel, Frauenkirche, Chinesischer Turm)", #plan.parts)
+	end,
+	marienplatz = function(opts, origin)
+		local folder = Builder.container("Marienplatz")
+		local rh, mp = Rathaus.plan(Config), Marienplatz.plan(Config)
+		Builder.buildParts(rh, folder, origin)
+		Builder.buildParts(mp.parts, folder, origin)
+		return string.format("%d Teile (Rathaus %d, Platz %d), %d Kugelleuchten, %d Platanen, U-Bahn-Abgang mit %d Stufen", #rh + #mp.parts, #rh, #mp.parts, mp.stats.lamps, mp.stats.trees, mp.stats.steps)
 	end,
 	gardens = function(opts, origin)
 		local plan = Garden.plan(Config, RoadsPlanner.plan(Config), Specials)
@@ -98,7 +107,7 @@ local STEPS = {
 	end,
 }
 
-BuildAll.order = { "terrain", "roads", "lights", "landmarks", "gardens", "houses", "wall" }
+BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "gardens", "houses", "wall" }
 
 -- Nach dem Terrain: echte Bodenhöhe messen (alles weitere wird daran ausgerichtet) und prüfen, ob Wasser da ist.
 local function afterTerrain(base)
