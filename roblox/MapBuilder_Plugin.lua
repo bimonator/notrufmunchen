@@ -392,9 +392,9 @@ local map = game:GetService("Workspace"):FindFirstChild("Map")
 local roads, gardens = map.Strassen, map.Gruenanlagen
 Builder.applyTerrain(TerrainPlanner.planKanal(Config), origin)
 local OLD = {} -- Namen der früheren und der neuen Eisbach-Teile im Umkreis der Welle
-for _, n in ipairs({ "Eisbachwelle", "Schussrinne", "Kanalwasser", "Kanalboden", "Wellenschaum", "Wellental", "Gischt", "SurfZone", "Ufermauer", "Kanalmauer", "Mauerkappe", "Kanalstufe", "Plateau", "Plateaubalken",
+for _, n in ipairs({ "Eisbachwelle", "Schussrinne", "Kanalwasser", "Kanalboden", "Wellenschaum", "Wellental", "Gischt", "Wellenkamm", "Wellenzug", "SurfZone", "Ufermauer", "Kanalmauer", "Mauerkappe", "Kanalstufe", "Plateau", "Plateaubalken",
 "Plateauquerbalken", "Plateaupfosten", "Holzstufe", "RettungsringPfosten", "Rettungsring", "EisStamm", "EisKrone", "Zuschauerdeck", "DeckGelaender", "Schild", "SchildPfosten", "Schrift",
-"BankSitz", "BankLehne", "BankBein" }) do OLD[n] = true end
+"BankSitz", "BankLehne", "BankBein", "Uferweg" }) do OLD[n] = true end
 local removed = 0
 for _, c in ipairs(gardens:GetChildren()) do
 if c:IsA("BasePart") and OLD[c.Name] and c.Position.X > 600 and c.Position.X < 700 and c.Position.Z > 315 and c.Position.Z < 400 then c:Destroy() removed = removed + 1 end
@@ -428,6 +428,18 @@ end
 redo(map.Stachus, Stachus.plan(Config).parts)
 redo(map.Marienplatz, Marienplatz.plan(Config).parts)
 return string.format("%d Fugen und Bänder erneuert", n)
+end,
+stachuslaternen = function(opts, origin) -- nur die Kugelleuchten am Stachus in der fertigen Karte neu setzen
+local folder = game:GetService("Workspace"):FindFirstChild("Map").Stachus
+for _, c in ipairs(folder:GetChildren()) do
+if c.Name == "KugelleuchteMast" or c.Name == "Kugelleuchte" then c:Destroy() end
+end
+local list = {}
+for _, p in ipairs(Stachus.plan(Config).parts) do
+if p.name == "KugelleuchteMast" or p.name == "Kugelleuchte" then list[#list + 1] = p end
+end
+Builder.buildParts(list, folder, origin)
+return string.format("%d Teile der Kugelleuchten erneuert", #list)
 end,
 pave = function(opts, origin) -- Terrain unter Wegen und Straßen von Gras zu Pflaster, damit dort keine Gras-Büschel wachsen
 local roadPlan = RoadsPlanner.plan(Config)

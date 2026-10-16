@@ -351,7 +351,7 @@ function Stachus.plan(cfg)
 	end
 
 	-- Kugelleuchten und Platanen auf der Ostseite, Taxistand an der Leopoldstraße
-	for z = S.z0 + 24, S.z1 - 12, 42 do
+	for z = S.z0 + 41, S.z1 - 12, 42 do -- mittig zwischen den Platanen (Bäume bei z = 80 + 42 k), nicht in den Kronen
 		vcyl("KugelleuchteMast", "plaza", -68, 13, z, 24, 0.8, { 150, 152, 156 }, "Metal", { collide = true })
 		for _, yy in ipairs({ 19.6, 23.6 }) do add("Kugelleuchte", "plaza", -68, yy, z, 4.4, 4.4, 4.4, { 255, 250, 238 }, "Neon", { shape = "Ball", tag = "StreetLamp", attrs = { Lit = true } }) end
 		stats.lamps = stats.lamps + 1

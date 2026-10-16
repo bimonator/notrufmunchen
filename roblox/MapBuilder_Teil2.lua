@@ -1758,7 +1758,7 @@ for _, sd in ipairs({ -1, 1 }) do add("UBahnGangWand", "plaza", ux + sd * (pw / 
 add("UBahnGangWand", "plaza", ux, bottom + ph / 2, wz + sdir * (U.gang + 0.5), pw + 2, ph, 1, { 226, 222, 210 }, "Concrete", { collide = true })
 for k = 1, 3 do add("UBahnLicht", "plaza", ux, bottom + ph + 0.4, wz + sdir * k * U.gang / 4, 1.2, 0.2, 3, { 255, 250, 236 }, "Neon") end
 end
-for z = S.z0 + 24, S.z1 - 12, 42 do
+for z = S.z0 + 41, S.z1 - 12, 42 do -- mittig zwischen den Platanen (Bäume bei z = 80 + 42 k), nicht in den Kronen
 vcyl("KugelleuchteMast", "plaza", -68, 13, z, 24, 0.8, { 150, 152, 156 }, "Metal", { collide = true })
 for _, yy in ipairs({ 19.6, 23.6 }) do add("Kugelleuchte", "plaza", -68, yy, z, 4.4, 4.4, 4.4, { 255, 250, 238 }, "Neon", { shape = "Ball", tag = "StreetLamp", attrs = { Lit = true } }) end
 stats.lamps = stats.lamps + 1
@@ -2336,7 +2336,7 @@ if sm.z > -440 and sm.z < 470 then
 for _, side in ipairs({ 1, -1 }) do
 local nx, nz = -sm.uz * side, sm.ux * side
 local lx, lz = sm.x + nx * ledge, sm.z + nz * ledge
-if not underBridge(lx, lz) then
+if not underBridge(lx, lz) and Geo.polyDist(lx, lz, cfg.water.bach.pts) > 22 then -- nicht im Eisbach (die Isar-Böschung reicht bis zum Bach)
 if i % 2 == 0 then
 add("Uferweg", "path", lx, -3.9, lz, 17.5, 0.4, 6, GRAVEL, "Pavement", { yaw = Geo.yawOf(sm.ux, sm.uz) })
 n.slabs = n.slabs + 1
@@ -2430,20 +2430,11 @@ local kx, kz = at(20.5, 0)
 add("Kanalwasser", "wave", kx, -3.9, kz, 43, 0.2, 2 * hw - 0.4, { 52, 112, 132 }, "SmoothPlastic", { yaw = yawU, transparency = 0.25 })
 local fx, fz = at(15, 0)
 add("Wellenschaum", "wave", fx, -3.75, fz, 26, 0.3, 2 * hw - 0.4, { 248, 252, 255 }, "SmoothPlastic", { yaw = yawU, transparency = 0.5 })
-for i = 0, 19 do -- Schaumkamm auf dem Wellenrücken
-local x, z = at(0.3 + rng() * 3.4, -hw + 1 + i * (2 * hw - 2) / 19 + (rng() - 0.5))
-local d = 1.6 + rng() * 1.4
-add("Gischt", "wave", x, -1.5 + rng() * 0.7, z, d, d, d, { 250, 252, 255 }, "Snow", { shape = "Ball", transparency = 0.1 + rng() * 0.2 })
-end
-for _ = 1, 90 do -- Schaumfeld hinter der Welle: flache Flecken, die auf dem Wasser liegen
-local d = 2.5 + rng() * 3
-local x, z = at(3 + rng() * 27, (rng() - 0.5) * 2 * (hw - 1.5))
-add("Gischt", "wave", x, -3.75 + rng() * 0.25, z, 0.3 + rng() * 0.3, d, d, { 250, 252, 255 }, "Snow", { shape = "Cylinder", roll = 90, yaw = rng() * 360, transparency = 0.2 + rng() * 0.3 })
-end
-for _ = 1, 70 do -- kleine Bläschen darüber
-local d = 0.8 + rng() * 1.4
-local x, z = at(2 + rng() * 28, (rng() - 0.5) * 2 * (hw - 1.5))
-add("Gischt", "wave", x, -3.8 + d * 0.3, z, d, d, d, { 250, 252, 255 }, "Snow", { shape = "Ball", transparency = 0.15 + rng() * 0.3 })
+local kx0, kz0 = at(0.4, 0)
+add("Wellenkamm", "wave", kx0, -1.4, kz0, 2 * hw - 0.4, 2.4, 4.5, { 250, 252, 255 }, "SmoothPlastic", { shape = "Cylinder", yaw = yawN, transparency = 0.12 })
+for _, wv in ipairs({ { 9, 2.6, 9 }, { 17, 1.6, 8 } }) do -- { Abstand a, Höhe, Länge }
+local x, z = at(wv[1], 0)
+add("Wellenzug", "wave", x, -4, z, 2 * hw - 0.4, 2 * wv[2], wv[3], { 226, 242, 250 }, "SmoothPlastic", { shape = "Cylinder", yaw = yawN, transparency = 0.3 })
 end
 add("SurfZone", "zone", wx, -2.5, wz, 2 * hw, 6, 18, { 255, 255, 255 }, "SmoothPlastic", { yaw = yawN, transparency = 1, tag = "SurfZone", attrs = { Welle = "Eisbach" } })
 local function wall(side, a0, a1)

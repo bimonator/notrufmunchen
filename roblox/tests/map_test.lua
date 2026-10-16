@@ -613,7 +613,7 @@ do
 		for _, p in ipairs(list) do if p.name == name then n = n + 1 end end
 		return n
 	end
-	check(cnt(g, "Kanalmauer") == 4 and cnt(g, "Plateau") == 1 and cnt(g, "Kanalstufe") == 4 and cnt(g, "Holzstufe") == 3 and cnt(g, "Gischt") >= 100, "Eisbach: Kanal/Plateau/Stufen/Gischt unvollständig")
+	check(cnt(g, "Kanalmauer") == 4 and cnt(g, "Plateau") == 1 and cnt(g, "Kanalstufe") == 4 and cnt(g, "Holzstufe") == 3 and cnt(g, "Wellenkamm") == 1 and cnt(g, "Wellenzug") == 2 and cnt(g, "Gischt") == 0, "Eisbach: Kanal/Plateau/Stufen/Wellenzug unvollständig (keine Gischt-Kugeln)")
 	check(cnt(parts, "EisbachPfeiler") == 1 and cnt(parts, "EisbachBogen") >= 24 and cnt(parts, "EisbachRosette") == 6 and cnt(parts, "EisbachBruestung") == 2 and cnt(parts, "EisbachPfosten") == 4, "Eisbachbrücke: Bögen/Rosetten unvollständig")
 	for _, p in ipairs(g) do
 		if p.name == "Kanalmauer" then
