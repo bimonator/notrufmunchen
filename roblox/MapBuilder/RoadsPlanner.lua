@@ -246,9 +246,13 @@ function RoadsPlanner.plan(cfg)
 		end
 		for _, sd in ipairs({ -1, 1 }) do -- Widerlager: massiver Block vom Bogenende bis zum Brückenende
 			local s0, s1 = b.span, b.len / 2
-			local x, z = at(sd * (s0 + s1) / 2, 0)
-			part(parts, "BrueckeWiderlager", "deck", x, -4.5, z, s1 - s0, 7, total - 4, b.yaw, BODY, "Concrete", {})
-			x, z = at(sd * b.span, 0) -- Fuß unter dem Bogenansatz bis in die Kiesbank
+			local blocks, cv = { { s0, s1 } }, b.culvert -- bei einem Durchlass (Eisbach) in zwei Blöcke mit Öffnung dazwischen geteilt
+			if cv and sd * cv.s > 0 then blocks = { { s0, math.abs(cv.s) - cv.w / 2 }, { math.abs(cv.s) + cv.w / 2, s1 } } end
+			for _, bl in ipairs(blocks) do
+				local bx, bz = at(sd * (bl[1] + bl[2]) / 2, 0)
+				part(parts, "BrueckeWiderlager", "deck", bx, -4.5, bz, bl[2] - bl[1], 7, total - 4, b.yaw, BODY, "Concrete", {})
+			end
+			local x, z = at(sd * b.span, 0) -- Fuß unter dem Bogenansatz bis in die Kiesbank
 			part(parts, "BrueckePfeiler", "deck", x, -9.5, z, 6, 6, total - 8, b.yaw, BODY, "Concrete", {})
 		end
 		local px, pz = at(0, 0) -- Mittelpfeiler vom Flussbett bis zum Bogenansatz, Vorköpfe rund

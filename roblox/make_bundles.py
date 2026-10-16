@@ -51,7 +51,7 @@ script = """-- MapBuilder_Script.lua  (automatisch erzeugt mit make_bundles.py, 
 --   Tore/Schranken  Feuerwache-Tore (Tag FireGate) und Polizei-Schranken (Tag Schranke) sind Modelle, noch ohne Skript.
 --   Spawns      Polizeihof: 4 Flächen mit Tag VehicleSpawn (Attribut Team = Polizei).
 --   Fenster     Tag HouseWindow, Attribut Lit = leuchtet nachts (Tag-Nacht-Skript folgt). Laternen: Tag StreetLamp.
---   Eisbachwelle  Tags Eisbachwelle und SurfZone (Surf-Skript folgt).
+--   Eisbachwelle  an der Maximilianbrücke (Zuschauer auf der Brücke, Surfer, Schlange am Ufer). Tags Eisbachwelle, SurfZone, Statist, Surfbrett (Surf-Skript folgt).
 --   Isar-Allee  Ostufer der Isar zwischen Ring Nord und Isarspange (Karte nach Osten um 100 Studs erweitert), 11 Häuser + Backsteinkirche.
 --   Alle Maße   in Config (weiter unten im Text, Block "local Config = (function()"): Straßen, Isar, Brücken, Tankstelle, Gärten.
 --

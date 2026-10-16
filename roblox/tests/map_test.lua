@@ -581,6 +581,36 @@ do
 			check(not (wave.pos[1] > sp.x0 - 10 and wave.pos[1] < sp.x1 + 10 and wave.pos[3] > sp.z0 - 10 and wave.pos[3] < sp.z1 + 10), "Welle zu nah an " .. sp.name)
 		end
 	end
+	-- Eisbachwelle an der Maximilianbrücke: Welle flussabwärts der Brücke, Zuschauer am Brückengeländer, Surfer auf der Welle und in der Schlange,
+	-- Durchlass im Widerlager (der Bach läuft unter der Brücke durch)
+	local br
+	for _, b in ipairs(Config.isarBridges) do if b.style == "maximilian" then br = b end end
+	local southEdge = br.z + br.wid / 2 + br.walk
+	local function bachX(z)
+		local pts = Config.water.bach.pts
+		for i = 1, #pts - 1 do
+			if z >= pts[i][2] and z <= pts[i + 1][2] then return pts[i][1] + (z - pts[i][2]) / (pts[i + 1][2] - pts[i][2]) * (pts[i + 1][1] - pts[i][1]) end
+		end
+	end
+	local onBridge, onWave, queued, boards = 0, 0, 0, 0
+	for _, p in ipairs(g) do
+		if p.name == "StatistRumpf" then
+			if p.pos[3] > southEdge - 14 and p.pos[3] < southEdge and p.pos[1] > br.x - br.len / 2 then onBridge = onBridge + 1
+			elseif wave and math.abs(p.pos[1] - wave.pos[1]) < 6 and math.abs(p.pos[3] - wave.pos[3]) < 6 then onWave = onWave + 1
+			else queued = queued + 1 end
+		end
+		if p.name == "Surfbrett" then boards = boards + 1 end
+	end
+	check(onBridge >= 14 and onWave == 2 and queued >= 5 and boards == 7, "Eisbachwelle: Zuschauer " .. onBridge .. ", Surfer " .. onWave .. ", Schlange " .. queued .. ", Bretter " .. boards)
+	check(wave and wave.pos[3] > southEdge + 6 and wave.pos[3] < southEdge + 20, "Welle nicht direkt flussabwärts der Brücke")
+	for z = br.z - 28, southEdge, 4 do -- Widerlager lassen den Bach (Wasserbreite 14) frei
+		local bx = bachX(z)
+		for _, p in ipairs(parts) do
+			if p.name == "BrueckeWiderlager" then
+				check(not (bx - 7 < p.pos[1] + p.size[1] / 2 and bx + 7 > p.pos[1] - p.size[1] / 2), "Widerlager versperrt den Eisbach bei z=" .. z)
+			end
+		end
+	end
 end
 
 -- ===== Isar-Allee (Ostufer): Straße, Radweg, Laternen, Bäume, Parkbuchten =====

@@ -123,5 +123,5 @@ Der Terrain-Schritt setzt `Terrain.Decoration = false` (keine Gras-Büschel, die
 
 - **Siegestor:** mehr Detail (Reliefs, Quadriga). Der Friedensengel hat jetzt Gewand, Flügel, Ölzweig, Nike, Kanneluren und Reliefs; weitere Verfeinerung nach Foto möglich.
 - **Tore der Feuerwache** (`FireGate`) und **Schranken der Polizei** (`Schranke`, Attribut `Offen`) sind Modelle ohne Skript; das Öffnen und Schließen kommt mit den Einsatz-Skripten. Fahrzeug-Spawnflächen tragen den Tag `VehicleSpawn` (Attribut `Team`).
-- **Eisbachwelle** ist nur das Bild einer stehenden Welle (Tags `Eisbachwelle`, `SurfZone`); das Surfen (Strömung, Brett) kommt als Skript.
+- **Eisbachwelle** liegt direkt flussabwärts (südlich) der Maximilianbrücke wie in München: Zuschauer am südlichen Brückengeländer, zwei Surfer auf der Welle, Warteschlange mit Brettern auf dem Westufer-Deck. Die Welle ist nur das Bild einer stehenden Welle (Tags `Eisbachwelle`, `SurfZone`, Figuren Tag `Statist`, Bretter Tag `Surfbrett`); das Surfen (Strömung, Brett) kommt als Skript. Das westliche Widerlager der Brücke hat einen Durchlass (`culvert`), sonst wäre der Bach darunter zugemauert.
 - Café (wartet auf Foto), Straßenschilder, Straßennamen, Frauenkirche mit mehr Detail (Fensterspitzbögen, Dachgauben, Uhrzeiger).

@@ -117,7 +117,7 @@ C.isarBridges = {
 	{ name = "B3", x = 692, z = 410, len = 252, wid = 28, walk = 14, yaw = 0, pier = 36 }, -- Luitpoldbrücke über Bach und Isar
 	{ name = "B4", x = 945, z = -472, len = 214, wid = 28, walk = 14, yaw = 0, pier = 36 },
 	-- Maximilianbrücke: zwei flache Segmentbögen über einen Mittelpfeiler mit Statuen, führt von der Maximilianstraße zur Friedensengel-Terrasse
-	{ name = "B6", style = "maximilian", x = 751, z = 298, len = 244, wid = 28, walk = 14, yaw = 0, span = 60, rise = 4.5 },
+	{ name = "B6", style = "maximilian", x = 751, z = 298, len = 244, wid = 28, walk = 14, yaw = 0, span = 60, rise = 4.5, culvert = { s = -95.8, w = 38 } }, -- culvert: Durchlass für den Eisbach im westlichen Widerlager (s = Abstand von der Brückenmitte, w = Breite)
 }
 
 C.water = {
@@ -167,7 +167,7 @@ C.landmarks = {
 	frauenkirche = { x0 = -610, x1 = -215, z = 254, baseY = 0.7, width = 150, wallH = 72, roofRise = 62, towerH = 210 }, -- auf dem Kirchplatz, Türme im Westen
 	turm = { x = 573, z = 224, baseY = 0.2 }, -- Chinesischer Turm im Englischen Garten, Biergarten rundherum
 	biergarten = { x0 = 532, z0 = 186, x1 = 614, z1 = 262 },
-	eisbach = { z = 366 }, -- Eisbachwelle: Stelle am Bach, wo z so groß ist (südlich vom Park, neben Prinz Eins)
+	eisbach = { z = 338 }, -- Eisbachwelle: Stelle am Bach, wo z so groß ist: unmittelbar flussabwärts (südlich) der Maximilianbrücke, neben Prinz Eins
 }
 
 C.wall = {

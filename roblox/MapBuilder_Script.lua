@@ -27,7 +27,7 @@
 --   Tore/Schranken  Feuerwache-Tore (Tag FireGate) und Polizei-Schranken (Tag Schranke) sind Modelle, noch ohne Skript.
 --   Spawns      Polizeihof: 4 Flächen mit Tag VehicleSpawn (Attribut Team = Polizei).
 --   Fenster     Tag HouseWindow, Attribut Lit = leuchtet nachts (Tag-Nacht-Skript folgt). Laternen: Tag StreetLamp.
---   Eisbachwelle  Tags Eisbachwelle und SurfZone (Surf-Skript folgt).
+--   Eisbachwelle  an der Maximilianbrücke (Zuschauer auf der Brücke, Surfer, Schlange am Ufer). Tags Eisbachwelle, SurfZone, Statist, Surfbrett (Surf-Skript folgt).
 --   Isar-Allee  Ostufer der Isar zwischen Ring Nord und Isarspange (Karte nach Osten um 100 Studs erweitert), 11 Häuser + Backsteinkirche.
 --   Alle Maße   in Config (weiter unten im Text, Block "local Config = (function()"): Straßen, Isar, Brücken, Tankstelle, Gärten.
 --
@@ -246,7 +246,7 @@ C.isarBridges = {
 	{ name = "B2", x = 887, z = -19, len = 214, wid = 28, walk = 14, yaw = 349.4, pier = 36 },
 	{ name = "B3", x = 692, z = 410, len = 252, wid = 28, walk = 14, yaw = 0, pier = 36 }, -- Luitpoldbrücke über Bach und Isar
 	{ name = "B4", x = 945, z = -472, len = 214, wid = 28, walk = 14, yaw = 0, pier = 36 },
-	{ name = "B6", style = "maximilian", x = 751, z = 298, len = 244, wid = 28, walk = 14, yaw = 0, span = 60, rise = 4.5 },
+	{ name = "B6", style = "maximilian", x = 751, z = 298, len = 244, wid = 28, walk = 14, yaw = 0, span = 60, rise = 4.5, culvert = { s = -95.8, w = 38 } }, -- culvert: Durchlass für den Eisbach im westlichen Widerlager (s = Abstand von der Brückenmitte, w = Breite)
 }
 
 C.water = {
@@ -290,7 +290,7 @@ C.landmarks = {
 	frauenkirche = { x0 = -610, x1 = -215, z = 254, baseY = 0.7, width = 150, wallH = 72, roofRise = 62, towerH = 210 }, -- auf dem Kirchplatz, Türme im Westen
 	turm = { x = 573, z = 224, baseY = 0.2 }, -- Chinesischer Turm im Englischen Garten, Biergarten rundherum
 	biergarten = { x0 = 532, z0 = 186, x1 = 614, z1 = 262 },
-	eisbach = { z = 366 }, -- Eisbachwelle: Stelle am Bach, wo z so groß ist (südlich vom Park, neben Prinz Eins)
+	eisbach = { z = 338 }, -- Eisbachwelle: Stelle am Bach, wo z so groß ist: unmittelbar flussabwärts (südlich) der Maximilianbrücke, neben Prinz Eins
 }
 
 C.wall = {
@@ -1732,9 +1732,13 @@ function RoadsPlanner.plan(cfg)
 		end
 		for _, sd in ipairs({ -1, 1 }) do -- Widerlager: massiver Block vom Bogenende bis zum Brückenende
 			local s0, s1 = b.span, b.len / 2
-			local x, z = at(sd * (s0 + s1) / 2, 0)
-			part(parts, "BrueckeWiderlager", "deck", x, -4.5, z, s1 - s0, 7, total - 4, b.yaw, BODY, "Concrete", {})
-			x, z = at(sd * b.span, 0) -- Fuß unter dem Bogenansatz bis in die Kiesbank
+			local blocks, cv = { { s0, s1 } }, b.culvert -- bei einem Durchlass (Eisbach) in zwei Blöcke mit Öffnung dazwischen geteilt
+			if cv and sd * cv.s > 0 then blocks = { { s0, math.abs(cv.s) - cv.w / 2 }, { math.abs(cv.s) + cv.w / 2, s1 } } end
+			for _, bl in ipairs(blocks) do
+				local bx, bz = at(sd * (bl[1] + bl[2]) / 2, 0)
+				part(parts, "BrueckeWiderlager", "deck", bx, -4.5, bz, bl[2] - bl[1], 7, total - 4, b.yaw, BODY, "Concrete", {})
+			end
+			local x, z = at(sd * b.span, 0) -- Fuß unter dem Bogenansatz bis in die Kiesbank
 			part(parts, "BrueckePfeiler", "deck", x, -9.5, z, 6, 6, total - 8, b.yaw, BODY, "Concrete", {})
 		end
 		local px, pz = at(0, 0) -- Mittelpfeiler vom Flussbett bis zum Bogenansatz, Vorköpfe rund
@@ -2866,18 +2870,37 @@ local function club(cfg, add, spec)
 	end
 end
 
+local SHIRTS = { { 200, 60, 56 }, { 60, 110, 190 }, { 236, 200, 70 }, { 70, 150, 90 }, { 240, 240, 240 }, { 150, 80, 160 }, { 230, 130, 60 } }
+local PANTS = { { 50, 56, 80 }, { 90, 84, 72 }, { 40, 40, 44 }, { 120, 110, 96 } }
+local function person(add, x, y, z, fx, fz, i, wet)
+	local sx, sz = -fz, fx -- Schulterachse quer zur Blickrichtung
+	local yaw = Geo.yawOf(sx, sz)
+	local shirt = wet and { 30, 34, 40 } or SHIRTS[i % #SHIRTS + 1]
+	local pants = wet and { 30, 34, 40 } or PANTS[i % #PANTS + 1]
+	local skin = { 232, 190, 150 }
+	local function p(name, a, dy, sizeX, sizeY, sizeZ, color, shape)
+		add(name, "npc", x + sx * a, y + dy, z + sz * a, sizeX, sizeY, sizeZ, color, "SmoothPlastic", { yaw = yaw, shape = shape, tag = "Statist" })
+	end
+	for _, a in ipairs({ -0.55, 0.55 }) do p("StatistBein", a, 1.7, 0.95, 3.4, 1.0, pants) end
+	p("StatistRumpf", 0, 4.9, 2.4, 3.0, 1.2, shirt)
+	for _, a in ipairs({ -1.6, 1.6 }) do p("StatistArm", a, 4.7, 0.8, 2.8, 0.8, wet and shirt or skin) end
+	p("StatistKopf", 0, 7.2, 1.6, 1.6, 1.6, skin, "Ball")
+end
+
 local function eisbach(cfg, add)
 	local pts = cfg.water.bach.pts
 	local zc = cfg.landmarks.eisbach.z
-	local cx, cz, ux, uz
-	for i = 1, #pts - 1 do
-		local a, b = pts[i], pts[i + 1]
-		if zc >= a[2] and zc <= b[2] then
-			local t = (zc - a[2]) / (b[2] - a[2])
-			cx, cz = a[1] + t * (b[1] - a[1]), zc
-			ux, uz = Geo.dir(a[1], a[2], b[1], b[2])
+	local function bachAt(z) -- Mittelpunkt und Laufrichtung des Bachs bei z
+		for i = 1, #pts - 1 do
+			local a, b = pts[i], pts[i + 1]
+			if z >= a[2] and z <= b[2] then
+				local ux, uz = Geo.dir(a[1], a[2], b[1], b[2])
+				return a[1] + (z - a[2]) / (b[2] - a[2]) * (b[1] - a[1]), ux, uz
+			end
 		end
 	end
+	local cx, ux, uz = bachAt(zc)
+	local cz = zc
 	local nx, nz = -uz, ux -- zeigt vom Bach nach Westen (Zuschauerseite)
 	local function at(a, l) return cx + ux * a + nx * l, cz + uz * a + nz * l end
 	local yawU, yawN = Geo.yawOf(ux, uz), Geo.yawOf(nx, nz)
@@ -2889,25 +2912,36 @@ local function eisbach(cfg, add)
 	add("Wellental", "wave", tx, -3.85, tz, 13, 0.3, 6, { 190, 220, 238 }, "SmoothPlastic", { yaw = yawN, transparency = 0.4 })
 	add("SurfZone", "zone", wx, -2.5, wz, 14, 6, 14, { 255, 255, 255 }, "SmoothPlastic", { yaw = yawN, transparency = 1, tag = "SurfZone", attrs = { Welle = "Eisbach" } })
 	local STONEW = { 170, 164, 150 }
-	for _, side in ipairs({ -1, 1 }) do -- Ufermauern an beiden Ufern
-		local mx, mz = at(0, side * 13.6)
-		add("Ufermauer", "wall", mx, -1.4, mz, 44, 5.2, 1.2, STONEW, "Concrete", { yaw = yawU, collide = true })
+	for _, side in ipairs({ -1, 1 }) do -- Ufermauern an beiden Ufern, flussabwärts der Brücke
+		local mx, mz = at(14, side * 13.6)
+		add("Ufermauer", "wall", mx, -1.4, mz, 30, 5.2, 1.2, STONEW, "Concrete", { yaw = yawU, collide = true })
 	end
-	local dx, dz = at(0, 21) -- Zuschauerdeck mit Geländer und drei Bänken
+	for k, a in ipairs({ -3.2, 2.6 }) do
+		local bx, bz = at(0, a)
+		add("Surfbrett", "decor", bx, -0.85, bz, 5.6, 0.35, 1.7, k == 1 and { 240, 120, 40 } or { 60, 150, 220 }, "SmoothPlastic", { yaw = yawU, tag = "Surfbrett" })
+		person(add, bx, -0.7, bz, nx, nz, k + 1, true)
+	end
+	local dx, dz = at(20, 21)
 	add("Zuschauerdeck", "deck", dx, 0.25, dz, 26, 0.5, 10, { 140, 104, 70 }, "Wood", { yaw = yawU, collide = true })
-	local rx, rz = at(0, 15.8)
+	local rx, rz = at(20, 15.8)
 	add("DeckGelaender", "deck", rx, 1.2, rz, 26, 1.2, 0.3, { 70, 62, 56 }, "Metal", { yaw = yawU, collide = true })
 	for _, a in ipairs({ -8, 0, 8 }) do
-		local bx, bz = at(a, 24)
+		local bx, bz = at(20 + a, 24.2)
 		bench(add, bx, 0.5, bz, math.deg(math.atan2(nx, nz)))
 	end
-	for _, da in ipairs({ -2.8, 2.8 }) do -- Fußgängerbrücke quer über den Bach
-		local bx, bz = at(-24 + da, 0)
-		add("BrueckeGelaender", "deck", bx, 1.5, bz, 36, 1.4, 0.4, { 70, 62, 56 }, "Metal", { yaw = yawN, collide = true })
+	for k, a in ipairs({ 11.5, 15.5, 19.5, 23.5, 27.5 }) do -- Warteschlange vor dem Geländer, Blick zum Bach
+		local qx, qz = at(a, 18.2)
+		person(add, qx, 0.5, qz, -nx, -nz, k + 3, true)
+		local bx, bz = at(a + 1.2, 18.2)
+		add("Surfbrett", "decor", bx, 3.3, bz, 0.35, 5.6, 1.7, SHIRTS[(k + 1) % #SHIRTS + 1], "SmoothPlastic", { yaw = yawU, tag = "Surfbrett" })
 	end
-	local bx, bz = at(-24, 0)
-	add("BrueckeDeck", "deck", bx, 0, bz, 36, 0.8, 6, { 150, 112, 76 }, "Wood", { yaw = yawN, collide = true })
-	local px, pz = at(-12, 16.2)
+	local br
+	for _, b in ipairs(cfg.isarBridges) do if b.style == "maximilian" then br = b end end
+	local zr1, zr2 = br.z + br.wid / 2 + br.walk - 2.6, br.z + br.wid / 2 + br.walk - 5.8
+	local bxc = bachAt(zr1)
+	for i = 0, 9 do person(add, bxc - 17 + i * 3.7, 1.0, zr1, 0, 1, i, false) end
+	for i = 0, 5 do person(add, bxc - 14 + i * 5.6, 1.0, zr2, 0, 1, i + 3, false) end
+	local px, pz = at(8, 16.2)
 	local signYaw = yawU + 180
 	add("Schild", "decor", px, 3.4, pz, 9, 2.4, 0.3, { 36, 70, 110 }, "SmoothPlastic", { yaw = signYaw })
 	add("SchildPfosten", "decor", px, 1.6, pz, 0.5, 3.2, 0.5, { 70, 62, 56 }, "Metal", { yaw = signYaw, collide = true })
