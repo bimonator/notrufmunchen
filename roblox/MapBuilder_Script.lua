@@ -27,7 +27,7 @@
 --   Tore/Schranken  Feuerwache-Tore (Tag FireGate) und Polizei-Schranken (Tag Schranke) sind Modelle, noch ohne Skript.
 --   Spawns      Polizeihof: 4 Flächen mit Tag VehicleSpawn (Attribut Team = Polizei).
 --   Fenster     Tag HouseWindow, Attribut Lit = leuchtet nachts (Tag-Nacht-Skript folgt). Laternen: Tag StreetLamp.
---   Eisbachwelle  an der Maximilianbrücke (Zuschauer auf der Brücke, Surfer, Schlange am Ufer). Tags Eisbachwelle, SurfZone, Statist, Surfbrett (Surf-Skript folgt).
+--   Eisbachwelle  an der Maximilianbrücke (Welle flussabwärts, Deck am Westufer). Tags Eisbachwelle, SurfZone (Surf-Skript folgt).
 --   Isar-Allee  Ostufer der Isar zwischen Ring Nord und Isarspange (Karte nach Osten um 100 Studs erweitert), 11 Häuser + Backsteinkirche.
 --   Alle Maße   in Config (weiter unten im Text, Block "local Config = (function()"): Straßen, Isar, Brücken, Tankstelle, Gärten.
 --
@@ -2870,23 +2870,6 @@ local function club(cfg, add, spec)
 	end
 end
 
-local SHIRTS = { { 200, 60, 56 }, { 60, 110, 190 }, { 236, 200, 70 }, { 70, 150, 90 }, { 240, 240, 240 }, { 150, 80, 160 }, { 230, 130, 60 } }
-local PANTS = { { 50, 56, 80 }, { 90, 84, 72 }, { 40, 40, 44 }, { 120, 110, 96 } }
-local function person(add, x, y, z, fx, fz, i, wet)
-	local sx, sz = -fz, fx -- Schulterachse quer zur Blickrichtung
-	local yaw = Geo.yawOf(sx, sz)
-	local shirt = wet and { 30, 34, 40 } or SHIRTS[i % #SHIRTS + 1]
-	local pants = wet and { 30, 34, 40 } or PANTS[i % #PANTS + 1]
-	local skin = { 232, 190, 150 }
-	local function p(name, a, dy, sizeX, sizeY, sizeZ, color, shape)
-		add(name, "npc", x + sx * a, y + dy, z + sz * a, sizeX, sizeY, sizeZ, color, "SmoothPlastic", { yaw = yaw, shape = shape, tag = "Statist" })
-	end
-	for _, a in ipairs({ -0.55, 0.55 }) do p("StatistBein", a, 1.7, 0.95, 3.4, 1.0, pants) end
-	p("StatistRumpf", 0, 4.9, 2.4, 3.0, 1.2, shirt)
-	for _, a in ipairs({ -1.6, 1.6 }) do p("StatistArm", a, 4.7, 0.8, 2.8, 0.8, wet and shirt or skin) end
-	p("StatistKopf", 0, 7.2, 1.6, 1.6, 1.6, skin, "Ball")
-end
-
 local function eisbach(cfg, add)
 	local pts = cfg.water.bach.pts
 	local zc = cfg.landmarks.eisbach.z
@@ -2916,11 +2899,6 @@ local function eisbach(cfg, add)
 		local mx, mz = at(14, side * 13.6)
 		add("Ufermauer", "wall", mx, -1.4, mz, 30, 5.2, 1.2, STONEW, "Concrete", { yaw = yawU, collide = true })
 	end
-	for k, a in ipairs({ -3.2, 2.6 }) do
-		local bx, bz = at(0, a)
-		add("Surfbrett", "decor", bx, -0.85, bz, 5.6, 0.35, 1.7, k == 1 and { 240, 120, 40 } or { 60, 150, 220 }, "SmoothPlastic", { yaw = yawU, tag = "Surfbrett" })
-		person(add, bx, -0.7, bz, nx, nz, k + 1, true)
-	end
 	local dx, dz = at(20, 21)
 	add("Zuschauerdeck", "deck", dx, 0.25, dz, 26, 0.5, 10, { 140, 104, 70 }, "Wood", { yaw = yawU, collide = true })
 	local rx, rz = at(20, 15.8)
@@ -2929,18 +2907,6 @@ local function eisbach(cfg, add)
 		local bx, bz = at(20 + a, 24.2)
 		bench(add, bx, 0.5, bz, math.deg(math.atan2(nx, nz)))
 	end
-	for k, a in ipairs({ 11.5, 15.5, 19.5, 23.5, 27.5 }) do -- Warteschlange vor dem Geländer, Blick zum Bach
-		local qx, qz = at(a, 18.2)
-		person(add, qx, 0.5, qz, -nx, -nz, k + 3, true)
-		local bx, bz = at(a + 1.2, 18.2)
-		add("Surfbrett", "decor", bx, 3.3, bz, 0.35, 5.6, 1.7, SHIRTS[(k + 1) % #SHIRTS + 1], "SmoothPlastic", { yaw = yawU, tag = "Surfbrett" })
-	end
-	local br
-	for _, b in ipairs(cfg.isarBridges) do if b.style == "maximilian" then br = b end end
-	local zr1, zr2 = br.z + br.wid / 2 + br.walk - 2.6, br.z + br.wid / 2 + br.walk - 5.8
-	local bxc = bachAt(zr1)
-	for i = 0, 9 do person(add, bxc - 17 + i * 3.7, 1.0, zr1, 0, 1, i, false) end
-	for i = 0, 5 do person(add, bxc - 14 + i * 5.6, 1.0, zr2, 0, 1, i + 3, false) end
 	local px, pz = at(8, 16.2)
 	local signYaw = yawU + 180
 	add("Schild", "decor", px, 3.4, pz, 9, 2.4, 0.3, { 36, 70, 110 }, "SmoothPlastic", { yaw = signYaw })
