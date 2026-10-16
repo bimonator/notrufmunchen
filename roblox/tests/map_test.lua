@@ -676,7 +676,7 @@ do
 	check(mp.stats.steps == 14 and math.abs(lowest - (1 - U.depth)) < 0.01, "U-Bahn: Stufen " .. mp.stats.steps .. ", unterste Stufe " .. lowest)
 	local carve = 0
 	for _, op in ipairs(TerrainPlanner.plan(Config)) do if op.tag == "ubahn" then carve = carve + 1 check(op.material == "Air", "U-Bahn-Aushub ist nicht Luft") end end
-	check(carve == 2, "U-Bahn: Aushub " .. carve)
+	check(carve == 2 + 2 * #Config.stachus.ubahn, "U-Bahn: Aushub " .. carve)
 	check(count(mp.parts, "Mariensaeule") == 1 and count(mp.parts, "Madonna") >= 4 and count(mp.parts, "Putto") == 4, "Mariensäule unvollständig")
 	-- Leuchten und Bäume stehen auf dem Platz, nicht in Kirche, Rathaus, Kiosk, Grube oder Häuserzeile
 	local fk = Landmarks2.frauenkirche(Config)

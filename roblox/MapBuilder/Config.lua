@@ -253,8 +253,10 @@ end
 
 -- Stachus (Karlsplatz) statt Odeonsplatz-Bebauung: Platz x0..x1, z0..z1, Mitte (cx, cz) = Brunnen. Halbellipse der Geschäftshäuser (Mittellinie ac x bc, Tiefe depth,
 -- n = segments Abschnitte), nach Osten gerade Schenkel (legs Abschnitte), Karlstor in der Westmitte (gate = halbe Lücke). taxi = Parkbuchten der Leopoldstraße.
-C.stachus = { x0 = -215, z0 = 60, x1 = -55, z1 = 386, cx = -118, cz = 223, ac = 81, bc = 139, depth = 26, floors = 5, basin = 44, segments = 44, legs = 4, gate = 26,
-	taxi = { x = -38.5, z0 = 98, len = 16, n = 8 } }
+C.stachus = { x0 = -215, z0 = 60, x1 = -55, z1 = 386, cx = -108, cz = 225, ac = 87.5, bc = 137.5, depth = 39, floors = 5, basin = 40, segments = 44, legs = 3, gate = 30,
+	taxi = { x = -38.5, z0 = 98, len = 16, n = 8 },
+	rathaus = { z = 86.5, count = 8 }, -- Verbindungsbau: gerade Gebäudezeile vom Neuen Rathaus (x0) nach Osten
+	ubahn = { { x0 = -104, x1 = -88, z0 = 298, z1 = 330, dir = 1, gang = 14, depth = 10.5 }, { x0 = -104, x1 = -88, z0 = 120, z1 = 152, dir = -1, gang = 14, depth = 10.5 } } } -- Gruben spiegelbildlich zur Brunnenmitte
 
 -- Marienplatz (Südwest-Viertel): gepflasterter Platz, Neues Rathaus am Nordrand (Front nach Süden bei z1), Mariensäule, U-Bahn-Abgang vor dem Rathaus
 -- (Treppe fällt nach Norden auf depth ab, dahinter ein kurzer Gang), Frauenkirche im Nordwesten (landmarks.frauenkirche).

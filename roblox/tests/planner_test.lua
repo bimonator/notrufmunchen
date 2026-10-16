@@ -555,10 +555,19 @@ do
 			print("Durchgang blockiert: " .. p.name)
 		end
 	end
+	for _, p in ipairs(plan.parts) do -- Pflaster liegt nicht über den U-Bahn-Gruben
+		if p.name == "Pflaster" then
+			local x0, z0, x1, z1 = p.pos[1] - p.size[1] / 2, p.pos[3] - p.size[3] / 2, p.pos[1] + p.size[1] / 2, p.pos[3] + p.size[3] / 2
+			for _, U in ipairs(S.ubahn) do check(not (x0 < U.x1 - 0.01 and x1 > U.x0 + 0.01 and z0 < U.z1 - 0.01 and z1 > U.z0 + 0.01), "Stachus: Pflaster über der U-Bahn-Grube") end
+		end
+	end
+	local steps = 0
+	for _, p in ipairs(plan.parts) do if p.name == "UBahnStufe" then steps = steps + 1 end end
+	check(steps == 14 * 3 * #S.ubahn, "Stachus: U-Bahn-Stufen " .. steps)
 	check(outside == 0, "Stachus: " .. outside .. " Teile außerhalb der Platzfläche")
 	check(passage == 0, "Karlstor: Durchgang blockiert")
-	check(texts["OSRUM"] == 2 and (texts["McDonnell's"] or 0) >= 2 and texts["KARLSTOR"] == 2 and texts["TAXI"] == 2, "Stachus: Schriften OSRUM/McDonnell's/KARLSTOR/TAXI unvollständig")
-	check(st.segs >= 44 and st.jets >= 48 and st.merlons >= 30 and st.taxis == 6 and st.lamps >= 6 and st.trees == 8, string.format("Stachus: segs %d jets %d zinnen %d taxis %d lampen %d baeume %d", st.segs, st.jets, st.merlons, st.taxis, st.lamps, st.trees))
+	check(texts["OSRUM"] == 2 and (texts["McDonnell's"] or 0) >= 2 and texts["KARLSTOR"] == 2 and texts["TAXI"] == S.taxi.n + 2, "Stachus: Schriften OSRUM/McDonnell's/KARLSTOR/TAXI unvollständig")
+	check(st.segs >= 44 and st.jets >= 48 and st.merlons >= 30 and st.taxis == 8 and st.towers == 4 and st.pits == 2 and st.lamps >= 6 and st.trees == 8, string.format("Stachus: segs %d jets %d zinnen %d taxis %d tuerme %d gruben %d lampen %d baeume %d", st.segs, st.jets, st.merlons, st.taxis, st.towers, st.pits, st.lamps, st.trees))
 	check(#plan.parts > 2000 and #plan.parts < 9000, "Stachus: Teile " .. #plan.parts)
 	-- Wings enden vor der Straße, Tor liegt zwischen den Flügeln (West), keine Sonderbauten im Platz
 	for _, sp in ipairs(Specials) do
