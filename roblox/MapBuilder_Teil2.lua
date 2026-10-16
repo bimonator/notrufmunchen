@@ -91,6 +91,62 @@ level[s.id] = k
 end
 return level
 end
+local function kreiselEcken(cfg)
+local K = cfg.kreiselEcken
+local out = {}
+if not K then return out end
+for _, arm in ipairs(K.arms) do
+local ul = math.sqrt(arm.u[1] ^ 2 + arm.u[2] ^ 2)
+local ux, uz = arm.u[1] / ul, arm.u[2] / ul
+for _, side in ipairs({ -1, 1 }) do
+local sx, sz = -uz * side, ux * side
+local ca, cb = -arm.p0[1] * ux - arm.p0[2] * uz, -arm.p0[1] * sx - arm.p0[2] * sz
+local function world(a, b) return arm.p0[1] + ux * a + sx * b, arm.p0[2] + uz * a + sz * b end
+local function circleA(d, R, rho) -- a des Mittelpunkts einer Rundung (Radius rho) an Gerade b = d und Kreis R um den Kreiselmittelpunkt
+local dd = (R + rho) ^ 2 - (d + rho - cb) ^ 2
+return dd > 0 and ca + math.sqrt(dd) or nil
+end
+local rho0 = K.rho
+local oa = circleA(arm.d0, K.r0, rho0)
+local D = oa - ca
+local rho1 = (D * D + (arm.d1 - cb) ^ 2 - K.r1 ^ 2) / (2 * (K.r1 - (arm.d1 - cb)))
+rho1 = math.max(1.5, math.min(20, rho1))
+local oa1 = circleA(arm.d1, K.r1, rho1) or oa
+local function path(d, R, rho, o) -- Stützpunkte: Gerade, Bogen, Kreisbogen
+local ob = d + rho
+local phi0, phi1 = -math.pi / 2, math.atan2(cb - ob, ca - o)
+local dphi = (phi1 - phi0 + math.pi) % (2 * math.pi) - math.pi
+local psi0 = math.atan2(ob - cb, o - ca)
+return { o = o, ob = ob, rho = rho, R = R, phi0 = phi0, dphi = dphi, psi0 = psi0, d = d }
+end
+local A, B = path(arm.d0, K.r0, rho0, oa), path(arm.d1, K.r1, rho1, oa1)
+local bEnd = math.max(cb + A.R * math.sin(A.psi0), cb + B.R * math.sin(B.psi0)) + 4.5
+local function pts(P, aStart)
+local straight = { { aStart, P.d }, { P.o, P.d } }
+local arc, ring = {}, {}
+for i = 0, 18 do
+local f = P.phi0 + P.dphi * i / 18
+arc[#arc + 1] = { P.o + P.rho * math.cos(f), P.ob + P.rho * math.sin(f) }
+end
+local psiE = math.asin(math.min(0.999, (bEnd - cb) / P.R))
+for i = 0, 14 do
+local f = P.psi0 + (psiE - P.psi0) * i / 14
+ring[#ring + 1] = { ca + P.R * math.cos(f), cb + P.R * math.sin(f) }
+end
+return straight, arc, ring
+end
+local aStart = arm.cut and (math.max(oa, oa1) + 2) or 1
+local sA, aA, rA = pts(A, aStart)
+local sB, aB, rB = pts(B, aStart)
+local aP = ca + math.sqrt(K.r0 ^ 2 - (arm.d0 - cb) ^ 2) -- Scheitel der Straßenecke (Gerade trifft Kreis)
+out[#out + 1] = {
+arm = arm, side = side, ux = ux, uz = uz, sx = sx, sz = sz, aStart = aStart, world = world,
+stages = { { sA, sB }, { aA, aB }, { rA, rB } }, apex = { aP, arm.d0 }, apexArc = aA,
+}
+end
+end
+return out
+end
 function RoadsPlanner.segments(cfg)
 return buildSegments(cfg)
 end
@@ -109,6 +165,7 @@ local parts = {}
 local segs = buildSegments(cfg)
 local stats = { bays = 0, dashes = 0 }
 local level = roadLevels(segs)
+local curves = kreiselEcken(cfg)
 for _, seg in ipairs(segs) do
 local yaw = Geo.yawOf(seg.ux, seg.uz)
 local p0x, p0z = seg.ax - seg.ux * seg.extA, seg.az - seg.uz * seg.extA
@@ -130,6 +187,15 @@ local sx, sz = p0x + nx * mid, p0z + nz * mid
 local cuts = {}
 local lift = (kind == "road") and LEVEL_STEP * level[seg.id] or (kind == "plaza" and PLAZA_LIFT or 0)
 if CUT[kind] then cuts = crossCuts(segs, seg, sx, sz, L, 0.05) end
+if kind == "walk" then
+for _, k in ipairs(curves) do
+if k.arm.cut and k.arm.road == seg.road.name and (nx * k.sx + nz * k.sz) * mid > 0 and math.abs(math.abs(mid) - (k.arm.d0 + k.arm.d1) / 2) < 0.5 then
+local qx, qz = k.world(k.aStart, 0)
+local t = (qx - p0x) * seg.ux + (qz - p0z) * seg.uz
+cuts[#cuts + 1] = (seg.ux * k.ux + seg.uz * k.uz < 0) and { t, L + 1 } or { -1, t }
+end
+end
+end
 for _, bc in ipairs(bridgeCuts) do cuts[#cuts + 1] = bc end
 for _, sp in ipairs(Geo.subtract({ { 0, L } }, cuts)) do
 local len = sp[2] - sp[1]
@@ -154,6 +220,34 @@ stats.dashes = stats.dashes + 1
 t = t + 12
 end
 end
+end
+end
+stats.curves = #curves
+for _, k in ipairs(curves) do
+local function wp(p) local x, z = k.world(p[1], p[2]) return { x, z } end
+local function quad(name, kind, p, q, p2, q2, top, thick, color, mat, grow) -- Rechteck zwischen den Linien p-q und p2-q2
+local mx, mz = (p[1] + q[1] + p2[1] + q2[1]) / 4, (p[2] + q[2] + p2[2] + q2[2]) / 4
+local dx, dz = (q[1] - p[1] + q2[1] - p2[1]) / 2, (q[2] - p[2] + q2[2] - p2[2]) / 2
+local len = math.sqrt(dx * dx + dz * dz)
+if len < 0.05 then return end
+dx, dz = dx / len, dz / len
+local wx, wz = (p2[1] + q2[1] - p[1] - q[1]) / 2, (p2[2] + q2[2] - p[2] - q[2]) / 2
+part(parts, name, kind, mx, top - thick / 2, mz, len + grow, thick, math.sqrt(wx * wx + wz * wz) + grow, Geo.yawOf(dx, dz), color, mat, {})
+end
+for _, st in ipairs(k.stages) do
+local A, B = st[1], st[2]
+for i = 1, #A - 1 do
+quad("GehwegKurve", "walk", wp(A[i]), wp(B[i]), wp(A[i + 1]), wp(B[i + 1]), TOP.walk, THICK.walk, COLOR.walk, MATERIAL.walk, 0.5)
+end
+end
+local ap, arc = wp(k.apex), k.apexArc
+for i = 1, #arc - 1 do -- Asphalt: Fächer vom Scheitel der Straßenecke zum Bogen der Bordsteinrundung
+local p, q = wp(arc[i]), wp(arc[i + 1])
+local m = { (p[1] + q[1]) / 2, (p[2] + q[2]) / 2 }
+local dx, dz = m[1] - ap[1], m[2] - ap[2]
+local len = math.sqrt(dx * dx + dz * dz)
+local w = math.sqrt((q[1] - p[1]) ^ 2 + (q[2] - p[2]) ^ 2) + 0.6
+part(parts, "KreiselEckAsphalt", "corner", (ap[1] + m[1]) / 2, 0.52 - 0.5, (ap[2] + m[2]) / 2, len, 1, w, Geo.yawOf(dx, dz), COLOR.road, MATERIAL.road, {})
 end
 end
 local RAMP = 2.5

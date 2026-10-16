@@ -28,7 +28,7 @@ C.profiles = {
 		half = 35.5, dashes = { -8.5 }, lamps = { offsets = { 3.5 }, spacing = 48 },
 		strips = { { -35.5, -27.5, "walk" }, { -27.5, 1.5, "road" }, { 1.5, 5.5, "green" }, { 5.5, 13.5, "bike" }, { 13.5, 25.5, "green" }, { 25.5, 33.5, "walk" } }, -- Ufergehweg 8 breit, endet 3 Studs vor der Böschungskante
 	},
-	approach86 = { half = 55, dashes = {}, strips = { { -55, -43, "walk" }, { -43, 43, "road" }, { 43, 55, "walk" } } }, -- Zulauf der Achse zum Kreisverkehr (ohne Mittelstreifen), Gehwege der Achse laufen bis zum Kreis durch
+	approach86 = { half = 58, dashes = {}, strips = { { -43, 43, "road" } } }, -- Zulauf der Achse zum Kreisverkehr (ohne Mittelstreifen); half 58 hält den Gehweg des Kreisels bis zur Einmündungskurve frei
 	kreisel24 = { half = 22, core = 12, dashes = {}, strips = { { -22, -12, "walk" }, { -12, 12, "road" } } }, -- Fahrbahn 24 breit, außen ein Gehweg (10) rund um den Kreisverkehr
 	plaza40 = { half = 20, dashes = {}, strips = { { -20, 20, "plaza" } } },
 }
@@ -200,6 +200,18 @@ C.water = {
 }
 
 -- Eckhäuser am Siegestor: gebogene Gebäude (Fassadenplatten auf dem Kreis um die Mitte, Radius r0 = Außenkante des Gehwegs + Abstand), Winkelbereiche in Grad (z nach Süden)
+-- Einmündungen am Kreisverkehr: Gehweg der Zufahrt geht in einer S-Kurve in den Gehweg des Kreisels über. r0/r1 = Innen-/Außenkante des Kreisel-Gehwegs (gemittelt über
+-- die 24-Eck-Facetten), rho = Radius der Bordsteinrundung, arms: p0 = Punkt auf der Straßenachse, u = Richtung vom Kreisel weg, d0/d1 = Gehweg (Abstand von der Achse),
+-- cut = Gehweg der Straße endet vor der Kurve (sonst endet er schon an p0).
+C.kreiselEcken = {
+	r0 = 79.8, r1 = 89.8, rho = 14,
+	arms = {
+		{ road = "AchseNord", p0 = { 0, -84 }, u = { 0, -1 }, d0 = 43, d1 = 55 },
+		{ road = "AchseSued", p0 = { 0, 84 }, u = { 0, 1 }, d0 = 43, d1 = 55 },
+		{ road = "H2", p0 = { -61, 30 }, u = { -1, 0 }, d0 = 18.5, d1 = 28.5, cut = true },
+		{ road = "Diagonale", p0 = { 61, 30 }, u = { 229, 6 }, d0 = 14, d1 = 24, cut = true },
+	},
+}
 C.siegestorCorners = { r0 = 92, depth = 28, ranges = { { name = "Nordwest", th = { 186, 223 } }, { name = "Nordost", th = { 317, 354 } } } }
 
 C.parks = { -- Gras-Oberfläche (Terrain)
