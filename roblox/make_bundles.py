@@ -119,8 +119,13 @@ before = []
 for name, names in PARTS:
     files.append(("MapBuilder_%s.lua" % name, part_module(name, names, before)))
     before = before + names
+# Alles in einer Datei (ohne ModuleScripts): kann über der Roblox-Grenze von ca. 200 000 Zeichen liegen, darum ohne Prüfung
+single = script.split(LOADER)[0] + body(ALL + MAIN) + "BuildAll.run({ steps = STEPS, only = ONLY, origin = ORIGIN, afterBuild = Ampel.start })\n"
+single = single.replace("zwei ModuleScripts anlegen", "zwei ModuleScripts anlegen (bei dieser Datei NICHT nötig)")
+files.append(("MapBuilder_Alles.lua", single))
 for name, text in files:
-    assert len(text) <= LIMIT, "%s ist %d Zeichen lang (Grenze %d): Module neu auf die Teile verteilen" % (name, len(text), LIMIT)
+    if name != "MapBuilder_Alles.lua":
+        assert len(text) <= LIMIT, "%s ist %d Zeichen lang (Grenze %d): Module neu auf die Teile verteilen" % (name, len(text), LIMIT)
     with open(os.path.join(here, name), "w", encoding="utf-8") as f:
         f.write(text)
     print(name, len(text.splitlines()), "Zeilen,", len(text), "Zeichen")
