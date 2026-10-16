@@ -547,7 +547,7 @@ do
 		end
 	end
 	local plan = Hochhaus.plan(Config)
-	check(plan.stats.towers == 5 and plan.stats.tallest >= 250, "Hochhäuser: " .. plan.stats.towers .. ", höchstes " .. plan.stats.tallest)
+	check(plan.stats.towers == 5 and plan.stats.tallest >= 140, "Hochhäuser: " .. plan.stats.towers .. ", höchstes " .. plan.stats.tallest)
 	local foot = {}
 	for _, t in ipairs(Config.hochhaeuser) do
 		local hx, hz
@@ -586,7 +586,7 @@ do
 	for _, p in ipairs(plan.parts) do
 		for k = 1, 3 do check(p.pos[k] == p.pos[k] and p.size[k] == p.size[k] and p.size[k] > 0, "Hochhaus: ungültiges Teil " .. p.name) end
 	end
-	check(#plan.parts > 800 and #plan.parts < 6000, "Hochhaus: Teile " .. #plan.parts)
+	check(#plan.parts > 400 and #plan.parts < 6000, "Hochhaus: Teile " .. #plan.parts)
 	local logos = 0
 	for _, p in ipairs(plan.parts) do if p.text and p.text.s == "BMO" then logos = logos + 1 end end
 	check(logos == 2, "BMO-Logo nicht auf beiden Seiten: " .. logos)

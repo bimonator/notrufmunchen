@@ -80,12 +80,12 @@ C.roads = {
 -- Skyline (Hochhaeuser.lua): glas = Glasturm mit abgerundeten Ecken (w x d, Eckradius r, Etagen), bmo = Vierzylinder-Turm, schuessel = rundes Schalen-Gebäude.
 -- Die Standorte sind in Blocks.lua als reserved eingetragen (dort entfallen die Häuser).
 C.hochhaeuser = {
-	{ name = "Hochhaus-Klinikum", art = "glas", x = 462, z = -268, w = 64, d = 64, r = 12, floors = 24, label = "ISARTOR" }, -- hinter Volksbank und Krankenhaus
-	{ name = "Hochhaus-West", art = "glas", x = -563, z = -127, w = 66, d = 66, r = 14, floors = 30, label = "NOVA" }, -- Block D_West, Richtung Mapende
-	{ name = "BMO-Turm", art = "bmo", x = 100, z = -418, floors = 24, radius = 14, versatz = 12.5 },
+	{ name = "Hochhaus-Klinikum", art = "glas", x = 462, z = -268, w = 64, d = 64, r = 12, floors = 12, label = "ISARTOR" }, -- hinter Volksbank und Krankenhaus
+	{ name = "Hochhaus-West", art = "glas", x = -563, z = -127, w = 66, d = 66, r = 14, floors = 15, label = "NOVA" }, -- Block D_West, Richtung Mapende
+	{ name = "BMO-Turm", art = "bmo", x = 100, z = -418, floors = 12, radius = 14, versatz = 12.5 },
 	{ name = "BMO-Welt", art = "schuessel", x = 164, z = -420, r = 24, bruecke = { x = 126.5, z = -418 } },
-	{ name = "Hochhaus-Allguth-Sued", art = "glas", x = 160, z = -22, w = 58, d = 44, r = 11, floors = 20, label = "OPTIMA", pm = 3 },
-	{ name = "Hochhaus-Allguth-Nordost", art = "glas", x = 252, z = -424, w = 40, d = 40, r = 9, floors = 18, label = "HELIOS", pm = 3 },
+	{ name = "Hochhaus-Allguth-Sued", art = "glas", x = 160, z = -22, w = 58, d = 44, r = 11, floors = 10, label = "OPTIMA", pm = 3 },
+	{ name = "Hochhaus-Allguth-Nordost", art = "glas", x = 252, z = -424, w = 40, d = 40, r = 9, floors = 9, label = "HELIOS", pm = 3 },
 }
 
 -- Eckhäuser, die höher gebaut werden (Faktor auf die Geschosszahl; 3 = um 200 % erhöht). Schlüssel = Hausname aus dem Planer.

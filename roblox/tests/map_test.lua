@@ -430,7 +430,9 @@ do
 	local sg, fe = Landmarks.siegestor(Config), Landmarks.friedensengel(Config)
 	local y0 = Config.landmarks.siegestor.baseY
 	local function aabb(p)
-		return p.pos[1] - p.size[1] / 2, p.pos[2] - p.size[2] / 2, p.pos[3] - p.size[3] / 2, p.pos[1] + p.size[1] / 2, p.pos[2] + p.size[2] / 2, p.pos[3] + p.size[3] / 2
+		local sx, sy, sz = p.size[1], p.size[2], p.size[3]
+		if p.shape == "Cylinder" and p.roll == 90 then sx, sy = sy, sx end -- stehender Zylinder: Achse lokal x wird zur Höhe
+		return p.pos[1] - sx / 2, p.pos[2] - sy / 2, p.pos[3] - sz / 2, p.pos[1] + sx / 2, p.pos[2] + sy / 2, p.pos[3] + sz / 2
 	end
 	local maxY, texts, blocked = 0, 0, 0
 	for _, p in ipairs(sg) do

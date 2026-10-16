@@ -158,12 +158,12 @@ C.roads = {
 { name = "FriedensengelAusfahrt", profile = "std48", pts = { { 1120, 298 }, { 1176, 298 } } },
 }
 C.hochhaeuser = {
-{ name = "Hochhaus-Klinikum", art = "glas", x = 462, z = -268, w = 64, d = 64, r = 12, floors = 24, label = "ISARTOR" }, -- hinter Volksbank und Krankenhaus
-{ name = "Hochhaus-West", art = "glas", x = -563, z = -127, w = 66, d = 66, r = 14, floors = 30, label = "NOVA" }, -- Block D_West, Richtung Mapende
-{ name = "BMO-Turm", art = "bmo", x = 100, z = -418, floors = 24, radius = 14, versatz = 12.5 },
+{ name = "Hochhaus-Klinikum", art = "glas", x = 462, z = -268, w = 64, d = 64, r = 12, floors = 12, label = "ISARTOR" }, -- hinter Volksbank und Krankenhaus
+{ name = "Hochhaus-West", art = "glas", x = -563, z = -127, w = 66, d = 66, r = 14, floors = 15, label = "NOVA" }, -- Block D_West, Richtung Mapende
+{ name = "BMO-Turm", art = "bmo", x = 100, z = -418, floors = 12, radius = 14, versatz = 12.5 },
 { name = "BMO-Welt", art = "schuessel", x = 164, z = -420, r = 24, bruecke = { x = 126.5, z = -418 } },
-{ name = "Hochhaus-Allguth-Sued", art = "glas", x = 160, z = -22, w = 58, d = 44, r = 11, floors = 20, label = "OPTIMA", pm = 3 },
-{ name = "Hochhaus-Allguth-Nordost", art = "glas", x = 252, z = -424, w = 40, d = 40, r = 9, floors = 18, label = "HELIOS", pm = 3 },
+{ name = "Hochhaus-Allguth-Sued", art = "glas", x = 160, z = -22, w = 58, d = 44, r = 11, floors = 10, label = "OPTIMA", pm = 3 },
+{ name = "Hochhaus-Allguth-Nordost", art = "glas", x = 252, z = -424, w = 40, d = 40, r = 9, floors = 9, label = "HELIOS", pm = 3 },
 }
 C.eckhaeuser = { Haus_F_LeopoldWestSued_N1 = 3, Haus_C_LeopoldWestNord_S2 = 3 }
 C.busstops = {

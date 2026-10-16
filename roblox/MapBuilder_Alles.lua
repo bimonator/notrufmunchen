@@ -201,12 +201,12 @@ C.roads = {
 { name = "FriedensengelAusfahrt", profile = "std48", pts = { { 1120, 298 }, { 1176, 298 } } },
 }
 C.hochhaeuser = {
-{ name = "Hochhaus-Klinikum", art = "glas", x = 462, z = -268, w = 64, d = 64, r = 12, floors = 24, label = "ISARTOR" }, -- hinter Volksbank und Krankenhaus
-{ name = "Hochhaus-West", art = "glas", x = -563, z = -127, w = 66, d = 66, r = 14, floors = 30, label = "NOVA" }, -- Block D_West, Richtung Mapende
-{ name = "BMO-Turm", art = "bmo", x = 100, z = -418, floors = 24, radius = 14, versatz = 12.5 },
+{ name = "Hochhaus-Klinikum", art = "glas", x = 462, z = -268, w = 64, d = 64, r = 12, floors = 12, label = "ISARTOR" }, -- hinter Volksbank und Krankenhaus
+{ name = "Hochhaus-West", art = "glas", x = -563, z = -127, w = 66, d = 66, r = 14, floors = 15, label = "NOVA" }, -- Block D_West, Richtung Mapende
+{ name = "BMO-Turm", art = "bmo", x = 100, z = -418, floors = 12, radius = 14, versatz = 12.5 },
 { name = "BMO-Welt", art = "schuessel", x = 164, z = -420, r = 24, bruecke = { x = 126.5, z = -418 } },
-{ name = "Hochhaus-Allguth-Sued", art = "glas", x = 160, z = -22, w = 58, d = 44, r = 11, floors = 20, label = "OPTIMA", pm = 3 },
-{ name = "Hochhaus-Allguth-Nordost", art = "glas", x = 252, z = -424, w = 40, d = 40, r = 9, floors = 18, label = "HELIOS", pm = 3 },
+{ name = "Hochhaus-Allguth-Sued", art = "glas", x = 160, z = -22, w = 58, d = 44, r = 11, floors = 10, label = "OPTIMA", pm = 3 },
+{ name = "Hochhaus-Allguth-Nordost", art = "glas", x = 252, z = -424, w = 40, d = 40, r = 9, floors = 9, label = "HELIOS", pm = 3 },
 }
 C.eckhaeuser = { Haus_F_LeopoldWestSued_N1 = 3, Haus_C_LeopoldWestNord_S2 = 3 }
 C.busstops = {
@@ -2456,7 +2456,7 @@ local L = cfg.landmarks.siegestor
 local add = new(parts, L.x, L.z)
 local y0 = L.baseY
 local STONE, LIGHT, DARK, RELIEF = { 214, 200, 170 }, { 226, 214, 186 }, { 176, 162, 134 }, { 192, 178, 150 }
-local BRONZE = { 92, 140, 118 }
+local BRONZE, GOLD = { 92, 140, 118 }, { 226, 184, 72 }
 local D, TOP = 12, 42 -- Tiefe, Höhe der Unterkante des Gebälks
 local function pier(x0, x1, name)
 add(name, (x0 + x1) / 2, y0 + TOP / 2, 0, x1 - x0, TOP, D, STONE, "Concrete")
@@ -2476,29 +2476,136 @@ end
 arch(0, 8, 20, 8, "BogenMitte")
 arch(-18, 5, 14, 6, "BogenSeite")
 arch(18, 5, 14, 6, "BogenSeite")
-for _, z in ipairs({ -D / 2 - 0.8, D / 2 + 0.8 }) do
+local function deco(name, x, y, z, sx, sy, sz, color, mat, extra)
+extra = extra or {}
+extra.collide = false
+add(name, x, y, z, sx, sy, sz, color, mat, extra)
+end
+local function vcyl(name, x, y, z, h, d, color, mat)
+add(name, x, y, z, h, d, d, color, mat, { shape = "Cylinder", roll = 90, collide = false })
+end
+for _, sz in ipairs({ -1, 1 }) do
+local z = sz * (D / 2 + 0.8)
 for _, x in ipairs({ -27.5, -10.5, 10.5, 27.5 }) do
-add("Saeule", x, y0 + 20, z, 2.4, 36, 2.4, LIGHT, "Concrete")
-add("SaeuleSockel", x, y0 + 1, z, 3.6, 2, 3.6, DARK, "Concrete")
-add("SaeuleKapitell", x, y0 + 39, z, 3.8, 4, 3.8, DARK, "Concrete")
+add("Saeule", x, y0 + 20, z, 36, 2.4, 2.4, LIGHT, "Concrete", { shape = "Cylinder", roll = 90 })
+add("SaeuleSockel", x, y0 + 1, z, 3.8, 2, 3.8, DARK, "Concrete")
+vcyl("SaeuleFuss", x, y0 + 2.5, z, 1, 3.2, STONE, "Concrete")
+for i = 0, 5 do -- Kanneluren
+local an = math.rad(i * 60)
+deco("Kannelur", x + 1.2 * math.cos(an), y0 + 20, z + 1.2 * math.sin(an), 0.25, 33, 0.25, DARK, "Concrete")
 end
-add("Relief", -18, y0 + 31, z * (D / 2 + 0.15) / (D / 2 + 0.8), 9, 7, 0.4, RELIEF, "Concrete", { collide = false })
-add("Relief", 18, y0 + 31, z * (D / 2 + 0.15) / (D / 2 + 0.8), 9, 7, 0.4, RELIEF, "Concrete", { collide = false })
+vcyl("SaeuleHals", x, y0 + 37.6, z, 0.8, 2.8, STONE, "Concrete")
+vcyl("SaeuleKelch", x, y0 + 39, z, 2.4, 2.9, LIGHT, "Concrete")
+for i = 0, 7 do -- Akanthusblätter in zwei Kränzen
+local an = math.rad(i * 45 + (i % 2) * 22)
+deco("Akanthus", x + 1.45 * math.cos(an), y0 + 38.4 + (i % 2) * 0.8, z + 1.45 * math.sin(an), 0.8, 1.7, 0.8, DARK, "Concrete")
 end
+for _, cx in ipairs({ -1, 1 }) do
+for _, cz in ipairs({ -1, 1 }) do deco("Volute", x + cx * 1.55, y0 + 40.6, z + cz * 1.55, 0.7, 0.7, 0.7, STONE, "Concrete", { shape = "Ball" }) end
+end
+add("Abakus", x, y0 + 41.3, z, 3.8, 0.8, 3.8, STONE, "Concrete", { collide = false })
+deco("GebaelkKroepfung", x, y0 + TOP + 1.7, sz * 7.2, 5.4, 3.4, 2.4, STONE, "Concrete")
+end
+deco("Stylobat", 0, y0 + 0.4, sz * 7.4, 68, 0.8, 2.6, DARK, "Concrete")
+deco("Stylobat", 0, y0 + 1.1, sz * 6.9, 64, 0.6, 1.6, STONE, "Concrete")
+for _, seg in ipairs({ { -32, -23 }, { -13, -8 }, { 8, 13 }, { 23, 32 } }) do
+for _, yy in ipairs({ 5, 9, 13 }) do deco("Rustika", (seg[1] + seg[2]) / 2, y0 + yy, sz * (D / 2 + 0.1), seg[2] - seg[1] + 0.4, 0.3, 0.3, DARK, "Concrete") end
+end
+for _, x in ipairs({ -10.5, 10.5 }) do deco("Kaempfer", x, y0 + 20, sz * (D / 2 + 0.1), 6.2, 0.9, 0.9, STONE, "Concrete") end
+end
+local function archivolt(cx, r, spring, name)
+local R2, m = r + 1.7, 14
+local w = 2 * R2 / m
+for _, sz in ipairs({ -1, 1 }) do
+for i = 1, m do
+local xc = -R2 + (i - 0.5) * w
+local inner = (math.abs(xc) < r) and (spring + math.sqrt(r * r - xc * xc)) or spring
+local outer = spring + math.sqrt(math.max(0, R2 * R2 - xc * xc))
+if outer - inner > 0.3 then deco(name, cx + xc, y0 + (inner + outer) / 2, sz * (D / 2 + 0.25), w + 0.05, outer - inner, 0.5, LIGHT, "Concrete") end
+end
+deco("Schlussstein", cx, y0 + spring + r + 0.7, sz * (D / 2 + 0.5), 1.8, 3.4, 1, STONE, "Concrete")
+end
+end
+archivolt(0, 8, 20, "ArchivolteMitte")
+archivolt(-18, 5, 14, "ArchivolteSeite")
+archivolt(18, 5, 14, "ArchivolteSeite")
 add("Gebaelk", 0, y0 + TOP + 1.5, 0, 66, 3, D + 2, STONE, "Concrete")
+deco("Fries", 0, y0 + TOP + 2.2, -D / 2 - 1.05, 64, 1.2, 0.2, DARK, "Concrete")
+deco("Fries", 0, y0 + TOP + 2.2, D / 2 + 1.05, 64, 1.2, 0.2, DARK, "Concrete")
 add("Attika", 0, y0 + TOP + 8.5, 0, 60, 11, D, LIGHT, "Concrete")
 add("Kranz", 0, y0 + TOP + 15, 0, 66, 2, D + 2, STONE, "Concrete")
+for _, sz in ipairs({ -1, 1 }) do
+for i = 0, 35 do deco("Zahnschnitt", -31.5 + i * 1.8, y0 + TOP + 13.6, sz * (D / 2 + 1.35), 0.9, 0.9, 0.9, DARK, "Concrete") end
+deco("AttikaRahmen", 0, y0 + TOP + 5.9, sz * (D / 2 + 0.1), 56, 0.5, 0.3, DARK, "Concrete")
+deco("AttikaRahmen", 0, y0 + TOP + 11.1, sz * (D / 2 + 0.1), 56, 0.5, 0.3, DARK, "Concrete")
+for _, ex in ipairs({ -28, 28 }) do
+deco("AttikaRahmen", ex, y0 + TOP + 8.5, sz * (D / 2 + 0.1), 0.5, 5.7, 0.3, DARK, "Concrete")
+deco("AttikaEcke", ex + (ex < 0 and -1 or 1) * 1.2, y0 + TOP + 8.5, sz * (D / 2 + 0.6), 3.6, 11, 1.2, STONE, "Concrete")
+end
+end
 add("Schrift", 0, y0 + TOP + 8.5, -D / 2 - 0.15, 52, 2.4, 0.2, { 60, 56, 50 }, "SmoothPlastic",
 { collide = false, kind = "text", text = { s = "DEM SIEGE GEWEIHT · VOM KRIEG ZERSTÖRT · ZUM FRIEDEN MAHNEND", color = { 60, 56, 50 } } })
 add("Schrift", 0, y0 + TOP + 8.5, D / 2 + 0.15, 30, 3, 0.2, { 60, 56, 50 }, "SmoothPlastic",
 { collide = false, kind = "text", yaw = 180, text = { s = "SIEGESTOR", color = { 60, 56, 50 } } })
+for _, sz in ipairs({ -1, 1 }) do
+local zr = sz * (D / 2 + 0.15)
+for _, cx in ipairs({ -18, 18 }) do
+deco("Relief", cx, y0 + 31, zr, 9, 7, 0.4, RELIEF, "Concrete")
+deco("ReliefRahmen", cx, y0 + 34.7, zr + sz * 0.1, 10, 0.6, 0.5, STONE, "Concrete")
+deco("ReliefRahmen", cx, y0 + 27.3, zr + sz * 0.1, 10, 0.6, 0.5, STONE, "Concrete")
+deco("ReliefRahmen", cx - 4.7, y0 + 31, zr + sz * 0.1, 0.6, 7, 0.5, STONE, "Concrete")
+deco("ReliefRahmen", cx + 4.7, y0 + 31, zr + sz * 0.1, 0.6, 7, 0.5, STONE, "Concrete")
+for i = 1, 4 do -- stehende Figuren
+local fx = cx - 3.4 + (i - 1) * 2.3
+deco("ReliefFigur", fx, y0 + 30.2 + (i % 2) * 0.4, zr + sz * 0.3, 0.9, 3.6 + (i % 2), 0.4, DARK, "Concrete")
+deco("ReliefKopf", fx, y0 + 32.4 + (i % 2) * 0.9, zr + sz * 0.3, 0.8, 0.8, 0.4, DARK, "Concrete", { shape = "Ball" })
+end
+deco("ReliefPferd", cx, y0 + 28.8, zr + sz * 0.3, 3, 1.3, 0.4, DARK, "Concrete")
+end
+end
+for _, sx in ipairs({ -1, 1 }) do -- Seitenflächen: Relieffeld und Pilaster
+deco("SeitenRelief", sx * 32.2, y0 + 31, 0, 0.4, 7, 8, RELIEF, "Concrete")
+deco("SeitenRahmen", sx * 32.3, y0 + 34.7, 0, 0.5, 0.6, 9, STONE, "Concrete")
+deco("SeitenRahmen", sx * 32.3, y0 + 27.3, 0, 0.5, 0.6, 9, STONE, "Concrete")
+for _, sz in ipairs({ -4, 4 }) do deco("SeitenPilaster", sx * 32.2, y0 + 20, sz, 0.5, 38, 1.4, LIGHT, "Concrete") end
+end
+for _, sx in ipairs({ -1, 1 }) do
+deco("EckSockel", sx * 29.5, y0 + TOP + 17.6, 0, 5, 3.2, 5, STONE, "Concrete")
+deco("EckFigurRock", sx * 29.5, y0 + TOP + 21, 0, 2.4, 3.8, 2.4, BRONZE, "Metal")
+deco("EckFigurTorso", sx * 29.5, y0 + TOP + 24, 0, 2.2, 2.6, 1.6, BRONZE, "Metal")
+deco("EckFigurKopf", sx * 29.5, y0 + TOP + 26, 0, 1.4, 1.4, 1.4, BRONZE, "Metal", { shape = "Ball" })
+deco("EckFigurSpeer", sx * 29.5 + sx * 1.6, y0 + TOP + 24, 0, 0.3, 9, 0.3, { 70, 66, 60 }, "Metal")
+end
 local yt = y0 + TOP + 16
-add("StatueSockel", 0, yt + 2, 0, 14, 4, 8, STONE, "Concrete")
-add("StatueRock", 0, yt + 8, 0, 5, 8, 4, BRONZE, "Metal")
-add("StatueTorso", 0, yt + 14, 0, 3.8, 6, 2.8, BRONZE, "Metal")
-add("StatueKopf", 0, yt + 18.2, 0, 2, 2.4, 2, BRONZE, "Metal")
-add("StatueLanze", -3.2, yt + 14, 0, 0.5, 20, 0.5, { 70, 66, 60 }, "Metal", { collide = false })
-add("StatueArm", -1.9, yt + 14.5, 0, 1, 4, 1, BRONZE, "Metal", { collide = false })
+add("StatueSockel", 0, yt + 2, 0, 24, 4, 8, STONE, "Concrete")
+deco("StatueSockelGesims", 0, yt + 4.3, 0, 25.4, 0.6, 8.8, DARK, "Concrete")
+local yp = yt + 4.6 -- Plattform
+deco("Wagen", 0, yp + 1.4, 2.4, 11, 2.8, 3.6, BRONZE, "Metal")
+deco("WagenBug", 0, yp + 2.9, 0.5, 11.4, 0.5, 0.5, GOLD, "Metal")
+deco("Deichsel", 0, yp + 1.2, -1.5, 0.5, 0.5, 4.6, { 70, 66, 60 }, "Metal")
+for _, sx in ipairs({ -6, 6 }) do deco("Wagenrad", sx, yp + 1.7, 2.6, 0.6, 3.4, 3.4, { 70, 100, 86 }, "Metal", { shape = "Cylinder" }) end
+for i = 1, 4 do
+local lx = -7.5 + (i - 1) * 5
+deco("LoeweKoerper", lx, yp + 1.6, -1.2, 2.2, 2.4, 4.4, BRONZE, "Metal")
+deco("LoeweBrust", lx, yp + 2.0, -3.2, 2.2, 2.8, 1.2, BRONZE, "Metal")
+deco("LoeweMaehne", lx, yp + 2.9, -3.7, 3, 3, 1.4, { 62, 102, 86 }, "Metal")
+deco("LoeweKopf", lx, yp + 2.6, -4.7, 1.7, 1.7, 1.6, BRONZE, "Metal")
+deco("LoeweTatze", lx - 0.6, yp + 0.5, -3.6, 0.7, 1.2, 0.7, BRONZE, "Metal")
+deco("LoeweTatze", lx + 0.6, yp + 0.5, -3.6, 0.7, 1.2, 0.7, BRONZE, "Metal")
+deco("LoeweSchwanz", lx, yp + 2.4, 1.4, 0.35, 0.35, 2.2, BRONZE, "Metal", { pitch = -20 })
+end
+local ys = yp + 2.8 -- Wagenboden der Figur
+add("StatueRock", 0, ys + 4, 2.4, 4.6, 8, 3.2, BRONZE, "Metal", { collide = false })
+deco("StatueGuertel", 0, ys + 6, 2.4, 4.9, 0.6, 3.5, GOLD, "Metal")
+add("StatueTorso", 0, ys + 10.6, 2.4, 3.8, 5.6, 2.6, BRONZE, "Metal", { collide = false })
+deco("StatueKopf", 0, ys + 14.4, 2.4, 2.1, 2.4, 2.1, BRONZE, "Metal", { shape = "Ball" })
+deco("StatueHelm", 0, ys + 15.6, 2.4, 2.4, 1.4, 2.4, GOLD, "Metal")
+deco("StatueHelmbusch", 0, ys + 17, 2.4, 0.6, 1.6, 2.2, GOLD, "Metal")
+deco("StatueLanze", -3.4, ys + 12, 2.4, 0.5, 22, 0.5, { 70, 66, 60 }, "Metal")
+deco("StatueLanzenspitze", -3.4, ys + 23.4, 2.4, 0.9, 2.2, 0.3, GOLD, "Metal", { roll = 12 })
+deco("StatueArm", -2.4, ys + 11.4, 2.4, 1.1, 4.2, 1.1, BRONZE, "Metal")
+deco("StatueSchild", 2.8, ys + 9.5, 1.0, 3.6, 3.6, 0.5, GOLD, "Metal", { shape = "Cylinder" })
+deco("StatueUmhang", 0, ys + 9.6, 3.9, 4.6, 8.4, 0.4, { 62, 102, 86 }, "Metal")
 return parts
 end
 function Landmarks.siegestorInsel(cfg)
