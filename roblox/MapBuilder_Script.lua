@@ -184,8 +184,14 @@ local p = Instance.new("Part")
 p.Name = spec.name
 p.Anchored = true
 p.Size = Vector3.new(spec.size[1], spec.size[2], spec.size[3])
+if spec.wedge then -- flaches Dreieck: Keil mit dem Dreieck in der Draufsicht; y-Achse = erster Schenkel, z-Achse = zweiter Schenkel (rechter Winkel bei -y/+z)
+local ey, ez = Vector3.new(spec.wedge[1][1], 0, spec.wedge[1][2]), Vector3.new(spec.wedge[2][1], 0, spec.wedge[2][2])
+p.CFrame = CFrame.fromMatrix(origin + Vector3.new(spec.pos[1], spec.pos[2], spec.pos[3]), ey:Cross(ez), ey, ez)
+p.Shape = Enum.PartType.Wedge
+else
 p.CFrame = CFrame.new(origin + Vector3.new(spec.pos[1], spec.pos[2], spec.pos[3]))
 * CFrame.Angles(0, math.rad(spec.yaw), 0) * CFrame.Angles(math.rad(spec.pitch or 0), 0, math.rad(spec.roll or 0))
+end
 if spec.shape == "Cylinder" then p.Shape = Enum.PartType.Cylinder elseif spec.shape == "Ball" then p.Shape = Enum.PartType.Ball end -- Achse läuft entlang x, mit roll = 90 steht sie senkrecht
 if spec.transparency then p.Transparency = spec.transparency end
 p.Color = Color3.fromRGB(spec.color[1], spec.color[2], spec.color[3])
@@ -294,6 +300,10 @@ if PAVED[s.kind] and s.size[2] <= 3 and s.pos[2] > -6 and nearGrass(s) then
 local r = math.rad(s.yaw or 0)
 local ux, uz = math.cos(r), -math.sin(r) -- lokale x-Achse in der Draufsicht (lokale z-Achse: (sin, cos))
 local hx, hz = s.size[1] / 2 + 1, s.size[3] / 2 + 1
+if s.wedge then -- Dreieck: Rechteck aus den beiden Schenkeln
+ux, uz = s.wedge[1][1], s.wedge[1][2]
+hx, hz = s.size[2] / 2 + 1, s.size[3] / 2 + 1
+end
 local cx, cz = origin.X + s.pos[1], origin.Z + s.pos[3]
 local rad = hx + hz
 local y0 = math.floor((origin.Y + s.pos[2] - 6) / 4) * 4
@@ -578,14 +588,11 @@ end
 Builder.buildParts(list, folder, origin)
 return string.format("%d alte Teile entfernt, %d neu", removed, #list)
 end,
-kreiselwege = function(opts, origin) -- Gehwege und Einmündungskurven am Siegestor-Kreisel neu (weiche S-Kurven); übrige Straßenteile bleiben
+kreiselwege = function(opts, origin) -- alle Gehwege, Eckrundungen und der Siegestor-Kreisel neu; Fahrbahnen und übrige Straßenteile bleiben
 local folder = game:GetService("Workspace"):FindFirstChild("Map").Strassen
-local set = { AchseNord = true, ZulaufNord = true, ZulaufSued = true, AchseSued = true, SiegestorKreisel = true, H2 = true, Diagonale = true }
 local CORNER = { GehwegEcke = true, GehwegEckeRund = true, EckAsphalt = true }
-local function nah(x, z) return x * x + z * z < 130 * 130 end
 local function mine(name, x, z)
-local road = name:match("^(%w+)_%d+_walk$")
-return (road and set[road]) or name == "GehwegKurve" or name == "KreiselEckAsphalt" or (CORNER[name] and nah(x, z))
+return name:match("^%w+_%d+_walk$") or name:match("^SiegestorKreisel_") or name == "GehwegKurve" or name == "KreiselEckAsphalt" or CORNER[name]
 end
 local removed = 0
 for _, c in ipairs(folder:GetChildren()) do

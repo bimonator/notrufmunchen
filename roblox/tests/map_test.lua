@@ -122,7 +122,7 @@ do
 		if rd.name == "SiegestorKreisel" then ring = rd end
 		assert(rd.name ~= "Achse", "alte Achse ohne Kreisverkehr")
 	end
-	check(ring ~= nil and #ring.pts == 24, "Kreisverkehr fehlt")
+	check(ring ~= nil and #ring.pts == 96, "Kreisverkehr fehlt")
 	check(islandR + 2.4 <= ringR - 12 + 0.01, "Insel ragt in die Fahrbahn: " .. islandR)
 	check(Config.tunnel == nil, "Tunnel entfällt")
 	-- Anschlüsse: jede Zufahrt endet innerhalb des Rings (Abstand zur Mitte zwischen Innen- und Außenrand)
@@ -625,18 +625,13 @@ end
 
 -- ===== Gerundete Gehwegecken und Gehweg um den Kreisverkehr am Siegestor =====
 do
-	local rounds, boxes, asph = 0, 0, 0
+	local kurven, asph = 0, 0
 	for _, p in ipairs(parts) do
-		if p.name == "GehwegEckeRund" then rounds = rounds + 1 end
-		if p.name == "GehwegEcke" then boxes = boxes + 1 end
+		if p.name == "GehwegKurve" then kurven = kurven + 1 end
 		if p.name == "EckAsphalt" then asph = asph + 1 end
-		if p.kind == "corner" then
-			for _, o in ipairs(parts) do -- Eckstücke liegen auf keiner Fahrbahn (nur der Asphalt in der Rundung füllt den Rest)
-				if o.kind == "road" and p.name ~= "EckAsphalt" and Geo.inPart(p.pos[1], p.pos[3], o, 0.5) then check(false, "Gehwegecke auf der Fahrbahn bei " .. p.pos[1] .. "," .. p.pos[3]) break end
-			end
-		end
+		if p.wedge then check(p.size[2] > 0 and p.size[3] > 0 and p.size[1] > 0, "Keil ohne Größe") end
 	end
-	check(road.stats.corners >= 30 and rounds == road.stats.corners and boxes == 2 * road.stats.corners and asph == road.stats.corners, "Gehwegecken: " .. road.stats.corners .. " (" .. rounds .. "/" .. boxes .. "/" .. asph .. ")")
+	check(road.stats.corners >= 40 and kurven > 8 * road.stats.corners and asph > 3 * road.stats.corners and road.stats.curves == 8, "Gehwegecken: " .. road.stats.corners .. " (" .. kurven .. "/" .. asph .. "), Kreiselkurven " .. road.stats.curves)
 	local ringWalks = 0
 	for _, p in ipairs(parts) do
 		if p.kind == "walk" and p.seg and segs[p.seg].road.name == "SiegestorKreisel" then

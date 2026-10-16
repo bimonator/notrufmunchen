@@ -61,7 +61,7 @@ C.roads = {
 	{ name = "ZulaufNord", profile = "approach86", pts = { { 0, -84 }, { 0, -60 } } },
 	{ name = "ZulaufSued", profile = "approach86", pts = { { 0, 60 }, { 0, 84 } } },
 	{ name = "AchseSued", profile = "axis110", pts = { { 0, 84 }, { 0, 410 } } },
-	{ name = "SiegestorKreisel", closed = true, profile = "kreisel24", pts = circle(0, 0, 68, 24) },
+	{ name = "SiegestorKreisel", closed = true, profile = "kreisel24", pts = circle(0, 0, 68, 96) },
 	{ name = "V1", profile = "raster57", pts = { { -460, 30 }, { -460, -472 } } },
 	{ name = "V2", profile = "raster57", pts = { { -235, 30 }, { -235, -472 } } },
 	{ name = "H1", profile = "raster57", pts = { { -661, -285 }, { 0, -285 } } },
@@ -204,7 +204,7 @@ C.water = {
 -- die 24-Eck-Facetten), rho = Radius der Bordsteinrundung, arms: p0 = Punkt auf der Straßenachse, u = Richtung vom Kreisel weg, d0/d1 = Gehweg (Abstand von der Achse),
 -- cut = Gehweg der Straße endet vor der Kurve (sonst endet er schon an p0).
 C.kreiselEcken = {
-	r0 = 79.8, r1 = 89.8, rho = 14,
+	r0 = 80, r1 = 90, rho = 14,
 	arms = {
 		{ road = "AchseNord", p0 = { 0, -84 }, u = { 0, -1 }, d0 = 43, d1 = 55 },
 		{ road = "AchseSued", p0 = { 0, 84 }, u = { 0, 1 }, d0 = 43, d1 = 55 },

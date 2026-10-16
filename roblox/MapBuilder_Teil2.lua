@@ -24,8 +24,42 @@ parts[#parts + 1] = {
 name = name, kind = kind, size = { sx, sy, sz },
 pos = { Geo.round3(x), Geo.round3(y), Geo.round3(z) },
 yaw = Geo.round3(yaw), pitch = extra.pitch or 0, color = color, material = material,
-collide = extra.collide ~= false, seg = extra.seg, shape = extra.shape, roll = extra.roll,
+collide = extra.collide ~= false, seg = extra.seg, shape = extra.shape, roll = extra.roll, wedge = extra.wedge,
 }
+end
+local function tri(parts, name, p1, p2, p3, top, thick, color, material)
+local P = { p1, p2, p3 }
+local best, bi = -1, 1
+for i = 1, 3 do
+local a, b = P[i], P[i % 3 + 1]
+local l = (a[1] - b[1]) ^ 2 + (a[2] - b[2]) ^ 2
+if l > best then best, bi = l, i end
+end
+local a, b, c = P[bi], P[bi % 3 + 1], P[(bi + 1) % 3 + 1]
+local bx, bz = b[1] - a[1], b[2] - a[2]
+local bl = math.sqrt(bx * bx + bz * bz)
+if bl < 0.05 then return end
+bx, bz = bx / bl, bz / bl
+local t = (c[1] - a[1]) * bx + (c[2] - a[2]) * bz
+local fx, fz = a[1] + bx * t, a[2] + bz * t
+local hx, hz = c[1] - fx, c[2] - fz
+local hl = math.sqrt(hx * hx + hz * hz)
+if hl < 0.03 then return end
+hx, hz = hx / hl, hz / hl
+for _, leg in ipairs({ { a, -1 }, { b, 1 } }) do -- zwei Dreiecke: Fußpunkt, Ecke der Grundseite und Spitze
+local l1 = (leg[2] < 0) and t or (bl - t)
+if l1 > 0.03 then
+local dx, dz = leg[2] * bx, leg[2] * bz -- Richtung vom Fußpunkt zur Ecke
+part(parts, name, "corner", fx + dx * l1 / 2 + hx * hl / 2, top - thick / 2, fz + dz * l1 / 2 + hz * hl / 2, thick, l1, hl, 0, color, material,
+{ wedge = { { dx, dz }, { -hx, -hz } } })
+end
+end
+end
+local function strip(parts, name, P, Q, top, thick, color, material)
+for i = 1, #P - 1 do
+tri(parts, name, P[i], P[i + 1], Q[i], top, thick, color, material)
+tri(parts, name, P[i + 1], Q[i + 1], Q[i], top, thick, color, material)
+end
 end
 local TILE, JOINT, JOINT_COLOR = 6, 0.18, { 150, 144, 136 }
 local function tileJoints(parts, cx, cz, ux, uz, len, w, top, yaw, seg)
@@ -62,12 +96,18 @@ local c = dirs[i][1] * dirs[j][1] + dirs[i][2] * dirs[j][2]
 c = math.max(-1, math.min(1, c))
 return prof.half * math.tan(math.acos(c) / 2)
 end
+local function outerSide(d1, d2) -- Außenseite der Kurve von d1 nach d2 (+1 = links der Fahrtrichtung); nil bei fast gerader Fortsetzung
+local s = d2[1] * (-d1[2]) + d2[2] * d1[1]
+if math.abs(s) < 0.14 then return nil end
+return s > 0 and -1 or 1
+end
 for i = 1, count do
 local prev = (i > 1) and i - 1 or (road.closed and count or nil)
 local nxt = (i < count) and i + 1 or (road.closed and 1 or nil)
 local a, b = pts[i], pts[(i % n) + 1]
 local extA, extB = prev and ext(prev, i) or 0, nxt and ext(i, nxt) or 0
 segs[#segs + 1] = {
+outerA = prev and outerSide(dirs[prev], dirs[i]) or nil, outerB = nxt and outerSide(dirs[i], dirs[nxt]) or nil, nextDir = nxt and dirs[nxt] or nil,
 id = #segs + 1, road = road, prof = prof, ax = a[1], az = a[2], ux = dirs[i][1], uz = dirs[i][2], len = dirs[i][3],
 extA = extA, extB = extB, rect = Geo.rect(a[1], a[2], b[1], b[2], prof.half, extA, extB),
 cutRect = prof.core and Geo.rect(a[1], a[2], b[1], b[2], prof.core, extA, extB) or nil,
@@ -121,28 +161,28 @@ return { o = o, ob = ob, rho = rho, R = R, phi0 = phi0, dphi = dphi, psi0 = psi0
 end
 local A, B = path(arm.d0, K.r0, rho0, oa), path(arm.d1, K.r1, rho1, oa1)
 local bEnd = math.max(cb + A.R * math.sin(A.psi0), cb + B.R * math.sin(B.psi0)) + 4.5
-local function pts(P, aStart)
-local straight = { { aStart, P.d }, { P.o, P.d } }
-local arc, ring = {}, {}
-for i = 0, 18 do
-local f = P.phi0 + P.dphi * i / 18
-arc[#arc + 1] = { P.o + P.rho * math.cos(f), P.ob + P.rho * math.sin(f) }
+local function pts(P, aStart) -- Linienzug in Weltkoordinaten: Start auf der Geraden, Rundung, Kreisbogen des Kreisel-Gehwegs
+local line, arc = { { world(aStart, P.d) } }, {}
+for i = 0, 9 do
+local f = P.phi0 + P.dphi * i / 9
+local x, z = world(P.o + P.rho * math.cos(f), P.ob + P.rho * math.sin(f))
+line[#line + 1] = { x, z }
+arc[#arc + 1] = { x, z }
 end
 local psiE = math.asin(math.min(0.999, (bEnd - cb) / P.R))
-for i = 0, 14 do
-local f = P.psi0 + (psiE - P.psi0) * i / 14
-ring[#ring + 1] = { ca + P.R * math.cos(f), cb + P.R * math.sin(f) }
+for i = 1, 9 do
+local f = P.psi0 + (psiE - P.psi0) * i / 9
+local x, z = world(ca + P.R * math.cos(f), cb + P.R * math.sin(f))
+line[#line + 1] = { x, z }
 end
-return straight, arc, ring
+return line, arc
 end
 local aStart = arm.cut and (math.max(oa, oa1) + 2) or 1
-local sA, aA, rA = pts(A, aStart)
-local sB, aB, rB = pts(B, aStart)
+local lineA, arcA = pts(A, aStart)
+local lineB = pts(B, aStart)
 local aP = ca + math.sqrt(K.r0 ^ 2 - (arm.d0 - cb) ^ 2) -- Scheitel der Straßenecke (Gerade trifft Kreis)
-out[#out + 1] = {
-arm = arm, side = side, ux = ux, uz = uz, sx = sx, sz = sz, aStart = aStart, world = world,
-stages = { { sA, sB }, { aA, aB }, { rA, rB } }, apex = { aP, arm.d0 }, apexArc = aA,
-}
+local ax, az = world(aP, arm.d0)
+out[#out + 1] = { arm = arm, side = side, ux = ux, uz = uz, sx = sx, sz = sz, aStart = aStart, world = world, P = lineA, Q = lineB, apex = { ax, az }, apexArc = arcA }
 end
 end
 return out
@@ -188,6 +228,9 @@ local cuts = {}
 local lift = (kind == "road") and LEVEL_STEP * level[seg.id] or (kind == "plaza" and PLAZA_LIFT or 0)
 if CUT[kind] then cuts = crossCuts(segs, seg, sx, sz, L, 0.05) end
 if kind == "walk" then
+local so = mid > 0 and 1 or -1
+if seg.outerA == so then cuts[#cuts + 1] = { -1, seg.extA } end -- Außenseite von Knicken: Gehweg endet am Knickpunkt, eine Rundung schließt an
+if seg.outerB == so then cuts[#cuts + 1] = { L - seg.extB, L + 1 } end
 for _, k in ipairs(curves) do
 if k.arm.cut and k.arm.road == seg.road.name and (nx * k.sx + nz * k.sz) * mid > 0 and math.abs(math.abs(mid) - (k.arm.d0 + k.arm.d1) / 2) < 0.5 then
 local qx, qz = k.world(k.aStart, 0)
@@ -224,30 +267,9 @@ end
 end
 stats.curves = #curves
 for _, k in ipairs(curves) do
-local function wp(p) local x, z = k.world(p[1], p[2]) return { x, z } end
-local function quad(name, kind, p, q, p2, q2, top, thick, color, mat, grow) -- Rechteck zwischen den Linien p-q und p2-q2
-local mx, mz = (p[1] + q[1] + p2[1] + q2[1]) / 4, (p[2] + q[2] + p2[2] + q2[2]) / 4
-local dx, dz = (q[1] - p[1] + q2[1] - p2[1]) / 2, (q[2] - p[2] + q2[2] - p2[2]) / 2
-local len = math.sqrt(dx * dx + dz * dz)
-if len < 0.05 then return end
-dx, dz = dx / len, dz / len
-local wx, wz = (p2[1] + q2[1] - p[1] - q[1]) / 2, (p2[2] + q2[2] - p[2] - q[2]) / 2
-part(parts, name, kind, mx, top - thick / 2, mz, len + grow, thick, math.sqrt(wx * wx + wz * wz) + grow, Geo.yawOf(dx, dz), color, mat, {})
-end
-for _, st in ipairs(k.stages) do
-local A, B = st[1], st[2]
-for i = 1, #A - 1 do
-quad("GehwegKurve", "walk", wp(A[i]), wp(B[i]), wp(A[i + 1]), wp(B[i + 1]), TOP.walk, THICK.walk, COLOR.walk, MATERIAL.walk, 0.5)
-end
-end
-local ap, arc = wp(k.apex), k.apexArc
-for i = 1, #arc - 1 do -- Asphalt: Fächer vom Scheitel der Straßenecke zum Bogen der Bordsteinrundung
-local p, q = wp(arc[i]), wp(arc[i + 1])
-local m = { (p[1] + q[1]) / 2, (p[2] + q[2]) / 2 }
-local dx, dz = m[1] - ap[1], m[2] - ap[2]
-local len = math.sqrt(dx * dx + dz * dz)
-local w = math.sqrt((q[1] - p[1]) ^ 2 + (q[2] - p[2]) ^ 2) + 0.6
-part(parts, "KreiselEckAsphalt", "corner", (ap[1] + m[1]) / 2, 0.52 - 0.5, (ap[2] + m[2]) / 2, len, 1, w, Geo.yawOf(dx, dz), COLOR.road, MATERIAL.road, {})
+strip(parts, "GehwegKurve", k.P, k.Q, TOP.walk, THICK.walk, COLOR.walk, MATERIAL.walk)
+for i = 1, #k.apexArc - 1 do -- Asphalt: Fächer vom Scheitel der Straßenecke zur Bordsteinrundung
+tri(parts, "EckAsphalt", k.apex, k.apexArc[i], k.apexArc[i + 1], 0.52, 1, COLOR.road, MATERIAL.road)
 end
 end
 local RAMP = 2.5
@@ -280,10 +302,42 @@ end
 end
 stats.bays = stats.bays + n
 end
-local function walkSide(seg, dirx, dirz) -- Gehwegstreifen von seg auf der Seite der Richtung (dirx, dirz): Abstände (innen, außen) zur Mittellinie
-local sideSign = ((-seg.uz) * dirx + seg.ux * dirz) > 0 and 1 or -1
+stats.bends = 0
+for _, seg in ipairs(segs) do
+local so = seg.outerB
+if so and seg.nextDir then
+local vx, vz = seg.ax + seg.ux * seg.len, seg.az + seg.uz * seg.len
+local a0 = math.atan2(so * seg.ux, -so * seg.uz)
+local a1 = math.atan2(so * seg.nextDir[1], -so * seg.nextDir[2])
+local d = (a1 - a0 + math.pi) % (2 * math.pi) - math.pi
+local n = math.max(1, math.ceil(math.abs(d) / (math.pi / 12)))
 for _, st in ipairs(seg.prof.strips) do
-if st[3] == "walk" and st[1] * sideSign > 0 and st[2] * sideSign > 0 then return math.min(math.abs(st[1]), math.abs(st[2])), math.max(math.abs(st[1]), math.abs(st[2])) end
+if st[3] == "walk" and st[1] * so > 0 and st[2] * so > 0 then
+local r0, r1 = math.min(math.abs(st[1]), math.abs(st[2])), math.max(math.abs(st[1]), math.abs(st[2]))
+local P, Q = {}, {}
+for i = 0, n do
+local f = a0 + d * i / n
+P[#P + 1] = { vx + r0 * math.cos(f), vz + r0 * math.sin(f) }
+Q[#Q + 1] = { vx + r1 * math.cos(f), vz + r1 * math.sin(f) }
+end
+strip(parts, "GehwegKurve", P, Q, TOP.walk, THICK.walk, COLOR.walk, MATERIAL.walk)
+stats.bends = stats.bends + 1
+end
+end
+end
+end
+local CURB = 10
+local function walkSide(seg, dirx, dirz) -- Gehwegstreifen von seg auf der Seite der Richtung (dirx, dirz): Abstände (innen, außen) zur Mittellinie; nur direkt an der Fahrbahn
+local sideSign = ((-seg.uz) * dirx + seg.ux * dirz) > 0 and 1 or -1
+local edge = 0
+for _, st in ipairs(seg.prof.strips) do
+if st[3] == "road" and (st[1] * sideSign >= -0.01 or st[2] * sideSign >= -0.01) then edge = math.max(edge, st[1] * sideSign, st[2] * sideSign) end
+end
+for _, st in ipairs(seg.prof.strips) do
+if st[3] == "walk" and st[1] * sideSign > 0 and st[2] * sideSign > 0 then
+local d0, d1 = math.min(math.abs(st[1]), math.abs(st[2])), math.max(math.abs(st[1]), math.abs(st[2]))
+if math.abs(d0 - edge) < 0.01 then return d0, d1 end
+end
 end
 end
 local function inRect(r, x, z)
@@ -291,42 +345,81 @@ local dx, dz = x - r.ax, z - r.az
 local u, v = dx * r.ux + dz * r.uz, dx * r.nx + dz * r.nz
 return u > r.s0 and u < r.s1 and math.abs(v) < r.w
 end
+local function isect(px, pz, dx, dz, qx, qz, ex, ez) -- p + t d = q + s e: liefert t
+local det = -dx * ez + ex * dz
+if math.abs(det) < 1e-6 then return nil end
+return ((qx - px) * (-ez) + ex * (qz - pz)) / det
+end
+local function cornerPaths(px, pz, ea, eb, da0, da1, db0, db1)
+local sinT = math.abs(ea[1] * eb[2] - ea[2] * eb[1])
+if sinT < 0.35 then return nil end
+local nA = { -ea[2], ea[1] }
+if nA[1] * eb[1] + nA[2] * eb[2] < 0 then nA = { ea[2], -ea[1] } end
+local nB = { -eb[2], eb[1] }
+if nB[1] * ea[1] + nB[2] * ea[2] < 0 then nB = { eb[2], -eb[1] } end
+local function off(da, db) -- Schnitt der Linien im Abstand da von A und db von B
+local t = isect(px + nA[1] * da, pz + nA[2] * da, ea[1], ea[2], px + nB[1] * db, pz + nB[2] * db, eb[1], eb[2])
+return px + nA[1] * da + ea[1] * t, pz + nA[2] * da + ea[2] * t
+end
+local rho0 = CURB
+local rho1 = rho0 * 0.6
+local c0x, c0z = off(da0 + rho0, db0 + rho0)
+local c1x, c1z = off(da1 + rho1, db1 + rho1)
+local apx, apz = off(da0, db0)
+local function along(x, z, e) return (x - px) * e[1] + (z - pz) * e[2] end
+local cosT = ea[1] * eb[1] + ea[2] * eb[2]
+local tanDev = math.min(3, math.abs(cosT) / sinT)
+local dmA, dmB = (da0 + da1) / 2, (db0 + db1) / 2
+local nn = nA[1] * nB[1] + nA[2] * nB[2]
+local t0A = (db1 - dmA * nn) / (ea[1] * nB[1] + ea[2] * nB[2]) -- hier endet der Gehweg von A (Straßenrechteck von B)
+local t0B = (da1 - dmB * nn) / (eb[1] * nA[1] + eb[2] * nA[2])
+local tsA = math.max(t0A + 1 + (da1 - da0) / 2 * tanDev, along(c0x, c0z, ea) + 1, along(c1x, c1z, ea) + 1)
+local tsB = math.max(t0B + 1 + (db1 - db0) / 2 * tanDev, along(c0x, c0z, eb) + 1, along(c1x, c1z, eb) + 1)
+local a0, a1 = math.atan2(-nA[2], -nA[1]), math.atan2(-nB[2], -nB[1])
+local d = (a1 - a0 + math.pi) % (2 * math.pi) - math.pi
+local n = math.max(4, math.ceil(math.abs(d) / (math.pi / 12)))
+local P = { { px + nA[1] * da0 + ea[1] * tsA, pz + nA[2] * da0 + ea[2] * tsA } }
+local Q = { { px + nA[1] * da1 + ea[1] * tsA, pz + nA[2] * da1 + ea[2] * tsA } }
+local arc = {}
+for i = 0, n do
+local f = a0 + d * i / n
+arc[#arc + 1] = { c0x + rho0 * math.cos(f), c0z + rho0 * math.sin(f) }
+P[#P + 1] = arc[#arc]
+Q[#Q + 1] = { c1x + rho1 * math.cos(f), c1z + rho1 * math.sin(f) }
+end
+P[#P + 1] = { px + nB[1] * db0 + eb[1] * tsB, pz + nB[2] * db0 + eb[2] * tsB }
+Q[#Q + 1] = { px + nB[1] * db1 + eb[1] * tsB, pz + nB[2] * db1 + eb[2] * tsB }
+return P, Q, { apx, apz }, arc, c0x, c0z
+end
 stats.corners = 0
+stats.skips = {}
 for i = 1, #segs do
 for j = i + 1, #segs do
 local A, B = segs[i], segs[j]
-if A.road ~= B.road and math.abs(A.ux * B.ux + A.uz * B.uz) < 0.05 then
-local dx, dz = B.ax - A.ax, B.az - A.az
-local ta, tb = dx * A.ux + dz * A.uz, -(dx * B.ux + dz * B.uz) -- Schnittpunkt der Mittellinien (Straßen stehen senkrecht)
-if ta > -0.5 and ta < A.len + 0.5 and tb > -0.5 and tb < B.len + 0.5 then
+if A.road ~= B.road and not A.prof.core and not B.prof.core then
+local ta = isect(A.ax, A.az, A.ux, A.uz, B.ax, B.az, B.ux, B.uz)
+local tb = isect(B.ax, B.az, B.ux, B.uz, A.ax, A.az, A.ux, A.uz)
+if ta and tb and ta > -0.5 and ta < A.len + 0.5 and tb > -0.5 and tb < B.len + 0.5 then
 local px, pz = A.ax + A.ux * ta, A.az + A.uz * ta
 for _, sa in ipairs({ -1, 1 }) do
 for _, sb in ipairs({ -1, 1 }) do
-local ea = { sa * A.ux, sa * A.uz }
-local eb = { sb * B.ux, sb * B.uz }
+local ea, eb = { sa * A.ux, sa * A.uz }, { sb * B.ux, sb * B.uz }
 local da0, da1 = walkSide(A, eb[1], eb[2]) -- Gehweg von A auf der Seite von B
 local db0, db1 = walkSide(B, ea[1], ea[2])
 if da0 and db0 then
 local extA = (sa > 0) and (A.len - ta) or ta
 local extB = (sb > 0) and (B.len - tb) or tb
-local qx = px + ea[1] * (db0 + db1) / 2 + eb[1] * (da0 + da1) / 2
-local qz = pz + ea[2] * (db0 + db1) / 2 + eb[2] * (da0 + da1) / 2
-local free = extA >= db1 - 0.5 and extB >= da1 - 0.5
+local P, Q, apex, arc, cx, cz
+if extA >= db1 - 0.5 and extB >= da1 - 0.5 then P, Q, apex, arc, cx, cz = cornerPaths(px, pz, ea, eb, da0, da1, db0, db1) end
+local free = P ~= nil
+local why = P == nil and (extA >= db1 - 0.5 and extB >= da1 - 0.5 and "Winkel" or "kurz") or nil
 for _, C in ipairs(segs) do
-if free and C.road ~= A.road and C.road ~= B.road and inRect(C.rect, qx, qz) then free = false end
+if free and C.road ~= A.road and C.road ~= B.road and inRect(C.rect, cx, cz) then free = false why = "belegt " .. C.road.name end
 end
+if why then stats.skips[#stats.skips + 1] = { A.road.name, B.road.name, px, pz, why } end
 if free then
-local R = math.min(5, (db1 - db0) / 2, (da1 - da0) / 2)
-local function at(u, v) return px + ea[1] * u + eb[1] * v, pz + ea[2] * u + eb[2] * v end
-local yaw = Geo.yawOf(A.ux, A.uz)
-local x1, z1 = at((db0 + R + db1) / 2, (da0 + da1) / 2)
-part(parts, "GehwegEcke", "corner", x1, 0, z1, db1 - db0 - R, 2, da1 - da0, yaw, COLOR.walk, MATERIAL.walk, { seg = A.id })
-local x2, z2 = at(db0 + R / 2, (da0 + R + da1) / 2)
-part(parts, "GehwegEcke", "corner", x2, 0, z2, R, 2, da1 - da0 - R, yaw, COLOR.walk, MATERIAL.walk, { seg = A.id })
-local x3, z3 = at(db0 + R, da0 + R)
-part(parts, "GehwegEckeRund", "corner", x3, 0, z3, 2, 2 * R, 2 * R, 0, COLOR.walk, MATERIAL.walk, { seg = A.id, shape = "Cylinder", roll = 90 })
-local x4, z4 = at(db0 + R / 2, da0 + R / 2) -- Asphalt in der Rundung (zwischen Scheibe und Straßenecke), sonst blitzt der Boden durch
-part(parts, "EckAsphalt", "corner", x4, 0, z4, R, 1, R, yaw, COLOR.road, MATERIAL.road, { seg = A.id })
+strip(parts, "GehwegKurve", P, Q, TOP.walk, THICK.walk, COLOR.walk, MATERIAL.walk)
+for k = 1, #arc - 1 do tri(parts, "EckAsphalt", apex, arc[k], arc[k + 1], 0.52, 1, COLOR.road, MATERIAL.road) end
 stats.corners = stats.corners + 1
 end
 end

@@ -176,14 +176,11 @@ local STEPS = {
 		Builder.buildParts(list, folder, origin)
 		return string.format("%d alte Teile entfernt, %d neu", removed, #list)
 	end,
-	kreiselwege = function(opts, origin) -- Gehwege und Einmündungskurven am Siegestor-Kreisel neu (weiche S-Kurven); übrige Straßenteile bleiben
+	kreiselwege = function(opts, origin) -- alle Gehwege, Eckrundungen und der Siegestor-Kreisel neu; Fahrbahnen und übrige Straßenteile bleiben
 		local folder = game:GetService("Workspace"):FindFirstChild("Map").Strassen
-		local set = { AchseNord = true, ZulaufNord = true, ZulaufSued = true, AchseSued = true, SiegestorKreisel = true, H2 = true, Diagonale = true }
 		local CORNER = { GehwegEcke = true, GehwegEckeRund = true, EckAsphalt = true }
-		local function nah(x, z) return x * x + z * z < 130 * 130 end
 		local function mine(name, x, z)
-			local road = name:match("^(%w+)_%d+_walk$")
-			return (road and set[road]) or name == "GehwegKurve" or name == "KreiselEckAsphalt" or (CORNER[name] and nah(x, z))
+			return name:match("^%w+_%d+_walk$") or name:match("^SiegestorKreisel_") or name == "GehwegKurve" or name == "KreiselEckAsphalt" or CORNER[name]
 		end
 		local removed = 0
 		for _, c in ipairs(folder:GetChildren()) do
