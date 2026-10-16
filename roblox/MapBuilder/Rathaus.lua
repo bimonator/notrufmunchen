@@ -79,7 +79,7 @@ function Rathaus.plan(cfg)
 		local u = sd * (W / 2 - 3)
 		vcyl("Ecktuermchen", u, y0 + 38.5, 1, 47, 8, STONE, "Concrete", { collide = true })
 		for _, yy in ipairs({ 27, 50 }) do vcyl("EcktuermchenBand", u, y0 + yy, 1, 1, 9, LIGHT, "Concrete") end
-		for k = 0, 9 do vcyl("EcktuermchenHelm", u, y0 + 62.5 + k * 1.5, 1, 1.8, 8.4 * (1 - k / 10) + 0.6, ROOF, "Slate") end
+		for _, s in ipairs(Geo.lathe(13.5, function(h) return 8.4 * (1 - h / 15) + 0.6 end, 0.3, 0.5)) do vcyl("EcktuermchenHelm", u, y0 + 62.5 + s.y, 1, s.dick, s.d, ROOF, "Slate") end
 		add("EcktuermchenKugel", u, y0 + 77.5, 1, 1.4, 1.4, 1.4, GOLD, "Metal", { shape = "Ball" })
 		for k = 0, 2 do pointed("EcktuermchenFenster", u + sd * 0, y0 + 30 + k * 10, 5.1, 2, 5, GLASS, "Glass", nil, { kind = "glass" }) end
 	end
@@ -160,7 +160,7 @@ function Rathaus.plan(cfg)
 	end
 	for _, sd in ipairs({ -1, 1 }) do pointed("Schallloch", sd * 9.15, y0 + 76, TV, 3.4, 12, DARK, "SmoothPlastic", true) end
 	add("Kranz", 0, y0 + 93.4, TV, 20, 1, 14, LIGHT, "Concrete")
-	for k = 0, 15 do vcyl("Turmhelm", 0, y0 + 95 + k * 1.9, TV, 2.2, 15 * (1 - k / 16) ^ 1.2 + 1, ROOF, "Slate") end
+	for _, s in ipairs(Geo.lathe(28.5, function(h) return 15 * (1 - h / 30.4) ^ 1.2 + 1 end, 0.3, 0.5)) do vcyl("Turmhelm", 0, y0 + 95 + s.y, TV, s.dick, s.d, ROOF, "Slate") end
 	vcyl("Kindl", 0, y0 + 127, TV, 2.4, 1.2, GOLD, "Metal")
 	add("KindlKopf", 0, y0 + 128.8, TV, 1, 1, 1, GOLD, "Metal", { shape = "Ball" })
 	return parts

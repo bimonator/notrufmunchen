@@ -547,7 +547,7 @@ do
 	local mp = Config.marienplatz
 	check(minX >= mp.plaza.x0 - 8 and maxX <= mp.rathaus.x0 - 5 and minZ >= 58.5 and maxZ <= mp.ubahn.z1 + 40, "Frauenkirche liegt nicht im Nordwesten des Marienplatzes: " .. minX .. ".." .. maxX .. ", " .. minZ .. ".." .. maxZ)
 	check(count(fk, "Lisene") == 16 and count(fk, "Masswerkfries") == 16 and count(fk, "Turmspitzfenster") == 64 and count(fk, "Wimperg") == 1 and count(fk, "Westfenster") == 2, "Frauenkirche: Turmdetails/Portal unvollständig")
-	check(count(fk, "Kuppel") == 2 and count(fk, "KuppelRing") == 54 and count(fk, "Uhr") == 4 and count(fk, "Dach") == 2, "Frauenkirche: Hauben/Uhren/Dach")
+	check(count(fk, "Kuppel") == 2 and count(fk, "KuppelRing") > 2 * 100 and count(fk, "Uhr") == 4 and count(fk, "Dach") == 2, "Frauenkirche: Hauben/Uhren/Dach")
 	check(count(fk, "Uhrzeiger") == 8 and count(fk, "Uhrstrich") == 48 and count(fk, "Uhrziffer") == 16, "Frauenkirche: Ziffernblätter unvollständig")
 	check(count(fk, "Gaube") == 20 and count(fk, "Schallloch") == 8, "Frauenkirche: Gauben/Schalllöcher")
 	check(count(fk, "Fenster") >= 28, "Frauenkirche: Fenster " .. count(fk, "Fenster"))

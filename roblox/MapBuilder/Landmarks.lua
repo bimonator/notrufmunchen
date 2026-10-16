@@ -392,16 +392,14 @@ end
 -- darauf Laterne, kleine Kappe, Spitze und Kreuz. Der Bauch ist die Scheibe "Kuppel", alle anderen heißen "KuppelRing".
 local function onion(add, x, y, z, color)
 	local GOLD = { 214, 176, 70 }
-	local H, N = 43, 27
+	local H = 43
 	local function radius(h)
 		if h <= 11 then return 19 + 10 * math.sin(math.pi / 2 * h / 11) end
 		local u = (h - 11) / (H - 11)
 		return 3 + 26 * math.cos(math.pi / 2 * u) ^ 2.2
 	end
-	for i = 0, N do
-		local h = H * i / N
-		local d = 2 * radius(h)
-		add(i == 7 and "Kuppel" or "KuppelRing", x, y + 1 + h, z, H / N + 0.5, d, d, color, "Metal", { shape = "Cylinder", roll = 90, collide = true })
+	for _, s in ipairs(Geo.lathe(H, function(h) return 2 * radius(h) end, 0.3, 0.5)) do
+		add(s.h0 <= 11 and 11 < s.h1 and "Kuppel" or "KuppelRing", x, y + 1 + s.y, z, s.dick, s.d, s.d, color, "Metal", { shape = "Cylinder", roll = 90, collide = true })
 	end
 	add("Laterne", x, y + 49, z, 10, 8, 8, color, "Metal", { shape = "Cylinder", roll = 90, collide = true })
 	add("Laternenkappe", x, y + 56, z, 8, 8, 8, color, "Metal", { shape = "Ball", collide = false })
@@ -466,8 +464,10 @@ function Landmarks.frauenkirche(cfg)
 	end
 	add("First", 0, yb + wallH + rise + 3, 0, len + 6, 1.6, 3, { 170, 70, 40 }, "Slate")
 	local steps = 12
-	for k = 1, steps do
-		add("Giebel", len / 2 - 0.8, yb + wallH + (k - 0.5) * rise / steps + 2, 0, 1.6, rise / steps, 2 * hw * (1 - (k - 1) / steps), BRICK, "Brick", { collide = true })
+	for k = 1, steps do -- Giebelstufen an beiden Enden (im Westen steht davor die Turmfront mit Portal und Westfenster)
+		for _, ex in ipairs({ -1, 1 }) do
+			add("Giebel", ex * (len / 2 - 0.8), yb + wallH + (k - 0.5) * rise / steps + 2, 0, 1.6, rise / steps, 2 * hw * (1 - (k - 1) / steps), BRICK, "Brick", { collide = true })
+		end
 	end
 	add("Chorrosette", len / 2 + 0.2, yb + wallH + 22, 0, 0.6, 18, 18, { 70, 86, 110 }, "Glass", { shape = "Cylinder", collide = false, kind = "glass" })
 	-- Türme: je 48 breit, Untergeschoss aus Backstein, Glockengeschoss etwas schmaler mit Schallöffnungen, Achteck, Zwiebelhaube

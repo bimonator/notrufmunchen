@@ -14,6 +14,16 @@ end
 function Geo.yawOf(ux, uz)
 return math.deg(math.atan2(-uz, ux)) % 360
 end
+function Geo.lathe(H, diam, dd, dhMax)
+local out, h = {}, 0
+while h < H - 1e-6 do
+local step = math.min(dhMax, H - h)
+while step > 0.02 and math.abs(diam(h + step) - diam(h)) > dd do step = step * 0.8 end
+out[#out + 1] = { y = h + step / 2, dick = step + 0.3, d = diam(h + step / 2), h0 = h, h1 = h + step }
+h = h + step
+end
+return out
+end
 function Geo.rect(ax, az, bx, bz, hw, extA, extB)
 local ux, uz, l = Geo.dir(ax, az, bx, bz)
 return { ax = ax, az = az, ux = ux, uz = uz, nx = -uz, nz = ux, s0 = -extA, s1 = l + extB, w = hw }
@@ -314,6 +324,7 @@ return C
 
 end)()
 local Planner = (function()
+local Geo = Geo
 local Planner = {}
 Planner.DEFAULTS = {
 depth = 28, -- Gebäudetiefe
@@ -444,10 +455,8 @@ box("Fiale", "trim", sd * 7.4, y0 + 85, dz, 8, 1.8, 1.8, STONE, "Concrete", { sh
 box("FialeKopf", "trim", sd * 7.4, y0 + 89.6, dz, 2.4, 2.4, 2.4, COPPER, "Metal", { shape = "Ball" })
 end
 end
-for i = 0, 17 do -- Turmhelm: 18 überlappende Scheiben, Kegel mit geschwungener Spitze
-local t = i / 17
-local d = 13.8 * (1 - t) ^ 1.15 + 1.1
-box("Turmhelm", "roof", 0, y0 + 81.8 + t * 40, 9, 2.6, d, d, COPPER, "Metal", { shape = "Cylinder", roll = 90 })
+for _, s in ipairs(Geo.lathe(40, function(h) return 13.8 * (1 - h / 40) ^ 1.15 + 1.1 end, 0.3, 0.5)) do -- Turmhelm: feine Scheiben, Kegel mit geschwungener Spitze ohne sichtbare Stufen
+box("Turmhelm", "roof", 0, y0 + 81.8 + s.y, 9, s.dick, s.d, s.d, COPPER, "Metal", { shape = "Cylinder", roll = 90 })
 end
 box("Turmkugel", "trim", 0, y0 + 123.4, 9, 2.4, 2.4, 2.4, GOLD, "Metal", { shape = "Ball" })
 box("Turmkreuz", "trim", 0, y0 + 127, 9, 0.8, 6, 0.8, GOLD, "Metal")

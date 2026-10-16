@@ -19,6 +19,20 @@ function Geo.yawOf(ux, uz)
 	return math.deg(math.atan2(-uz, ux)) % 360
 end
 
+-- Drehkörper (Kuppel, Turmhelm) als Folge dünner, stehender Scheiben von h = 0 bis H; diam(h) = Durchmesser in der Höhe h.
+-- Der Schritt ist so fein, dass sich der Durchmesser zwischen zwei Scheiben um höchstens dd ändert (keine sichtbaren Stufen), in der Höhe um höchstens dhMax.
+-- Liefert { { y = Mitte, dick = Dicke (0,3 Überlappung), d = Durchmesser, h0 = Unterkante, h1 = Oberkante }, ... }
+function Geo.lathe(H, diam, dd, dhMax)
+	local out, h = {}, 0
+	while h < H - 1e-6 do
+		local step = math.min(dhMax, H - h)
+		while step > 0.02 and math.abs(diam(h + step) - diam(h)) > dd do step = step * 0.8 end
+		out[#out + 1] = { y = h + step / 2, dick = step + 0.3, d = diam(h + step / 2), h0 = h, h1 = h + step }
+		h = h + step
+	end
+	return out
+end
+
 -- Rechteck um eine Strecke a-b mit Halbbreite hw; extA/extB verlängern an den Enden
 function Geo.rect(ax, az, bx, bz, hw, extA, extB)
 	local ux, uz, l = Geo.dir(ax, az, bx, bz)

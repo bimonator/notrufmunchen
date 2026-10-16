@@ -4,6 +4,8 @@
 -- Lokales Haus-System: x läuft entlang der Fassade, z zeigt von der Fassade in den Block hinein, y nach oben.
 -- Alles, was vor der Wand liegt (Fenster, Gesimse, Balkone), hat lokal z < 0.
 
+local Geo = require(script and script.Parent.Geo or "Geo")
+
 local Planner = {}
 
 Planner.DEFAULTS = {
@@ -151,10 +153,8 @@ local function planChurch(h, o)
 			box("FialeKopf", "trim", sd * 7.4, y0 + 89.6, dz, 2.4, 2.4, 2.4, COPPER, "Metal", { shape = "Ball" })
 		end
 	end
-	for i = 0, 17 do -- Turmhelm: 18 überlappende Scheiben, Kegel mit geschwungener Spitze
-		local t = i / 17
-		local d = 13.8 * (1 - t) ^ 1.15 + 1.1
-		box("Turmhelm", "roof", 0, y0 + 81.8 + t * 40, 9, 2.6, d, d, COPPER, "Metal", { shape = "Cylinder", roll = 90 })
+	for _, s in ipairs(Geo.lathe(40, function(h) return 13.8 * (1 - h / 40) ^ 1.15 + 1.1 end, 0.3, 0.5)) do -- Turmhelm: feine Scheiben, Kegel mit geschwungener Spitze ohne sichtbare Stufen
+		box("Turmhelm", "roof", 0, y0 + 81.8 + s.y, 9, s.dick, s.d, s.d, COPPER, "Metal", { shape = "Cylinder", roll = 90 })
 	end
 	box("Turmkugel", "trim", 0, y0 + 123.4, 9, 2.4, 2.4, 2.4, GOLD, "Metal", { shape = "Ball" })
 	box("Turmkreuz", "trim", 0, y0 + 127, 9, 0.8, 6, 0.8, GOLD, "Metal")

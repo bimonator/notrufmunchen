@@ -58,6 +58,16 @@ end
 function Geo.yawOf(ux, uz)
 return math.deg(math.atan2(-uz, ux)) % 360
 end
+function Geo.lathe(H, diam, dd, dhMax)
+local out, h = {}, 0
+while h < H - 1e-6 do
+local step = math.min(dhMax, H - h)
+while step > 0.02 and math.abs(diam(h + step) - diam(h)) > dd do step = step * 0.8 end
+out[#out + 1] = { y = h + step / 2, dick = step + 0.3, d = diam(h + step / 2), h0 = h, h1 = h + step }
+h = h + step
+end
+return out
+end
 function Geo.rect(ax, az, bx, bz, hw, extA, extB)
 local ux, uz, l = Geo.dir(ax, az, bx, bz)
 return { ax = ax, az = az, ux = ux, uz = uz, nx = -uz, nz = ux, s0 = -extA, s1 = l + extB, w = hw }
@@ -358,6 +368,7 @@ return C
 
 end)()
 local Planner = (function()
+local Geo = Geo
 local Planner = {}
 Planner.DEFAULTS = {
 depth = 28, -- Gebäudetiefe
@@ -488,10 +499,8 @@ box("Fiale", "trim", sd * 7.4, y0 + 85, dz, 8, 1.8, 1.8, STONE, "Concrete", { sh
 box("FialeKopf", "trim", sd * 7.4, y0 + 89.6, dz, 2.4, 2.4, 2.4, COPPER, "Metal", { shape = "Ball" })
 end
 end
-for i = 0, 17 do -- Turmhelm: 18 überlappende Scheiben, Kegel mit geschwungener Spitze
-local t = i / 17
-local d = 13.8 * (1 - t) ^ 1.15 + 1.1
-box("Turmhelm", "roof", 0, y0 + 81.8 + t * 40, 9, 2.6, d, d, COPPER, "Metal", { shape = "Cylinder", roll = 90 })
+for _, s in ipairs(Geo.lathe(40, function(h) return 13.8 * (1 - h / 40) ^ 1.15 + 1.1 end, 0.3, 0.5)) do -- Turmhelm: feine Scheiben, Kegel mit geschwungener Spitze ohne sichtbare Stufen
+box("Turmhelm", "roof", 0, y0 + 81.8 + s.y, 9, s.dick, s.d, s.d, COPPER, "Metal", { shape = "Cylinder", roll = 90 })
 end
 box("Turmkugel", "trim", 0, y0 + 123.4, 9, 2.4, 2.4, 2.4, GOLD, "Metal", { shape = "Ball" })
 box("Turmkreuz", "trim", 0, y0 + 127, 9, 0.8, 6, 0.8, GOLD, "Metal")
@@ -2736,16 +2745,14 @@ add("UhrGold", x + nx * 1.7, y, z + nz * 1.7, 1.4, 1.4, 1.4, GOLD, "Metal", { sh
 end
 local function onion(add, x, y, z, color)
 local GOLD = { 214, 176, 70 }
-local H, N = 43, 27
+local H = 43
 local function radius(h)
 if h <= 11 then return 19 + 10 * math.sin(math.pi / 2 * h / 11) end
 local u = (h - 11) / (H - 11)
 return 3 + 26 * math.cos(math.pi / 2 * u) ^ 2.2
 end
-for i = 0, N do
-local h = H * i / N
-local d = 2 * radius(h)
-add(i == 7 and "Kuppel" or "KuppelRing", x, y + 1 + h, z, H / N + 0.5, d, d, color, "Metal", { shape = "Cylinder", roll = 90, collide = true })
+for _, s in ipairs(Geo.lathe(H, function(h) return 2 * radius(h) end, 0.3, 0.5)) do
+add(s.h0 <= 11 and 11 < s.h1 and "Kuppel" or "KuppelRing", x, y + 1 + s.y, z, s.dick, s.d, s.d, color, "Metal", { shape = "Cylinder", roll = 90, collide = true })
 end
 add("Laterne", x, y + 49, z, 10, 8, 8, color, "Metal", { shape = "Cylinder", roll = 90, collide = true })
 add("Laternenkappe", x, y + 56, z, 8, 8, 8, color, "Metal", { shape = "Ball", collide = false })
@@ -2804,8 +2811,10 @@ end
 end
 add("First", 0, yb + wallH + rise + 3, 0, len + 6, 1.6, 3, { 170, 70, 40 }, "Slate")
 local steps = 12
-for k = 1, steps do
-add("Giebel", len / 2 - 0.8, yb + wallH + (k - 0.5) * rise / steps + 2, 0, 1.6, rise / steps, 2 * hw * (1 - (k - 1) / steps), BRICK, "Brick", { collide = true })
+for k = 1, steps do -- Giebelstufen an beiden Enden (im Westen steht davor die Turmfront mit Portal und Westfenster)
+for _, ex in ipairs({ -1, 1 }) do
+add("Giebel", ex * (len / 2 - 0.8), yb + wallH + (k - 0.5) * rise / steps + 2, 0, 1.6, rise / steps, 2 * hw * (1 - (k - 1) / steps), BRICK, "Brick", { collide = true })
+end
 end
 add("Chorrosette", len / 2 + 0.2, yb + wallH + 22, 0, 0.6, 18, 18, { 70, 86, 110 }, "Glass", { shape = "Cylinder", collide = false, kind = "glass" })
 local tw, tx = 48, -len / 2 + 24
@@ -3018,7 +3027,7 @@ for _, sd in ipairs({ -1, 1 }) do
 local u = sd * (W / 2 - 3)
 vcyl("Ecktuermchen", u, y0 + 38.5, 1, 47, 8, STONE, "Concrete", { collide = true })
 for _, yy in ipairs({ 27, 50 }) do vcyl("EcktuermchenBand", u, y0 + yy, 1, 1, 9, LIGHT, "Concrete") end
-for k = 0, 9 do vcyl("EcktuermchenHelm", u, y0 + 62.5 + k * 1.5, 1, 1.8, 8.4 * (1 - k / 10) + 0.6, ROOF, "Slate") end
+for _, s in ipairs(Geo.lathe(13.5, function(h) return 8.4 * (1 - h / 15) + 0.6 end, 0.3, 0.5)) do vcyl("EcktuermchenHelm", u, y0 + 62.5 + s.y, 1, s.dick, s.d, ROOF, "Slate") end
 add("EcktuermchenKugel", u, y0 + 77.5, 1, 1.4, 1.4, 1.4, GOLD, "Metal", { shape = "Ball" })
 for k = 0, 2 do pointed("EcktuermchenFenster", u + sd * 0, y0 + 30 + k * 10, 5.1, 2, 5, GLASS, "Glass", nil, { kind = "glass" }) end
 end
@@ -3095,7 +3104,7 @@ pointed("Schallloch", o, y0 + 76, TV - 6.15, 3.4, 12, DARK, "SmoothPlastic")
 end
 for _, sd in ipairs({ -1, 1 }) do pointed("Schallloch", sd * 9.15, y0 + 76, TV, 3.4, 12, DARK, "SmoothPlastic", true) end
 add("Kranz", 0, y0 + 93.4, TV, 20, 1, 14, LIGHT, "Concrete")
-for k = 0, 15 do vcyl("Turmhelm", 0, y0 + 95 + k * 1.9, TV, 2.2, 15 * (1 - k / 16) ^ 1.2 + 1, ROOF, "Slate") end
+for _, s in ipairs(Geo.lathe(28.5, function(h) return 15 * (1 - h / 30.4) ^ 1.2 + 1 end, 0.3, 0.5)) do vcyl("Turmhelm", 0, y0 + 95 + s.y, TV, s.dick, s.d, ROOF, "Slate") end
 vcyl("Kindl", 0, y0 + 127, TV, 2.4, 1.2, GOLD, "Metal")
 add("KindlKopf", 0, y0 + 128.8, TV, 1, 1, 1, GOLD, "Metal", { shape = "Ball" })
 return parts
@@ -3460,16 +3469,9 @@ for _, lz in ipairs({ -10, 0, 10 }) do put("TurmFensterStirn", "glass", endSide 
 end
 end
 for _, lx in ipairs({ -8, 0, 8 }) do put("TurmEG", "glass", lx, Y0 + 6, -D / 2 - 0.15, 5.6, 8, 0.3, GLASS, "Glass", { tag = "HouseWindow", lit = true }) end
-local layers, rise = 8, 10
-for i = 0, layers - 1 do
-local t = i / layers
-put("Walmdach", "roof", 0, Y0 + Ht + 0.8 + (i + 0.5) * rise / layers, 0, Wt * (1 - 0.92 * t) + 1.4, rise / layers + 0.05, D - (Wt * 0.92) * t + 0.8, ROOF, "Metal")
-end
-put("Turmkugel", "roof", 0, Y0 + Ht + rise + 2, 0, 2.2, 2.2, 2.2, { 226, 184, 72 }, "Metal", { shape = "Ball" })
-for _, lx in ipairs({ -5, 5 }) do -- Dachfenster im Walmdach
-put("TurmGaube", "body", lx, Y0 + Ht + 3, -D / 2 + 6, 3.4, 3.2, 2.4, SAND2, "SmoothPlastic")
-put("TurmGaubeDach", "roof", lx, Y0 + Ht + 4.9, -D / 2 + 6, 4, 0.5, 3, ROOF, "Metal")
-end
+local rise = 10
+put("Rundach", "roof", 0, Y0 + Ht, 0, D, 2 * rise, Wt, ROOF, "Metal", { shape = "Cylinder", yaw = 90 })
+put("Turmkugel", "roof", 0, Y0 + Ht + rise + 1, 0, 2.2, 2.2, 2.2, { 226, 184, 72 }, "Metal", { shape = "Ball" })
 end
 local TW = 26 -- Breite der Endtürme
 local zN = S.rowN -- Mittellinie der Nordzeile; die Südzeile liegt spiegelbildlich zur Platzmitte

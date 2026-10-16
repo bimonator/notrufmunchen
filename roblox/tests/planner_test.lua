@@ -387,7 +387,7 @@ do
 			if p.tag == "HouseWindow" then windows = windows + 1 end
 		end
 		check(maxY > 110 and maxY < 140, "Kirche: Höhe " .. maxY)
-		check(helm == 18 and hands == 2 and bricks >= 8 and windows >= 20, "Kirche: Helm " .. helm .. ", Zeiger " .. hands .. ", Ziegel " .. bricks .. ", Fenster " .. windows)
+		check(helm > 18 * 3 and hands == 2 and bricks >= 8 and windows >= 20, "Kirche: Helm " .. helm .. ", Zeiger " .. hands .. ", Ziegel " .. bricks .. ", Fenster " .. windows)
 		check(math.abs(along(church.ox, church.oz) - (a.church[1] + a.church[2]) / 2) < 0.5, "Kirche: Lage in der Zeile")
 	end
 	print(string.format("Isar-Allee: %d Häuser, Kirche mit %d Teilen", houses, church and #church.parts or 0))

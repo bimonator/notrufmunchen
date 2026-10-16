@@ -172,7 +172,7 @@ function Stachus.plan(cfg)
 		end
 		put("EGFensterAussen", "glass", 0, Y0 + 6, D / 2 + 0.15, len - 1.6, 8, 0.3, GLASS, "Glass", { tag = "HouseWindow", lit = false })
 	end
-	-- Endturm: breiter Block mit 6 Geschossen und flachem Walmdach (Dreiecks-Silhouette wie am Foto): 8 Schichten, die zum First hin schmaler werden
+	-- Endturm: breiter Block mit 6 Geschossen und gerundetem Dach (ohne Stufen und Kanten)
 	local ROOF = { 96, 58, 56 }
 	local function tower(x, z, psi, Wt, endSide)
 		local put = frame(x, z, psi)
@@ -193,16 +193,10 @@ function Stachus.plan(cfg)
 			end
 		end
 		for _, lx in ipairs({ -8, 0, 8 }) do put("TurmEG", "glass", lx, Y0 + 6, -D / 2 - 0.15, 5.6, 8, 0.3, GLASS, "Glass", { tag = "HouseWindow", lit = true }) end
-		local layers, rise = 8, 10
-		for i = 0, layers - 1 do
-			local t = i / layers
-			put("Walmdach", "roof", 0, Y0 + Ht + 0.8 + (i + 0.5) * rise / layers, 0, Wt * (1 - 0.92 * t) + 1.4, rise / layers + 0.05, D - (Wt * 0.92) * t + 0.8, ROOF, "Metal")
-		end
-		put("Turmkugel", "roof", 0, Y0 + Ht + rise + 2, 0, 2.2, 2.2, 2.2, { 226, 184, 72 }, "Metal", { shape = "Ball" })
-		for _, lx in ipairs({ -5, 5 }) do -- Dachfenster im Walmdach
-			put("TurmGaube", "body", lx, Y0 + Ht + 3, -D / 2 + 6, 3.4, 3.2, 2.4, SAND2, "SmoothPlastic")
-			put("TurmGaubeDach", "roof", lx, Y0 + Ht + 4.9, -D / 2 + 6, 4, 0.5, 3, ROOF, "Metal")
-		end
+		local rise = 10
+		-- gerundetes Tonnendach: liegender Halb-Ellipsenzylinder (Achse entlang der Tiefe) über dem ganzen Turm; die untere Hälfte steckt im Mauerwerk
+		put("Rundach", "roof", 0, Y0 + Ht, 0, D, 2 * rise, Wt, ROOF, "Metal", { shape = "Cylinder", yaw = 90 })
+		put("Turmkugel", "roof", 0, Y0 + Ht + rise + 1, 0, 2.2, 2.2, 2.2, { 226, 184, 72 }, "Metal", { shape = "Ball" })
 	end
 	local TW = 26 -- Breite der Endtürme
 	local zN = S.rowN -- Mittellinie der Nordzeile; die Südzeile liegt spiegelbildlich zur Platzmitte
