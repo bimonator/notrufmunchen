@@ -157,3 +157,11 @@ Der Terrain-Schritt setzt `Terrain.Decoration = false` (keine Gras-Büschel, die
 - **Tore der Feuerwache** (`FireGate`) und **Schranken der Polizei** (`Schranke`, Attribut `Offen`) sind Modelle ohne Skript; das Öffnen und Schließen kommt mit den Einsatz-Skripten. Fahrzeug-Spawnflächen tragen den Tag `VehicleSpawn` (Attribut `Team`).
 - **Eisbachwelle** liegt direkt flussabwärts (südlich) der Maximilianbrücke wie in München: die Welle liegt unter dem südlichen Brückengehweg (Aussichtsplatz), auf dem Westufer ein Deck mit Bänken. Figuren und Bretter sind (vorerst) entfernt. Die Welle ist nur das Bild einer stehenden Welle (Tags `Eisbachwelle`, `SurfZone`); das Surfen (Strömung, Brett) kommt als Skript. Das westliche Widerlager der Brücke hat einen Durchlass (`culvert`), sonst wäre der Bach darunter zugemauert.
 - Café (wartet auf Foto), Straßenschilder, Straßennamen, Frauenkirche mit mehr Detail (Fensterspitzbögen, Dachgauben, Uhrzeiger).
+
+## Skyline, Eckhäuser, Bushaltestellen
+
+- **Hochhäuser** (`Hochhaus.lua`, Standorte in `Config.hochhaeuser`, Flächen in `Blocks.lua` als `reserved`): Glasturm *Hochhaus-Klinikum* (hinter Volksbank/Krankenhaus, 64 × 64, 24 Etagen), *Hochhaus-West* (Block D_West, 30 Etagen, ~284 Studs), drei Türme an der Allguth-Tankstelle: **BMO-Turm** (vier Zylinder, blaues Band, eigenes Logo mit Ring/Raute und Schrift „BMO“, 24 Etagen), **BMO Welt** (Schüssel-Gebäude, Brücke zum Turm), *Hochhaus-Allguth-Sued* und *-Nordost*. Glastürme haben abgerundete Ecken; Fenster mit Tag `HouseWindow` (ca. 30 % nachts an).
+- **Eckhäuser höher** (`Config.eckhaeuser`, Faktor auf die Geschosse, 3 = +200 %): `Haus_F_LeopoldWestSued_N1`, `Haus_C_LeopoldWestNord_S2`. Anderes Haus gemeint? Namen in der Liste tauschen.
+- **Bushaltestellen** (`Bushaltestellen.lua`, `Config.busstops`): 18 Wartehäuschen mit Bank, Fahrplan und Schild „H“ auf den Gehwegen (Attribut `Haltestelle`).
+- Neue Schritte `skyline` und `bus` in `BuildAll`.
+

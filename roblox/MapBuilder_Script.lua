@@ -22,6 +22,8 @@
 --   gardens    Hofgarten, Englischer Garten, Monopteros-Tempel, Biergarten, Eisbachwelle, Isar-Uferwege, Prinz-Eins-Vorplatz
 --   houses     7 Häuserblöcke mit Rück- und Hinterhäusern, Isar-Allee-Zeile mit Backsteinkirche, Westufer-Zeile, gebogene Eckhäuser am Siegestor, Kino Casino Odeon und Kaffeehaus Odeon am Odeonsplatz, 13 Sonderbauten (Feuerwache, Polizeiwache mit Hof, Klinikum,
 --              Tankstelle mit Schirm, Shop und Parkplätzen (3 Ladeplätze, 1 Behindertenparkplatz), Bank, Parkhaus, ...)
+--   skyline    5 Hochhäuser (Glas mit abgerundeten Ecken; Vierzylinder-Turm "BMO" mit Logo und blauem Band; Schüssel-Gebäude "BMO Welt" mit Brücke)
+--   bus        18 Bushaltestellen (Wartehäuschen, Bank, Schild "H") auf Gehwegen in der Innenstadt
 --   wall       Häuserband um die Karte (Mapgrenze) mit Toren und Flusstoren
 --
 -- WAS FUNKTIONIERT WIE:
@@ -38,7 +40,7 @@
 -- OUTPUT-ZEILEN, auf die du achten kannst: [boden] (Bodenhöhe), [wasser] ok, [roads], [lights], [landmarks], [gardens], [houses], [wall].
 -- Steht irgendwo "FEHLER:", schick mir die Zeile.
 --
-local STEPS = { "terrain", "roads", "lights", "landmarks", "marienplatz", "gardens", "houses", "wall" } -- Teilmenge möglich, z. B. { "roads" }
+local STEPS = { "terrain", "roads", "lights", "landmarks", "marienplatz", "gardens", "houses", "skyline", "bus", "wall" } -- Teilmenge möglich, z. B. { "roads" }
 local ONLY = nil -- nur bestimmte Häuserblöcke, z. B. { "B_NordMitte" }; nil = alle
 local ORIGIN = Vector3.new(0, 0, 0) -- Position des Siegestors
 
@@ -58,6 +60,8 @@ local LightsPlanner = M.LightsPlanner
 local Landmarks = M.Landmarks
 local Rathaus = M.Rathaus
 local Marienplatz = M.Marienplatz
+local Hochhaus = M.Hochhaus
+local Bushaltestellen = M.Bushaltestellen
 local TerrainPlanner = M.TerrainPlanner
 local Garden = M.Garden
 local WallPlanner = M.WallPlanner
@@ -348,6 +352,8 @@ local LightsPlanner = LightsPlanner
 local Landmarks = Landmarks
 local Rathaus = Rathaus
 local Marienplatz = Marienplatz
+local Hochhaus = Hochhaus
+local Bushaltestellen = Bushaltestellen
 local Garden = Garden
 local TerrainPlanner = TerrainPlanner
 local WallPlanner = WallPlanner
@@ -382,6 +388,16 @@ Builder.buildParts(rh, folder, origin)
 Builder.buildParts(mp.parts, folder, origin)
 return string.format("%d Teile (Rathaus %d, Platz %d), %d Kugelleuchten, %d Platanen, U-Bahn-Abgang mit %d Stufen", #rh + #mp.parts, #rh, #mp.parts, mp.stats.lamps, mp.stats.trees, mp.stats.steps)
 end,
+skyline = function(opts, origin)
+local plan = Hochhaus.plan(Config)
+Builder.buildParts(plan.parts, Builder.container("Hochhaeuser"), origin)
+return string.format("%d Teile, %d Hochhäuser (höchstes %d Studs)", #plan.parts, plan.stats.towers, plan.stats.tallest)
+end,
+bus = function(opts, origin)
+local plan = Bushaltestellen.plan(Config)
+Builder.buildParts(plan.parts, Builder.container("Bushaltestellen"), origin)
+return string.format("%d Haltestellen, %d Teile", plan.stats.stops, #plan.parts)
+end,
 gardens = function(opts, origin)
 local plan = Garden.plan(Config, RoadsPlanner.plan(Config), Specials)
 Builder.buildParts(plan.parts, Builder.container("Gruenanlagen"), origin)
@@ -393,7 +409,7 @@ local only, houses, parts = {}, 0, 0
 for _, n in ipairs(opts.only or {}) do only[n] = true end
 for _, block in ipairs(Blocks) do
 if next(only) == nil or only[block.name] then
-local plan = Planner.planBlock(block, { seed = opts.seed or 1 })
+local plan = Planner.planBlock(block, { seed = opts.seed or 1, raise = Config.eckhaeuser })
 Builder.build(plan, Builder.container("Gebaeude", block.name), origin)
 local st = Planner.stats(plan)
 houses, parts = houses + st.houses, parts + st.parts
@@ -439,7 +455,7 @@ local st = Planner.stats(plan)
 return string.format("%d Gebäude, %d Teile", st.houses, st.parts + #plan.parts)
 end,
 }
-BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "gardens", "houses", "wall" }
+BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "gardens", "houses", "skyline", "bus", "wall" }
 local function afterTerrain(base)
 local ground = Builder.measureGround(base)
 print(string.format("[boden] Terrain-Oberkante gemessen: %.1f, alle weiteren Teile werden daran ausgerichtet", ground))

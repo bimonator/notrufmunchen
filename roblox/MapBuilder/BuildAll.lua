@@ -13,6 +13,8 @@ local LightsPlanner = require(script and script.Parent.LightsPlanner or "LightsP
 local Landmarks = require(script and script.Parent.Landmarks or "Landmarks")
 local Rathaus = require(script and script.Parent.Rathaus or "Rathaus")
 local Marienplatz = require(script and script.Parent.Marienplatz or "Marienplatz")
+local Hochhaus = require(script and script.Parent.Hochhaus or "Hochhaus")
+local Bushaltestellen = require(script and script.Parent.Bushaltestellen or "Bushaltestellen")
 local Garden = require(script and script.Parent.Garden or "Garden")
 local TerrainPlanner = require(script and script.Parent.TerrainPlanner or "TerrainPlanner")
 local WallPlanner = require(script and script.Parent.WallPlanner or "WallPlanner")
@@ -49,6 +51,16 @@ local STEPS = {
 		Builder.buildParts(mp.parts, folder, origin)
 		return string.format("%d Teile (Rathaus %d, Platz %d), %d Kugelleuchten, %d Platanen, U-Bahn-Abgang mit %d Stufen", #rh + #mp.parts, #rh, #mp.parts, mp.stats.lamps, mp.stats.trees, mp.stats.steps)
 	end,
+	skyline = function(opts, origin)
+		local plan = Hochhaus.plan(Config)
+		Builder.buildParts(plan.parts, Builder.container("Hochhaeuser"), origin)
+		return string.format("%d Teile, %d Hochhäuser (höchstes %d Studs)", #plan.parts, plan.stats.towers, plan.stats.tallest)
+	end,
+	bus = function(opts, origin)
+		local plan = Bushaltestellen.plan(Config)
+		Builder.buildParts(plan.parts, Builder.container("Bushaltestellen"), origin)
+		return string.format("%d Haltestellen, %d Teile", plan.stats.stops, #plan.parts)
+	end,
 	gardens = function(opts, origin)
 		local plan = Garden.plan(Config, RoadsPlanner.plan(Config), Specials)
 		Builder.buildParts(plan.parts, Builder.container("Gruenanlagen"), origin)
@@ -60,7 +72,7 @@ local STEPS = {
 		for _, n in ipairs(opts.only or {}) do only[n] = true end
 		for _, block in ipairs(Blocks) do
 			if next(only) == nil or only[block.name] then
-				local plan = Planner.planBlock(block, { seed = opts.seed or 1 })
+				local plan = Planner.planBlock(block, { seed = opts.seed or 1, raise = Config.eckhaeuser })
 				Builder.build(plan, Builder.container("Gebaeude", block.name), origin)
 				local st = Planner.stats(plan)
 				houses, parts = houses + st.houses, parts + st.parts
@@ -107,7 +119,7 @@ local STEPS = {
 	end,
 }
 
-BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "gardens", "houses", "wall" }
+BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "gardens", "houses", "skyline", "bus", "wall" }
 
 -- Nach dem Terrain: echte Bodenhöhe messen (alles weitere wird daran ausgerichtet) und prüfen, ob Wasser da ist.
 local function afterTerrain(base)

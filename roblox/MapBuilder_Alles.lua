@@ -22,6 +22,8 @@
 --   gardens    Hofgarten, Englischer Garten, Monopteros-Tempel, Biergarten, Eisbachwelle, Isar-Uferwege, Prinz-Eins-Vorplatz
 --   houses     7 Häuserblöcke mit Rück- und Hinterhäusern, Isar-Allee-Zeile mit Backsteinkirche, Westufer-Zeile, gebogene Eckhäuser am Siegestor, Kino Casino Odeon und Kaffeehaus Odeon am Odeonsplatz, 13 Sonderbauten (Feuerwache, Polizeiwache mit Hof, Klinikum,
 --              Tankstelle mit Schirm, Shop und Parkplätzen (3 Ladeplätze, 1 Behindertenparkplatz), Bank, Parkhaus, ...)
+--   skyline    5 Hochhäuser (Glas mit abgerundeten Ecken; Vierzylinder-Turm "BMO" mit Logo und blauem Band; Schüssel-Gebäude "BMO Welt" mit Brücke)
+--   bus        18 Bushaltestellen (Wartehäuschen, Bank, Schild "H") auf Gehwegen in der Innenstadt
 --   wall       Häuserband um die Karte (Mapgrenze) mit Toren und Flusstoren
 --
 -- WAS FUNKTIONIERT WIE:
@@ -38,7 +40,7 @@
 -- OUTPUT-ZEILEN, auf die du achten kannst: [boden] (Bodenhöhe), [wasser] ok, [roads], [lights], [landmarks], [gardens], [houses], [wall].
 -- Steht irgendwo "FEHLER:", schick mir die Zeile.
 --
-local STEPS = { "terrain", "roads", "lights", "landmarks", "marienplatz", "gardens", "houses", "wall" } -- Teilmenge möglich, z. B. { "roads" }
+local STEPS = { "terrain", "roads", "lights", "landmarks", "marienplatz", "gardens", "houses", "skyline", "bus", "wall" } -- Teilmenge möglich, z. B. { "roads" }
 local ONLY = nil -- nur bestimmte Häuserblöcke, z. B. { "B_NordMitte" }; nil = alle
 local ORIGIN = Vector3.new(0, 0, 0) -- Position des Siegestors
 
@@ -197,6 +199,23 @@ C.roads = {
 { name = "Maximilianstrasse", profile = "std48", pts = { { 395, 410 }, { 395, 298 }, { 906, 298 } } }, -- vom Ring über die Maximilianbrücke zum Friedensengel-Oval
 { name = "FriedensengelRing", closed = true, profile = "std48", pts = superellipse(1013, 298, 107, 62, 2.6, 64) },
 { name = "FriedensengelAusfahrt", profile = "std48", pts = { { 1120, 298 }, { 1176, 298 } } },
+}
+C.hochhaeuser = {
+{ name = "Hochhaus-Klinikum", art = "glas", x = 462, z = -268, w = 64, d = 64, r = 12, floors = 24, label = "ISARTOR" }, -- hinter Volksbank und Krankenhaus
+{ name = "Hochhaus-West", art = "glas", x = -563, z = -127, w = 66, d = 66, r = 14, floors = 30, label = "NOVA" }, -- Block D_West, Richtung Mapende
+{ name = "BMO-Turm", art = "bmo", x = 100, z = -418, floors = 24, radius = 14, versatz = 12.5 },
+{ name = "BMO-Welt", art = "schuessel", x = 164, z = -420, r = 24, bruecke = { x = 126.5, z = -418 } },
+{ name = "Hochhaus-Allguth-Sued", art = "glas", x = 160, z = -22, w = 58, d = 44, r = 11, floors = 20, label = "OPTIMA", pm = 3 },
+{ name = "Hochhaus-Allguth-Nordost", art = "glas", x = 252, z = -424, w = 40, d = 40, r = 9, floors = 18, label = "HELIOS", pm = 3 },
+}
+C.eckhaeuser = { Haus_F_LeopoldWestSued_N1 = 3, Haus_C_LeopoldWestNord_S2 = 3 }
+C.busstops = {
+{ x = -436.5, z = -360, zurStrasse = "W" }, { x = -483.5, z = -60, zurStrasse = "E" }, { x = -211.5, z = -130, zurStrasse = "W" },
+{ x = -258.5, z = -380, zurStrasse = "E" }, { x = -560, z = -261.5, zurStrasse = "N" }, { x = -150, z = -308.5, zurStrasse = "S" },
+{ x = -330, z = 53.5, zurStrasse = "N" }, { x = -560, z = 6.5, zurStrasse = "S" }, { x = 281, z = -120, zurStrasse = "E" },
+{ x = 319, z = -380, zurStrasse = "W" }, { x = 49, z = -380, zurStrasse = "W" }, { x = -49, z = -200, zurStrasse = "E" },
+{ x = 49, z = 200, zurStrasse = "W" }, { x = -49, z = 250, zurStrasse = "E" }, { x = 600, z = 317, zurStrasse = "N" },
+{ x = 700, z = 279, zurStrasse = "S" }, { x = -642, z = -100, zurStrasse = "W" }, { x = 40, z = -453, zurStrasse = "N" },
 }
 C.bay = { length = 16, width = 9 }
 C.tankstelle = { lot = { 57, -336, 180, -150 }, gaps = { { -262, -218 }, { -196, -152 } }, parking = { x0 = 96, zBack = -152, depth = 16, w = 8, kinds = { "H", "E", "E", "E", "N", "N", "N", "N", "N", "N" } } } -- parking: Stellplatzreihe im Südteil (H Behinderte, E Ladeplatz, N normal)
@@ -526,6 +545,7 @@ local function planHouse(h, o, rng, cornerA, cornerB)
 local W, D = h.width, h.depth
 local floors = rng.weighted(o.floorWeights)
 if h.forceFloors then floors = h.forceFloors end
+if h.floorMul then floors = floors * h.floorMul end -- Eckhäuser, die höher gebaut werden
 local H = o.groundH + o.upperH * (floors - 1)
 local y0 = o.floorY
 local facade = rng.pick(o.palette)
@@ -742,6 +762,7 @@ ox = side.sx + side.ux * (t + width / 2), oz = side.sz + side.uz * (t + width / 
 yaw = side.yaw, width = width, depth = depth, parts = {},
 name = string.format("Haus_%s_%s%d", name, side.name, idx),
 }
+h.floorMul = o.raise and o.raise[h.name]
 t = t + width
 planHouse(h, o, rng, side.corners and ri == 1 and i == 1, side.corners and ri == #ranges and i == n)
 plan.houses[#plan.houses + 1] = h
@@ -1779,11 +1800,11 @@ return {
 { name = "A_NordWest", xmin = -637, zmin = -448, xmax = -488.5, zmax = -313.5 },
 { name = "B_NordMitte", xmin = -431.5, zmin = -448, xmax = -263.5, zmax = -313.5, noInner = true }, -- Innenhof ist der Hinterhofpark
 { name = "C_LeopoldWestNord", xmin = -206.5, zmin = -448, xmax = -55, zmax = -313.5, reserved = { { -127, -385, -55, -315 } } },
-{ name = "D_West", xmin = -637, zmin = -256.5, xmax = -488.5, zmax = 1.5 },
+{ name = "D_West", xmin = -637, zmin = -256.5, xmax = -488.5, zmax = 1.5, reserved = { { -599, -163, -527, -91 } } }, -- Hochhaus-West
 { name = "E_Mitte", xmin = -431.5, zmin = -256.5, xmax = -263.5, zmax = 1.5, reserved = { { -429.5, -200, -265.5, -100 } } },
 { name = "F_LeopoldWestSued", xmin = -206.5, zmin = -256.5, xmax = -55, zmax = 1.5, reserved = { { -205, -250, -109, -140 }, { -125, -90, -55, 2 } } }, -- zweite Fläche: Kreisverkehr um das Siegestor
 { name = "M_MarienplatzSued", xmin = -632, zmin = 326, xmax = -215, zmax = 386, noInner = true }, -- Häuserzeile am Südrand des Marienplatzes (vorn zum Platz, hinten zum Ring)
-{ name = "G_LeopoldOst", xmin = 55, zmin = -448, xmax = 276, zmax = 4, reserved = { { T.lot[1], T.lot[2], 86, T.lot[4] }, { 55, -90, 125, 6 } }, lot = T.lot, avoidInner = { { 190, -400, 234, -108 } } }, -- Lücke in der Häuserzeile: Tankstelle liegt frei an der Straße, lot = ihr Grundstück
+{ name = "G_LeopoldOst", xmin = 55, zmin = -448, xmax = 276, zmax = 4, reserved = { { T.lot[1], T.lot[2], 86, T.lot[4] }, { 55, -90, 125, 6 }, { 70, -448, 130, -388 }, { 138, -448, 190, -394 }, { 229, -448, 276, -400 }, { 128, -48, 192, 6 } }, lot = T.lot, avoidInner = { { 190, -400, 234, -108 } } }, -- Lücke in der Häuserzeile: Tankstelle liegt frei an der Straße, lot = ihr Grundstück
 }
 
 end)()
@@ -3099,6 +3120,204 @@ end
 return Marienplatz
 
 end)()
+local Hochhaus = (function()
+local Geo = Geo
+local Hochhaus = {}
+local FH, LOBBY, Y0 = 9, 14, 1 -- Geschosshöhe, Höhe des Erdgeschosses, Oberkante Gehweg
+local SPANDREL, GLASS, GLASS_LIT, GLASS_TOP = { 196, 204, 214 }, { 62, 88, 116 }, { 255, 226, 150 }, { 34, 44, 60 }
+local STEEL, BLUE, PLAZA = { 214, 218, 224 }, { 24, 68, 170 }, { 188, 184, 176 }
+local function newRng(seed)
+local s = seed
+return function()
+s = (s * 1103515245 + 12345) % 2147483648
+return s / 2147483648
+end
+end
+local function newPlan()
+local parts = {}
+local function add(name, kind, x, y, z, sx, sy, sz, color, mat, extra)
+extra = extra or {}
+parts[#parts + 1] = {
+name = name, kind = kind, size = { Geo.round3(sx), Geo.round3(sy), Geo.round3(sz) },
+pos = { Geo.round3(x), Geo.round3(y), Geo.round3(z) }, yaw = extra.yaw or 0, pitch = extra.pitch or 0, roll = extra.roll,
+color = color, material = mat, collide = extra.collide == true, shape = extra.shape, tag = extra.tag, lit = extra.lit, text = extra.text,
+transparency = extra.transparency,
+}
+end
+local function vcyl(name, kind, x, y, z, h, d, color, mat, extra) -- stehender Zylinder, y = Mitte
+extra = extra or {}
+extra.shape, extra.roll = "Cylinder", 90
+add(name, kind, x, y, z, h, d, d, color, mat, extra)
+end
+return parts, add, vcyl
+end
+local function glassExtra(rng, top)
+return { tag = "HouseWindow", lit = not top and rng() < 0.3 }
+end
+local function glasTurm(t, add, vcyl, rng)
+local W, D, r, N = t.w, t.d, t.r, t.floors
+local H = LOBBY + N * FH
+local x, z = t.x, t.z
+local body = t.color or SPANDREL
+local pm = t.pm or 9
+add("Plaza", "plaza", x, Y0 - 0.3, z, W + 2 * pm, 1, D + 2 * pm, PLAZA, "Granite")
+add("TurmKernA", "tower", x, Y0 + H / 2, z, W - 2 * r, H, D, body, "SmoothPlastic", { collide = true })
+add("TurmKernB", "tower", x, Y0 + H / 2, z, W, H, D - 2 * r, body, "SmoothPlastic", { collide = true })
+local cx, cz = W / 2 - r, D / 2 - r
+for _, sx in ipairs({ -1, 1 }) do
+for _, sz in ipairs({ -1, 1 }) do vcyl("TurmEcke", "tower", x + sx * cx, Y0 + H / 2, z + sz * cz, H, 2 * r, body, "SmoothPlastic", { collide = true }) end
+end
+local lh = LOBBY - 2
+for _, sz in ipairs({ -1, 1 }) do
+add("EGGlas", "glass", x, Y0 + 1 + lh / 2, z + sz * (D / 2 + 0.25), W - 2 * r, lh, 0.5, GLASS_TOP, "Glass", { tag = "HouseWindow", lit = true })
+end
+for _, sx in ipairs({ -1, 1 }) do
+add("EGGlas", "glass", x + sx * (W / 2 + 0.25), Y0 + 1 + lh / 2, z, 0.5, lh, D - 2 * r, GLASS_TOP, "Glass", { tag = "HouseWindow", lit = true })
+for _, sz in ipairs({ -1, 1 }) do vcyl("EGGlasEcke", "glass", x + sx * cx, Y0 + 1 + lh / 2, z + sz * cz, lh, 2 * r + 0.8, GLASS_TOP, "Glass") end
+end
+add("Vordach", "trim", x, Y0 + 11.5, z + D / 2 + 4, 16, 0.8, 8, { 70, 74, 82 }, "Metal")
+for _, sx in ipairs({ -1, 1 }) do add("VordachStuetze", "trim", x + sx * 7.4, Y0 + 5.5, z + D / 2 + 7.4, 0.6, 11, 0.6, { 70, 74, 82 }, "Metal") end
+add("Eingang", "door", x, Y0 + 4, z + D / 2 + 0.6, 8, 8, 0.4, { 30, 36, 46 }, "Glass", { tag = "HouseWindow", lit = true })
+local sh = FH - 3.2
+for k = 1, N do
+local y = Y0 + LOBBY + (k - 0.5) * FH
+local top = k > N - 2
+local col = top and GLASS_TOP or GLASS
+local ex = glassExtra(rng, top)
+for _, sz in ipairs({ -1, 1 }) do
+add("Glasband", "glass", x, y, z + sz * (D / 2 + 0.2), W - 2 * r, sh, 0.45, ex.lit and GLASS_LIT or col, "Glass", { tag = ex.tag, lit = ex.lit })
+end
+for _, sx in ipairs({ -1, 1 }) do
+add("Glasband", "glass", x + sx * (W / 2 + 0.2), y, z, 0.45, sh, D - 2 * r, ex.lit and GLASS_LIT or col, "Glass", { tag = ex.tag, lit = ex.lit })
+for _, sz in ipairs({ -1, 1 }) do vcyl("GlasbandEcke", "glass", x + sx * cx, y, z + sz * cz, sh, 2 * r + 0.8, ex.lit and GLASS_LIT or col, "Glass", { tag = ex.tag, lit = ex.lit }) end
+end
+end
+local top = Y0 + H
+add("Dachkranz", "trim", x, top + 0.6, z, W + 1.2, 1.2, D + 1.2, { 60, 66, 76 }, "Concrete")
+add("Technik", "tower", x, top + 5, z, W * 0.5, 8, D * 0.45, { 150, 156, 164 }, "Concrete")
+add("Mast", "tower", x + W * 0.18, top + 22, z, 0.8, 34, 0.8, { 190, 190, 194 }, "Metal")
+add("Positionslicht", "tower", x + W * 0.18, top + 39.5, z, 1.6, 1.6, 1.6, { 255, 40, 40 }, "Neon", { shape = "Ball" })
+if t.label then
+add("Schriftzug", "sign", x, top - FH, z - D / 2 - 0.8, W * 0.7, 4.4, 0.2, { 0, 0, 0 }, "SmoothPlastic", { text = { s = t.label, color = { 235, 240, 248 } } })
+add("Schriftzug", "sign", x, top - FH, z + D / 2 + 0.8, W * 0.7, 4.4, 0.2, { 0, 0, 0 }, "SmoothPlastic", { yaw = 180, text = { s = t.label, color = { 235, 240, 248 } } })
+end
+end
+local function logo(add, vcyl, x, y, z, dz)
+for _, s in ipairs({ -1, 1 }) do
+local zz = z + s * dz
+local function disc(name, d, col, off, mat)
+add(name, "sign", x, y, zz + s * off, 1, d, d, col, mat or "SmoothPlastic", { shape = "Cylinder", yaw = 90 })
+end
+disc("LogoRing", 22, { 0, 150, 136 }, 0)
+disc("LogoGrund", 17, { 244, 244, 238 }, 0.3)
+add("LogoRaute", "sign", x, y, zz + s * 0.9, 9, 9, 0.4, { 18, 40, 92 }, "SmoothPlastic", { roll = 45 })
+add("LogoSchrift", "sign", x, y, zz + s * 1.2, 14, 4.6, 0.2, { 0, 0, 0 }, "SmoothPlastic", { yaw = s == 1 and 180 or 0, text = { s = "BMO", color = { 255, 255, 255 } } })
+end
+end
+local function bmoTurm(t, add, vcyl, rng)
+local R, c, N = t.radius or 14, t.versatz or 12.5, t.floors
+local H = LOBBY + N * FH
+local x, z = t.x, t.z
+add("Plaza", "plaza", x, Y0 - 0.3, z, 2 * (c + R) + 6, 1, 2 * (c + R) + 6, PLAZA, "Granite")
+add("BMOKern", "tower", x, Y0 + (H + 10) / 2, z, 2 * c, H + 10, 2 * c, STEEL, "Metal", { collide = true })
+local bandY = Y0 + LOBBY + 0.55 * N * FH
+for _, sx in ipairs({ -1, 1 }) do
+for _, sz in ipairs({ -1, 1 }) do
+local px, pz = x + sx * c, z + sz * c
+vcyl("BMOZylinder", "tower", px, Y0 + H / 2, pz, H, 2 * R, STEEL, "Metal", { collide = true })
+vcyl("BMOEGGlas", "glass", px, Y0 + 1 + (LOBBY - 2) / 2, pz, LOBBY - 2, 2 * R + 0.8, GLASS_TOP, "Glass", { tag = "HouseWindow", lit = true })
+for k = 1, N do
+local y = Y0 + LOBBY + (k - 0.5) * FH
+if math.abs(y - bandY) > 4.5 then
+local lit = rng() < 0.28
+vcyl("BMOFensterband", "glass", px, y, pz, FH - 4.2, 2 * R + 0.8, lit and GLASS_LIT or GLASS, "Glass", { tag = "HouseWindow", lit = lit })
+end
+end
+vcyl("BMOBand", "trim", px, bandY, pz, 8, 2 * R + 3.4, BLUE, "SmoothPlastic")
+vcyl("BMOKappe", "tower", px, Y0 + H + 4, pz, 8, 2 * R * 0.62, { 170, 176, 186 }, "Metal")
+end
+end
+logo(add, vcyl, x, Y0 + H + 9, z, c + 0.2)
+add("Positionslicht", "tower", x, Y0 + H + 17, z, 1.6, 1.6, 1.6, { 255, 40, 40 }, "Neon", { shape = "Ball" })
+add("Vordach", "trim", x, Y0 + 11.5, z + c + R + 3, 18, 0.8, 8, { 70, 74, 82 }, "Metal")
+add("Eingang", "door", x, Y0 + 4, z + c + R - 1.2, 8, 8, 0.4, { 30, 36, 46 }, "Glass", { tag = "HouseWindow", lit = true })
+end
+local function schuessel(t, add, vcyl)
+local x, z, R = t.x, t.z, t.r or 26
+add("Plaza", "plaza", x, Y0 - 0.3, z, 2 * R + 4, 1, 2 * R + 4, PLAZA, "Granite")
+vcyl("WeltFoyer", "glass", x, Y0 + 4.5, z, 9, 2 * R, GLASS_TOP, "Glass", { tag = "HouseWindow", lit = true, collide = true })
+local n, y = 12, Y0 + 9
+for i = 1, n do
+local f = i / n
+local rad = R * (0.46 + 0.54 * math.sin(math.pi * f) ^ 0.7) -- Bauch in der Mitte
+vcyl("WeltSchale", "tower", x, y + 1.6, z, 3.2, 2 * rad, { 186, 192, 202 }, "Metal", { collide = true })
+y = y + 3.2
+end
+vcyl("WeltBand", "trim", x, Y0 + 9 + 0.5 * n * 3.2, z, 2.4, 2 * R + 1.2, BLUE, "SmoothPlastic")
+vcyl("WeltDeckel", "tower", x, y + 0.4, z, 0.8, 2 * R * 0.5, { 120, 128, 140 }, "Metal")
+add("WeltSchrift", "sign", x, Y0 + 4.5, z + R + 0.5, 24, 4, 0.2, { 0, 0, 0 }, "SmoothPlastic", { yaw = 180, text = { s = "BMO WELT", color = { 255, 255, 255 } } })
+if t.bruecke then
+local x0, x1 = t.bruecke.x, x - R + 2
+add("Bruecke", "glass", (x0 + x1) / 2, Y0 + 22, t.bruecke.z, math.abs(x1 - x0), 4, 6, GLASS, "Glass", { tag = "HouseWindow", lit = false })
+add("BrueckenDach", "trim", (x0 + x1) / 2, Y0 + 24.3, t.bruecke.z, math.abs(x1 - x0), 0.6, 7, { 150, 156, 164 }, "Metal")
+end
+end
+function Hochhaus.plan(cfg)
+local parts, add, vcyl = newPlan()
+local rng = newRng(7)
+local stats = { towers = 0, tallest = 0 }
+for _, t in ipairs(cfg.hochhaeuser) do
+local before = #parts
+if t.art == "glas" then glasTurm(t, add, vcyl, rng)
+elseif t.art == "bmo" then bmoTurm(t, add, vcyl, rng)
+else schuessel(t, add, vcyl) end
+for i = before + 1, #parts do parts[i].name = t.name .. "_" .. parts[i].name end
+if t.art ~= "schuessel" then
+stats.towers = stats.towers + 1
+stats.tallest = math.max(stats.tallest, LOBBY + t.floors * FH)
+end
+end
+return { parts = parts, stats = stats }
+end
+return Hochhaus
+
+end)()
+local Bushaltestellen = (function()
+local Geo = Geo
+local Bus = {}
+local YAW = { N = 0, S = 180, W = 90, E = 270 } -- Blickrichtung (lokal -z) zur Straße
+function Bus.plan(cfg)
+local parts = {}
+for i, s in ipairs(cfg.busstops) do
+local yaw = YAW[s.zurStrasse]
+local r = math.rad(yaw)
+local c, sn = math.cos(r), math.sin(r)
+local function add(name, kind, lx, y, lz, sx, sy, sz, color, mat, extra)
+extra = extra or {}
+parts[#parts + 1] = {
+name = string.format("Bus%02d_%s", i, name), kind = kind, size = { sx, sy, sz },
+pos = { Geo.round3(s.x + lx * c + lz * sn), y, Geo.round3(s.z - lx * sn + lz * c) }, yaw = (yaw + (extra.yaw or 0)) % 360, pitch = 0,
+color = color, material = mat, collide = extra.collide == true, shape = extra.shape, roll = extra.roll, tag = extra.tag, text = extra.text,
+attrs = { Haltestelle = s.name or ("Haltestelle " .. i) },
+}
+end
+local FRAME, GLASS = { 52, 58, 66 }, { 150, 190, 210 }
+add("Dach", "trim", 0, 9.4, 0, 9.4, 0.5, 4.2, FRAME, "Metal")
+for _, sx in ipairs({ -4.4, 4.4 }) do add("Pfosten", "trim", sx, 5.2, -1.8, 0.4, 8.4, 0.4, FRAME, "Metal") end
+for _, sx in ipairs({ -4.4, 4.4 }) do add("PfostenHinten", "trim", sx, 5.2, 1.8, 0.4, 8.4, 0.4, FRAME, "Metal") end
+add("Rueckwand", "glass", 0, 5.6, 1.9, 8.8, 6.6, 0.2, GLASS, "Glass", { tag = nil })
+add("Seitenwand", "glass", -4.5, 5.6, 0, 0.2, 6.6, 3.6, GLASS, "Glass")
+add("Bank", "trim", 0, 2.6, 1.0, 5.6, 0.4, 1.4, { 140, 100, 64 }, "Wood")
+add("Fahrplan", "sign", 3.2, 5.2, 1.7, 1.8, 2.6, 0.2, { 255, 214, 60 }, "SmoothPlastic")
+add("SchildMast", "trim", 6.4, 5.5, -2.4, 0.4, 11, 0.4, { 120, 124, 130 }, "Metal")
+add("SchildScheibe", "sign", 6.4, 10.4, -2.4, 0.3, 3.4, 3.4, { 0, 140, 70 }, "SmoothPlastic", { shape = "Cylinder", yaw = 90 })
+add("SchildH", "sign", 6.4, 10.4, -2.62, 2.4, 2.4, 0.2, { 0, 0, 0 }, "SmoothPlastic", { text = { s = "H", color = { 255, 232, 60 } } })
+end
+return { parts = parts, stats = { stops = #cfg.busstops } }
+end
+return Bus
+
+end)()
 local TerrainPlanner = (function()
 local Geo = Geo
 local TerrainPlanner = {}
@@ -3953,6 +4172,8 @@ local LightsPlanner = LightsPlanner
 local Landmarks = Landmarks
 local Rathaus = Rathaus
 local Marienplatz = Marienplatz
+local Hochhaus = Hochhaus
+local Bushaltestellen = Bushaltestellen
 local Garden = Garden
 local TerrainPlanner = TerrainPlanner
 local WallPlanner = WallPlanner
@@ -3987,6 +4208,16 @@ Builder.buildParts(rh, folder, origin)
 Builder.buildParts(mp.parts, folder, origin)
 return string.format("%d Teile (Rathaus %d, Platz %d), %d Kugelleuchten, %d Platanen, U-Bahn-Abgang mit %d Stufen", #rh + #mp.parts, #rh, #mp.parts, mp.stats.lamps, mp.stats.trees, mp.stats.steps)
 end,
+skyline = function(opts, origin)
+local plan = Hochhaus.plan(Config)
+Builder.buildParts(plan.parts, Builder.container("Hochhaeuser"), origin)
+return string.format("%d Teile, %d Hochhäuser (höchstes %d Studs)", #plan.parts, plan.stats.towers, plan.stats.tallest)
+end,
+bus = function(opts, origin)
+local plan = Bushaltestellen.plan(Config)
+Builder.buildParts(plan.parts, Builder.container("Bushaltestellen"), origin)
+return string.format("%d Haltestellen, %d Teile", plan.stats.stops, #plan.parts)
+end,
 gardens = function(opts, origin)
 local plan = Garden.plan(Config, RoadsPlanner.plan(Config), Specials)
 Builder.buildParts(plan.parts, Builder.container("Gruenanlagen"), origin)
@@ -3998,7 +4229,7 @@ local only, houses, parts = {}, 0, 0
 for _, n in ipairs(opts.only or {}) do only[n] = true end
 for _, block in ipairs(Blocks) do
 if next(only) == nil or only[block.name] then
-local plan = Planner.planBlock(block, { seed = opts.seed or 1 })
+local plan = Planner.planBlock(block, { seed = opts.seed or 1, raise = Config.eckhaeuser })
 Builder.build(plan, Builder.container("Gebaeude", block.name), origin)
 local st = Planner.stats(plan)
 houses, parts = houses + st.houses, parts + st.parts
@@ -4044,7 +4275,7 @@ local st = Planner.stats(plan)
 return string.format("%d Gebäude, %d Teile", st.houses, st.parts + #plan.parts)
 end,
 }
-BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "gardens", "houses", "wall" }
+BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "gardens", "houses", "skyline", "bus", "wall" }
 local function afterTerrain(base)
 local ground = Builder.measureGround(base)
 print(string.format("[boden] Terrain-Oberkante gemessen: %.1f, alle weiteren Teile werden daran ausgerichtet", ground))

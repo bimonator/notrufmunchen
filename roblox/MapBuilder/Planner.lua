@@ -220,6 +220,7 @@ local function planHouse(h, o, rng, cornerA, cornerB)
 	local W, D = h.width, h.depth
 	local floors = rng.weighted(o.floorWeights)
 	if h.forceFloors then floors = h.forceFloors end
+	if h.floorMul then floors = floors * h.floorMul end -- Eckhäuser, die höher gebaut werden
 	local H = o.groundH + o.upperH * (floors - 1)
 	local y0 = o.floorY
 	local facade = rng.pick(o.palette)
@@ -456,6 +457,7 @@ local function planSides(name, sides, o, rng, plan, depth)
 						yaw = side.yaw, width = width, depth = depth, parts = {},
 						name = string.format("Haus_%s_%s%d", name, side.name, idx),
 					}
+					h.floorMul = o.raise and o.raise[h.name]
 					t = t + width
 					planHouse(h, o, rng, side.corners and ri == 1 and i == 1, side.corners and ri == #ranges and i == n)
 					plan.houses[#plan.houses + 1] = h

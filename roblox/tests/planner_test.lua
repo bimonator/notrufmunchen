@@ -157,7 +157,6 @@ for _, block in ipairs(Blocks) do
 		end
 	end
 	if block.name == "G_LeopoldOst" then
-		check(#plan.inner >= 3, tag .. "zu wenige Hinterhäuser: " .. #plan.inner)
 		local lane = block.reserved[1] -- Zufahrt zur Tankstelle bleibt frei
 		for _, h in ipairs(plan.houses) do
 			local x0, _, z0, x1, _, z1 = Planner.aabb(bodyOf(h))
@@ -529,6 +528,100 @@ do
 		end
 	end
 	check(trunks >= 6 and walk, "Westufer: Bäume " .. trunks)
+end
+
+-- ===== Skyline, höhere Eckhäuser, Bushaltestellen =====
+do
+	local Config = require("Config")
+	local Geo = require("Geo")
+	local RoadsPlanner = require("RoadsPlanner")
+	local Hochhaus = require("Hochhaus")
+	local Bus = require("Bushaltestellen")
+	local segs = RoadsPlanner.segments(Config)
+	local function inRoad(x, z, margin, kinds)
+		for _, sg in ipairs(segs) do
+			local rc = sg.rect
+			local dx, dz = x - rc.ax, z - rc.az
+			local a, b = dx * rc.ux + dz * rc.uz, dx * rc.nx + dz * rc.nz
+			if a > rc.s0 and a < rc.s1 and math.abs(b) < rc.w + margin then return sg, b end
+		end
+	end
+	local plan = Hochhaus.plan(Config)
+	check(plan.stats.towers == 5 and plan.stats.tallest >= 250, "Hochhäuser: " .. plan.stats.towers .. ", höchstes " .. plan.stats.tallest)
+	local foot = {}
+	for _, t in ipairs(Config.hochhaeuser) do
+		local hx, hz
+		if t.art == "glas" then hx, hz = t.w / 2 + (t.pm or 9), t.d / 2 + (t.pm or 9)
+		elseif t.art == "bmo" then hx, hz = (t.versatz or 12.5) + (t.radius or 14) + 3, (t.versatz or 12.5) + (t.radius or 14) + 3
+		else hx, hz = t.r + 2, t.r + 2 end
+		local f = { t.name, t.x - hx, t.z - hz, t.x + hx, t.z + hz }
+		foot[#foot + 1] = f
+		check(f[2] > Config.map.xmin and f[4] < Config.map.xmax and f[3] > Config.map.zmin and f[5] < Config.map.zmax, t.name .. " liegt nicht auf der Karte")
+		for _, px in ipairs({ f[2], f[4] }) do
+			for _, pz in ipairs({ f[3], f[5] }) do
+				local sg = inRoad(px, pz, 0)
+				check(not sg, t.name .. " ragt in die Straße " .. (sg and sg.road.name or ""))
+			end
+		end
+		for _, sp in ipairs(Specials) do
+			check(not (f[2] < sp.x1 and f[4] > sp.x0 and f[3] < sp.z1 and f[5] > sp.z0), t.name .. " überlappt " .. sp.name)
+		end
+		for _, b in ipairs(Blocks) do -- Blockhäuser dürfen den Turm nicht schneiden
+			local bp = Planner.planBlock(b, { seed = 1 })
+			local all = {}
+			for _, h in ipairs(bp.houses) do all[#all + 1] = h end
+			for _, h in ipairs(bp.inner) do all[#all + 1] = h end
+			for _, h in ipairs(all) do
+				local x0, _, z0, x1, _, z1 = Planner.aabb(bodyOf(h))
+				check(not (x0 < f[4] - 0.5 and x1 > f[2] + 0.5 and z0 < f[5] - 0.5 and z1 > f[3] + 0.5), t.name .. " schneidet " .. h.name)
+			end
+		end
+	end
+	for i = 1, #foot do
+		for j = i + 1, #foot do
+			local a, b = foot[i], foot[j]
+			check(not (a[2] < b[4] and a[4] > b[2] and a[3] < b[5] and a[5] > b[3]), a[1] .. " überlappt " .. b[1])
+		end
+	end
+	for _, p in ipairs(plan.parts) do
+		for k = 1, 3 do check(p.pos[k] == p.pos[k] and p.size[k] == p.size[k] and p.size[k] > 0, "Hochhaus: ungültiges Teil " .. p.name) end
+	end
+	check(#plan.parts > 800 and #plan.parts < 6000, "Hochhaus: Teile " .. #plan.parts)
+	local logos = 0
+	for _, p in ipairs(plan.parts) do if p.text and p.text.s == "BMO" then logos = logos + 1 end end
+	check(logos == 2, "BMO-Logo nicht auf beiden Seiten: " .. logos)
+
+	-- Eckhäuser: Geschosszahl mal 3
+	for name, mul in pairs(Config.eckhaeuser) do
+		local found = false
+		for _, b in ipairs(Blocks) do
+			local base, raised = Planner.planBlock(b, { seed = 1 }), Planner.planBlock(b, { seed = 1, raise = Config.eckhaeuser })
+			for i, h in ipairs(base.houses) do
+				if h.name == name then
+					found = true
+					check(raised.houses[i].floors == h.floors * mul, name .. ": Geschosse " .. raised.houses[i].floors .. " statt " .. h.floors * mul)
+				end
+			end
+		end
+		check(found, "Eckhaus nicht gefunden: " .. name)
+	end
+
+	-- Bushaltestellen: auf dem Gehweg, mit Abstand zueinander, Fahrbahn auf der angegebenen Seite
+	local bp = Bus.plan(Config)
+	check(bp.stats.stops == #Config.busstops and #Config.busstops >= 12, "Bushaltestellen: " .. bp.stats.stops)
+	for i, st in ipairs(Config.busstops) do
+		local sg, b = inRoad(st.x, st.z, 0)
+		check(sg, "Haltestelle " .. i .. " liegt nicht an einer Straße")
+		if sg then
+			local rc = sg.rect
+			check(math.abs(b) > 14 and math.abs(b) < rc.w, string.format("Haltestelle %d nicht auf dem Gehweg (Abstand %.1f)", i, b))
+			local DIRS = { N = { 0, -1 }, S = { 0, 1 }, W = { -1, 0 }, E = { 1, 0 } }
+			local dir = DIRS[st.zurStrasse]
+			local dot = dir[1] * rc.nx * (b > 0 and -1 or 1) + dir[2] * rc.nz * (b > 0 and -1 or 1)
+			check(dot > 0.9, "Haltestelle " .. i .. ": Fahrbahn liegt nicht auf der Seite " .. st.zurStrasse)
+		end
+		for j = 1, i - 1 do check(math.sqrt((st.x - Config.busstops[j].x) ^ 2 + (st.z - Config.busstops[j].z) ^ 2) > 60, "Haltestellen " .. i .. "/" .. j .. " zu dicht") end
+	end
 end
 
 if failures > 0 then
