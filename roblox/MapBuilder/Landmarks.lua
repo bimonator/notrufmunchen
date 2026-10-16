@@ -116,9 +116,101 @@ function Landmarks.friedensengel(cfg)
 	return parts
 end
 
+-- Frauenkirche (nach Fotos): langes Backsteinschiff mit hohen Spitzbogenfenstern, riesiges steiles Ziegeldach, zwei Türme mit Uhren
+-- und grünen Zwiebelhauben am Westende. Verkleinert (Schiff 55 lang, Türme 38 hoch), damit sie auf die Marienplatz-Insel passt.
+function Landmarks.frauenkirche(cfg)
+	local parts = {}
+	local L = cfg.landmarks.frauenkirche
+	local add = new(parts, L.x, L.z)
+	local y0 = L.baseY
+	local BRICK, BRICK2, BAND, ROOF, GREEN, GOLD = { 150, 112, 88 }, { 138, 100, 78 }, { 196, 172, 142 }, { 196, 84, 48 }, { 96, 160, 140 }, { 214, 176, 70 }
+	local x0, x1, hw, wallH = -27, 28, 10, 20
+	local cxn = (x0 + x1) / 2
+	add("Sockel", cxn, y0 + 0.6, 0, x1 - x0 + 3, 1.2, 2 * hw + 3, { 150, 148, 142 }, "Concrete")
+	local yb = y0 + 1.2
+	add("Schiff", cxn, yb + wallH / 2, 0, x1 - x0, wallH, 2 * hw, BRICK, "Brick")
+	add("Gesims", cxn, yb + wallH + 0.4, 0, x1 - x0 + 1, 0.8, 2 * hw + 1, BAND, "Concrete")
+	for i = 0, 7 do -- hohe Fenster in beiden Längswänden
+		for _, sd in ipairs({ -1, 1 }) do
+			add("Fenster", -12 + i * 5, yb + 10.5, sd * (hw + 0.2), 2.6, 11, 0.3, { 50, 62, 78 }, "Glass", { collide = false, kind = "glass", tag = "HouseWindow" })
+			add("FensterBogen", -12 + i * 5, yb + 16.4, sd * (hw + 0.2), 1.6, 1.4, 0.3, { 50, 62, 78 }, "Glass", { collide = false, kind = "glass" })
+		end
+	end
+	-- Satteldach: zwei Platten mit Überstand, First, Giebelstufen am Ostende
+	local rise, run = 15, hw + 1.2
+	local slope = math.sqrt(run * run + rise * rise)
+	local ang = math.deg(math.atan2(rise, run))
+	for _, sd in ipairs({ -1, 1 }) do
+		add("Dach", cxn, yb + wallH + rise / 2 + 0.6, sd * run / 2, x1 - x0 + 2, 0.8, slope, ROOF, "Slate", { pitch = sd * ang })
+	end
+	add("First", cxn, yb + wallH + rise + 1, 0, x1 - x0 + 2, 0.8, 1.6, { 170, 70, 40 }, "Slate")
+	for k = 1, 5 do
+		for _, gx in ipairs({ x1 - 0.4, x0 + 9.4 }) do
+			add("Giebel", gx, yb + wallH + (k - 0.5) * rise / 5 + 0.6, 0, 0.8, rise / 5, 2 * hw * (1 - (k - 1) / 5), BRICK, "Brick", { collide = true })
+		end
+	end
+	-- Türme am Westende
+	local H = 38
+	for _, sd in ipairs({ -1, 1 }) do
+		local tz, tx = sd * 8, -22
+		add("Turm", tx, yb + H / 2, tz, 9, H, 9, BRICK2, "Brick", { collide = true })
+		for _, cxx in ipairs({ -4.4, 4.4 }) do
+			for _, czz in ipairs({ -4.4, 4.4 }) do add("TurmEcke", tx + cxx, yb + H / 2, tz + czz, 1.2, H, 1.2, BAND, "Concrete") end
+		end
+		for k = 1, 4 do add("TurmBand", tx, yb + k * 8, tz, 10, 0.8, 10, BAND, "Concrete") end
+		for _, yy in ipairs({ 11, 21, 30 }) do -- Fensterschlitze an den drei Außenseiten
+			add("Turmfenster", tx - 4.6, yb + yy, tz, 0.3, 4.5, 1.4, { 40, 44, 52 }, "Glass", { collide = false, kind = "glass" })
+			add("Turmfenster", tx, yb + yy, tz + sd * 4.6, 1.4, 4.5, 0.3, { 40, 44, 52 }, "Glass", { collide = false, kind = "glass" })
+		end
+		add("Uhr", tx - 4.7, yb + H - 7, tz, 0.3, 4.4, 4.4, { 244, 240, 228 }, "SmoothPlastic", { collide = false, shape = "Cylinder" })
+		add("Uhr", tx, yb + H - 7, tz + sd * 4.7, 0.3, 4.4, 4.4, { 244, 240, 228 }, "SmoothPlastic", { collide = false, shape = "Cylinder", yaw = 90 })
+		add("Trommel", tx, yb + H + 1.5, tz, 3, 9.6, 9.6, BRICK2, "Brick", { shape = "Cylinder", roll = 90, collide = true })
+		add("Kuppel", tx, yb + H + 7, tz, 11, 11, 11, GREEN, "Metal", { shape = "Ball", collide = true })
+		add("Laterne", tx, yb + H + 12.8, tz, 3.2, 3.4, 3.4, GREEN, "Metal", { shape = "Cylinder", roll = 90, collide = true })
+		add("Spitze", tx, yb + H + 15.2, tz, 2.4, 2.4, 2.4, GOLD, "Metal", { shape = "Ball", collide = false })
+		add("Kreuz", tx, yb + H + 18, tz, 0.5, 4.5, 0.5, GOLD, "Metal", { collide = false })
+	end
+	add("Portal", x0 - 0.2, yb + 4, 0, 0.5, 8, 5, { 56, 40, 32 }, "Wood", { collide = false })
+	return parts
+end
+
+-- Chinesischer Turm: fünf Stockwerke aus Holz mit weit ausladenden Dächern, Säulenumgang unten, vergoldete Spitze
+function Landmarks.chinesischerTurm(cfg)
+	local parts = {}
+	local L = cfg.landmarks.turm
+	local add = new(parts, L.x, L.z)
+	local y = L.baseY
+	local WOOD, ROOFC, GOLD = { 142, 100, 62 }, { 66, 88, 70 }, { 214, 176, 70 }
+	local function disc(name, yy, dia, h, color, mat, collide)
+		add(name, 0, yy, 0, h, dia, dia, color, mat, { shape = "Cylinder", roll = 90, collide = collide })
+	end
+	disc("TurmSockel", y + 0.6, 24, 1.2, { 150, 148, 142 }, "Concrete", true)
+	y = y + 1.2
+	disc("TurmKern", y + 4, 9, 8, WOOD, "Wood", true)
+	for i = 1, 8 do -- Säulenumgang
+		local a = 2 * math.pi * (i - 1) / 8
+		add("TurmSaeule", 6.4 * math.cos(a), y + 4, 6.4 * math.sin(a), 0.9, 8, 0.9, { 120, 80, 50 }, "Wood", { collide = true })
+	end
+	y = y + 8
+	local tiers = { { 22, 8 }, { 18, 7 }, { 15, 6 }, { 12, 5 }, { 9, 4 } } -- Dachdurchmesser, Kerndurchmesser
+	for i, t in ipairs(tiers) do
+		disc("TurmDachRand", y + 0.3, t[1], 0.6, ROOFC, "Metal", true)
+		disc("TurmDach", y + 1.2, t[1] - 5, 1.2, ROOFC, "Metal", true)
+		y = y + 1.8
+		if i < #tiers then
+			disc("TurmGeschoss", y + 2.5, t[2], 5, WOOD, "Wood", true)
+			disc("TurmBruestung", y + 4.6, t[2] + 1.4, 0.8, { 120, 80, 50 }, "Wood")
+			y = y + 5
+		end
+	end
+	add("TurmSpitze", 0, y + 3.5, 0, 0.7, 7, 0.7, GOLD, "Metal", { collide = false })
+	add("TurmKugel", 0, y + 2, 0, 2.2, 2.2, 2.2, GOLD, "Metal", { shape = "Ball", collide = false })
+	return parts
+end
+
 function Landmarks.plan(cfg)
 	local parts = {}
-	for _, list in ipairs({ Landmarks.siegestor(cfg), Landmarks.friedensengel(cfg) }) do
+	for _, list in ipairs({ Landmarks.siegestor(cfg), Landmarks.friedensengel(cfg), Landmarks.frauenkirche(cfg), Landmarks.chinesischerTurm(cfg) }) do
 		for _, p in ipairs(list) do parts[#parts + 1] = p end
 	end
 	return { parts = parts }

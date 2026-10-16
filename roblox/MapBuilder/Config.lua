@@ -129,6 +129,10 @@ C.pedSignals = { { name = "Siegestor_West", x = -62, z = 8, fx = 1, fz = 0 }, { 
 C.landmarks = {
 	siegestor = { x = 0, z = 0, baseY = 0.4 },
 	friedensengel = { x = 945, z = 298, baseY = 3.7 },
+	frauenkirche = { x = -550, z = 254, baseY = 0.7 }, -- auf der Marienplatz-Insel im Kreisel
+	turm = { x = 573, z = 224, baseY = 0.2 }, -- Chinesischer Turm im Englischen Garten, Biergarten rundherum
+	biergarten = { x0 = 532, z0 = 186, x1 = 614, z1 = 262 },
+	eisbach = { z = 366 }, -- Eisbachwelle: Stelle am Bach, wo z so groß ist (südlich vom Park, neben Prinz Eins)
 }
 
 C.wall = {

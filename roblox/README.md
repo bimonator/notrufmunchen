@@ -16,8 +16,8 @@ Baut die Karte aus `docs/MAP_PLAN.md` und `docs/phase1_bauplan.html` per Code: T
 [wasser] ok (... Wasser-Zellen am Messpunkt)
 [roads] 1475 Teile, 157 Parkbuchten
 [lights] 270 Laternen, 13 Ampelmasten, 2 Fußgängerampeln, 1529 Teile
-[landmarks] 87 Teile (Siegestor, Friedensengel)
-[gardens] 964 Teile, 157 Bäume, 103 Uferweg-Platten, 50 Findlinge
+[landmarks] 210 Teile (Siegestor, Friedensengel, Frauenkirche, Chinesischer Turm)
+[gardens] 1050 Teile, 143 Bäume, 103 Uferweg-Platten, 50 Findlinge
 [houses] 154 Häuser, 12928 Teile
 [ampel] Script AmpelSteuerung in ServerScriptService angelegt
 [wall] 128 Gebäude, 8743 Teile
@@ -101,4 +101,5 @@ Das Test-Script `MapBuilder_Script.lua` startet die Steuerung direkt nach dem Ba
 
 - **Siegestor und Friedensengel:** mehr Detail (Reliefs, Kapitell, Engel mit Gewand, Quadriga, Wasserspiele), bewusst später.
 - **Tore der Feuerwache** (`FireGate`) und **Schranken der Polizei** (`Schranke`, Attribut `Offen`) sind Modelle ohne Skript; das Öffnen und Schließen kommt mit den Einsatz-Skripten. Fahrzeug-Spawnflächen tragen den Tag `VehicleSpawn` (Attribut `Team`).
-- Café (wartet auf Foto), Straßenschilder, Straßennamen, Bäume, Frauenkirche.
+- **Eisbachwelle** ist nur das Bild einer stehenden Welle (Tags `Eisbachwelle`, `SurfZone`); das Surfen (Strömung, Brett) kommt als Skript.
+- Café (wartet auf Foto), Straßenschilder, Straßennamen, Frauenkirche mit mehr Detail (Fensterspitzbögen, Dachgauben, Uhrzeiger).

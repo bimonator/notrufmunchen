@@ -38,7 +38,7 @@ local STEPS = {
 	landmarks = function(opts, origin)
 		local plan = Landmarks.plan(Config)
 		Builder.buildParts(plan.parts, Builder.container("Wahrzeichen"), origin)
-		return string.format("%d Teile (Siegestor, Friedensengel)", #plan.parts)
+		return string.format("%d Teile (Siegestor, Friedensengel, Frauenkirche, Chinesischer Turm)", #plan.parts)
 	end,
 	gardens = function(opts, origin)
 		local plan = Garden.plan(Config, RoadsPlanner.plan(Config), Specials)

@@ -332,24 +332,121 @@ local function club(cfg, add, spec)
 	end
 end
 
+-- Eisbachwelle: stehende Welle im Bach (Walze aus Schaum, Tag "Eisbachwelle"/"SurfZone" für den späteren Surf-Mechanismus), Ufermauern,
+-- Zuschauerdeck mit Bänken am Westufer, Fußgängerbrücke flussaufwärts und Schild.
+local function eisbach(cfg, add)
+	local pts = cfg.water.bach.pts
+	local zc = cfg.landmarks.eisbach.z
+	local cx, cz, ux, uz
+	for i = 1, #pts - 1 do
+		local a, b = pts[i], pts[i + 1]
+		if zc >= a[2] and zc <= b[2] then
+			local t = (zc - a[2]) / (b[2] - a[2])
+			cx, cz = a[1] + t * (b[1] - a[1]), zc
+			ux, uz = Geo.dir(a[1], a[2], b[1], b[2])
+		end
+	end
+	local nx, nz = -uz, ux -- zeigt vom Bach nach Westen (Zuschauerseite)
+	local function at(a, l) return cx + ux * a + nx * l, cz + uz * a + nz * l end
+	local yawU, yawN = Geo.yawOf(ux, uz), Geo.yawOf(nx, nz)
+	local wx, wz = at(0, 0)
+	add("Eisbachwelle", "wave", wx, -3.7, wz, 13, 5.5, 5.5, { 214, 234, 246 }, "SmoothPlastic", { shape = "Cylinder", yaw = yawN, transparency = 0.2, tag = "Eisbachwelle", attrs = { Surf = true } })
+	local sx, sz = at(-1.6, 0)
+	add("Wellenschaum", "wave", sx, -1.3, sz, 13, 0.6, 2.8, { 248, 252, 255 }, "SmoothPlastic", { yaw = yawN, transparency = 0.1 })
+	local tx, tz = at(3.6, 0)
+	add("Wellental", "wave", tx, -3.85, tz, 13, 0.3, 6, { 190, 220, 238 }, "SmoothPlastic", { yaw = yawN, transparency = 0.4 })
+	add("SurfZone", "zone", wx, -2.5, wz, 14, 6, 14, { 255, 255, 255 }, "SmoothPlastic", { yaw = yawN, transparency = 1, tag = "SurfZone", attrs = { Welle = "Eisbach" } })
+	local STONEW = { 170, 164, 150 }
+	for _, side in ipairs({ -1, 1 }) do -- Ufermauern an beiden Ufern
+		local mx, mz = at(0, side * 13.6)
+		add("Ufermauer", "wall", mx, -1.4, mz, 44, 5.2, 1.2, STONEW, "Concrete", { yaw = yawU, collide = true })
+	end
+	local dx, dz = at(0, 21) -- Zuschauerdeck mit Geländer und drei Bänken
+	add("Zuschauerdeck", "deck", dx, 0.25, dz, 26, 0.5, 10, { 140, 104, 70 }, "Wood", { yaw = yawU, collide = true })
+	local rx, rz = at(0, 15.8)
+	add("DeckGelaender", "deck", rx, 1.2, rz, 26, 1.2, 0.3, { 70, 62, 56 }, "Metal", { yaw = yawU, collide = true })
+	for _, a in ipairs({ -8, 0, 8 }) do
+		local bx, bz = at(a, 24)
+		bench(add, bx, 0.5, bz, math.deg(math.atan2(nx, nz)))
+	end
+	for _, da in ipairs({ -2.8, 2.8 }) do -- Fußgängerbrücke quer über den Bach
+		local bx, bz = at(-24 + da, 0)
+		add("BrueckeGelaender", "deck", bx, 1.5, bz, 36, 1.4, 0.4, { 70, 62, 56 }, "Metal", { yaw = yawN, collide = true })
+	end
+	local bx, bz = at(-24, 0)
+	add("BrueckeDeck", "deck", bx, 0, bz, 36, 0.8, 6, { 150, 112, 76 }, "Wood", { yaw = yawN, collide = true })
+	local px, pz = at(-12, 16.2)
+	local signYaw = yawU + 180
+	add("Schild", "decor", px, 3.4, pz, 9, 2.4, 0.3, { 36, 70, 110 }, "SmoothPlastic", { yaw = signYaw })
+	add("SchildPfosten", "decor", px, 1.6, pz, 0.5, 3.2, 0.5, { 70, 62, 56 }, "Metal", { yaw = signYaw, collide = true })
+	local tx2, tz2 = px + nx * 0.25, pz + nz * 0.25
+	add("Schrift", "text", tx2, 3.4, tz2, 8.4, 1.8, 0.2, { 255, 255, 255 }, "SmoothPlastic", { yaw = signYaw, text = { s = "EISBACHWELLE", color = { 255, 255, 255 } } })
+end
+
+-- Biergarten um den Chinesischen Turm: Kiesfläche, Ausschank mit Schild, Bierbänke in Reihen, Kastanien am Rand
+local function biergarten(cfg, add, rng, free)
+	local b, t = cfg.landmarks.biergarten, cfg.landmarks.turm
+	local cx, cz = (b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2
+	add("BiergartenKies", "plaza", cx, 0, cz, b.x1 - b.x0, 0.5, b.z1 - b.z0, { 214, 204, 176 }, "Pavement")
+	-- Ausschank am Nordrand
+	local kx, kz = b.x0 + 24, b.z0 + 8
+	add("AusschankWand", "decor", kx, 5.2, kz, 40, 10, 12, { 240, 236, 226 }, "SmoothPlastic", { collide = true })
+	add("AusschankDach", "decor", kx, 10.9, kz, 43, 0.8, 15, { 196, 84, 48 }, "Slate", { collide = true })
+	for i = -1, 1 do add("Ausschankfenster", "glass", kx + i * 12, 5.5, kz + 6.1, 8, 3.6, 0.3, { 50, 62, 78 }, "Glass") end
+	add("AusschankTheke", "decor", kx, 2.2, kz + 7, 38, 1.4, 1.6, { 140, 104, 70 }, "Wood", { collide = true })
+	add("BiergartenSchild", "decor", kx, 8.2, kz + 6.3, 18, 2.6, 0.3, { 36, 90, 60 }, "SmoothPlastic")
+	add("Schrift", "text", kx, 8.2, kz + 6.55, 16.4, 2, 0.2, { 255, 255, 255 }, "SmoothPlastic", { yaw = 180, text = { s = "BIERGARTEN", color = { 255, 255, 255 } } })
+	-- Bierbänke in Reihen, um den Turm herum ausgespart
+	local sets = 0
+	for x = b.x0 + 8, b.x1 - 8, 13 do
+		for z = b.z0 + 24, b.z1 - 6, 11 do
+			if math.sqrt((x - t.x) ^ 2 + (z - t.z) ^ 2) > 21 then
+				add("Biertisch", "decor", x, 2.9, z, 6, 0.35, 2.4, { 150, 112, 76 }, "Wood", { collide = true })
+				for _, sd in ipairs({ -2.1, 2.1 }) do add("Bierbank", "decor", x, 1.7, z + sd, 6, 0.3, 1.2, { 150, 112, 76 }, "Wood", { collide = true }) end
+				sets = sets + 1
+			end
+		end
+	end
+	-- Kastanien rund um die Fläche (Süd- und Ostkante, West- und Nordkante teilweise)
+	local trees = 0
+	for x = b.x0 + 4, b.x1 - 4, 14 do
+		for _, z in ipairs({ b.z1 + 3 }) do
+			if free(x, z, true) then tree(add, rng, x, 0, z, 1.25) trees = trees + 1 end
+		end
+	end
+	for z = b.z0 + 30, b.z1 - 8, 14 do
+		for _, x in ipairs({ b.x0 - 3, b.x1 + 3 }) do
+			if free(x, z, true) then tree(add, rng, x, 0, z, 1.25) trees = trees + 1 end
+		end
+	end
+	return { sets = sets, trees = trees }
+end
+
 function Garden.plan(cfg, roadPlan, specials)
 	local parts = {}
 	local add = emitter(parts)
 	local rng = newRng(7)
-	local function free(x, z) -- nicht auf Straßen, nicht im Bach, nicht in der Isar-Böschung, nicht auf Hügelkuppe/Terrasse
+	local b = cfg.landmarks.biergarten
+	local function free(x, z, ignoreZones) -- nicht auf Straßen, nicht im Bach, nicht in der Isar-Böschung, nicht auf Hügelkuppe/Terrasse
 		if inRoad(roadPlan.segments, x, z, 8) then return false end
 		if Geo.polyDist(x, z, cfg.water.bach.pts) < 22 then return false end
 		if Geo.polyDist(x, z, cfg.water.isar.pts) < cfg.water.isar.layers[1][3] + 6 then return false end
 		local h = cfg.hills[1]
 		if math.sqrt((x - h.x) ^ 2 + (z - h.z) ^ 2) < 24 then return false end
-		local t = cfg.terrace
-		if x > t.x0 - 6 and x < t.x1 + 6 and z > t.z0 - 6 and z < t.z1 + 6 then return false end
+		local tr = cfg.terrace
+		if x > tr.x0 - 6 and x < tr.x1 + 6 and z > tr.z0 - 6 and z < tr.z1 + 6 then return false end
+		if not ignoreZones then -- Biergarten, Eisbachwelle-Gelände
+			if x > b.x0 - 4 and x < b.x1 + 4 and z > b.z0 - 4 and z < b.z1 + 4 then return false end
+			if z > cfg.landmarks.eisbach.z - 50 and Geo.polyDist(x, z, cfg.water.bach.pts) < 46 then return false end
+		end
 		return true
 	end
 	local stats = {}
 	stats.hofTrees = hofgarten(cfg, add, rng, free)
 	monopteros(cfg, add)
 	stats.egTrees = englischerGarten(cfg, add, rng, free)
+	stats.biergarten = biergarten(cfg, add, rng, free)
+	eisbach(cfg, add)
 	stats.bank = isarBank(cfg, add, rng, cfg.isarBridges)
 	for _, sp in ipairs(specials or {}) do
 		if sp.name == "Prinz-Eins" then club(cfg, add, sp) end

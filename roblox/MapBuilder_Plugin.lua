@@ -255,6 +255,10 @@ C.pedSignals = { { name = "Siegestor_West", x = -62, z = 8, fx = 1, fz = 0 }, { 
 C.landmarks = {
 	siegestor = { x = 0, z = 0, baseY = 0.4 },
 	friedensengel = { x = 945, z = 298, baseY = 3.7 },
+	frauenkirche = { x = -550, z = 254, baseY = 0.7 }, -- auf der Marienplatz-Insel im Kreisel
+	turm = { x = 573, z = 224, baseY = 0.2 }, -- Chinesischer Turm im Englischen Garten, Biergarten rundherum
+	biergarten = { x0 = 532, z0 = 186, x1 = 614, z1 = 262 },
+	eisbach = { z = 366 }, -- Eisbachwelle: Stelle am Bach, wo z so groß ist (südlich vom Park, neben Prinz Eins)
 }
 
 C.wall = {
@@ -1594,9 +1598,101 @@ function Landmarks.friedensengel(cfg)
 	return parts
 end
 
+-- Frauenkirche (nach Fotos): langes Backsteinschiff mit hohen Spitzbogenfenstern, riesiges steiles Ziegeldach, zwei Türme mit Uhren
+-- und grünen Zwiebelhauben am Westende. Verkleinert (Schiff 55 lang, Türme 38 hoch), damit sie auf die Marienplatz-Insel passt.
+function Landmarks.frauenkirche(cfg)
+	local parts = {}
+	local L = cfg.landmarks.frauenkirche
+	local add = new(parts, L.x, L.z)
+	local y0 = L.baseY
+	local BRICK, BRICK2, BAND, ROOF, GREEN, GOLD = { 150, 112, 88 }, { 138, 100, 78 }, { 196, 172, 142 }, { 196, 84, 48 }, { 96, 160, 140 }, { 214, 176, 70 }
+	local x0, x1, hw, wallH = -27, 28, 10, 20
+	local cxn = (x0 + x1) / 2
+	add("Sockel", cxn, y0 + 0.6, 0, x1 - x0 + 3, 1.2, 2 * hw + 3, { 150, 148, 142 }, "Concrete")
+	local yb = y0 + 1.2
+	add("Schiff", cxn, yb + wallH / 2, 0, x1 - x0, wallH, 2 * hw, BRICK, "Brick")
+	add("Gesims", cxn, yb + wallH + 0.4, 0, x1 - x0 + 1, 0.8, 2 * hw + 1, BAND, "Concrete")
+	for i = 0, 7 do -- hohe Fenster in beiden Längswänden
+		for _, sd in ipairs({ -1, 1 }) do
+			add("Fenster", -12 + i * 5, yb + 10.5, sd * (hw + 0.2), 2.6, 11, 0.3, { 50, 62, 78 }, "Glass", { collide = false, kind = "glass", tag = "HouseWindow" })
+			add("FensterBogen", -12 + i * 5, yb + 16.4, sd * (hw + 0.2), 1.6, 1.4, 0.3, { 50, 62, 78 }, "Glass", { collide = false, kind = "glass" })
+		end
+	end
+	-- Satteldach: zwei Platten mit Überstand, First, Giebelstufen am Ostende
+	local rise, run = 15, hw + 1.2
+	local slope = math.sqrt(run * run + rise * rise)
+	local ang = math.deg(math.atan2(rise, run))
+	for _, sd in ipairs({ -1, 1 }) do
+		add("Dach", cxn, yb + wallH + rise / 2 + 0.6, sd * run / 2, x1 - x0 + 2, 0.8, slope, ROOF, "Slate", { pitch = sd * ang })
+	end
+	add("First", cxn, yb + wallH + rise + 1, 0, x1 - x0 + 2, 0.8, 1.6, { 170, 70, 40 }, "Slate")
+	for k = 1, 5 do
+		for _, gx in ipairs({ x1 - 0.4, x0 + 9.4 }) do
+			add("Giebel", gx, yb + wallH + (k - 0.5) * rise / 5 + 0.6, 0, 0.8, rise / 5, 2 * hw * (1 - (k - 1) / 5), BRICK, "Brick", { collide = true })
+		end
+	end
+	-- Türme am Westende
+	local H = 38
+	for _, sd in ipairs({ -1, 1 }) do
+		local tz, tx = sd * 8, -22
+		add("Turm", tx, yb + H / 2, tz, 9, H, 9, BRICK2, "Brick", { collide = true })
+		for _, cxx in ipairs({ -4.4, 4.4 }) do
+			for _, czz in ipairs({ -4.4, 4.4 }) do add("TurmEcke", tx + cxx, yb + H / 2, tz + czz, 1.2, H, 1.2, BAND, "Concrete") end
+		end
+		for k = 1, 4 do add("TurmBand", tx, yb + k * 8, tz, 10, 0.8, 10, BAND, "Concrete") end
+		for _, yy in ipairs({ 11, 21, 30 }) do -- Fensterschlitze an den drei Außenseiten
+			add("Turmfenster", tx - 4.6, yb + yy, tz, 0.3, 4.5, 1.4, { 40, 44, 52 }, "Glass", { collide = false, kind = "glass" })
+			add("Turmfenster", tx, yb + yy, tz + sd * 4.6, 1.4, 4.5, 0.3, { 40, 44, 52 }, "Glass", { collide = false, kind = "glass" })
+		end
+		add("Uhr", tx - 4.7, yb + H - 7, tz, 0.3, 4.4, 4.4, { 244, 240, 228 }, "SmoothPlastic", { collide = false, shape = "Cylinder" })
+		add("Uhr", tx, yb + H - 7, tz + sd * 4.7, 0.3, 4.4, 4.4, { 244, 240, 228 }, "SmoothPlastic", { collide = false, shape = "Cylinder", yaw = 90 })
+		add("Trommel", tx, yb + H + 1.5, tz, 3, 9.6, 9.6, BRICK2, "Brick", { shape = "Cylinder", roll = 90, collide = true })
+		add("Kuppel", tx, yb + H + 7, tz, 11, 11, 11, GREEN, "Metal", { shape = "Ball", collide = true })
+		add("Laterne", tx, yb + H + 12.8, tz, 3.2, 3.4, 3.4, GREEN, "Metal", { shape = "Cylinder", roll = 90, collide = true })
+		add("Spitze", tx, yb + H + 15.2, tz, 2.4, 2.4, 2.4, GOLD, "Metal", { shape = "Ball", collide = false })
+		add("Kreuz", tx, yb + H + 18, tz, 0.5, 4.5, 0.5, GOLD, "Metal", { collide = false })
+	end
+	add("Portal", x0 - 0.2, yb + 4, 0, 0.5, 8, 5, { 56, 40, 32 }, "Wood", { collide = false })
+	return parts
+end
+
+-- Chinesischer Turm: fünf Stockwerke aus Holz mit weit ausladenden Dächern, Säulenumgang unten, vergoldete Spitze
+function Landmarks.chinesischerTurm(cfg)
+	local parts = {}
+	local L = cfg.landmarks.turm
+	local add = new(parts, L.x, L.z)
+	local y = L.baseY
+	local WOOD, ROOFC, GOLD = { 142, 100, 62 }, { 66, 88, 70 }, { 214, 176, 70 }
+	local function disc(name, yy, dia, h, color, mat, collide)
+		add(name, 0, yy, 0, h, dia, dia, color, mat, { shape = "Cylinder", roll = 90, collide = collide })
+	end
+	disc("TurmSockel", y + 0.6, 24, 1.2, { 150, 148, 142 }, "Concrete", true)
+	y = y + 1.2
+	disc("TurmKern", y + 4, 9, 8, WOOD, "Wood", true)
+	for i = 1, 8 do -- Säulenumgang
+		local a = 2 * math.pi * (i - 1) / 8
+		add("TurmSaeule", 6.4 * math.cos(a), y + 4, 6.4 * math.sin(a), 0.9, 8, 0.9, { 120, 80, 50 }, "Wood", { collide = true })
+	end
+	y = y + 8
+	local tiers = { { 22, 8 }, { 18, 7 }, { 15, 6 }, { 12, 5 }, { 9, 4 } } -- Dachdurchmesser, Kerndurchmesser
+	for i, t in ipairs(tiers) do
+		disc("TurmDachRand", y + 0.3, t[1], 0.6, ROOFC, "Metal", true)
+		disc("TurmDach", y + 1.2, t[1] - 5, 1.2, ROOFC, "Metal", true)
+		y = y + 1.8
+		if i < #tiers then
+			disc("TurmGeschoss", y + 2.5, t[2], 5, WOOD, "Wood", true)
+			disc("TurmBruestung", y + 4.6, t[2] + 1.4, 0.8, { 120, 80, 50 }, "Wood")
+			y = y + 5
+		end
+	end
+	add("TurmSpitze", 0, y + 3.5, 0, 0.7, 7, 0.7, GOLD, "Metal", { collide = false })
+	add("TurmKugel", 0, y + 2, 0, 2.2, 2.2, 2.2, GOLD, "Metal", { shape = "Ball", collide = false })
+	return parts
+end
+
 function Landmarks.plan(cfg)
 	local parts = {}
-	for _, list in ipairs({ Landmarks.siegestor(cfg), Landmarks.friedensengel(cfg) }) do
+	for _, list in ipairs({ Landmarks.siegestor(cfg), Landmarks.friedensengel(cfg), Landmarks.frauenkirche(cfg), Landmarks.chinesischerTurm(cfg) }) do
 		for _, p in ipairs(list) do parts[#parts + 1] = p end
 	end
 	return { parts = parts }
@@ -2157,24 +2253,121 @@ local function club(cfg, add, spec)
 	end
 end
 
+-- Eisbachwelle: stehende Welle im Bach (Walze aus Schaum, Tag "Eisbachwelle"/"SurfZone" für den späteren Surf-Mechanismus), Ufermauern,
+-- Zuschauerdeck mit Bänken am Westufer, Fußgängerbrücke flussaufwärts und Schild.
+local function eisbach(cfg, add)
+	local pts = cfg.water.bach.pts
+	local zc = cfg.landmarks.eisbach.z
+	local cx, cz, ux, uz
+	for i = 1, #pts - 1 do
+		local a, b = pts[i], pts[i + 1]
+		if zc >= a[2] and zc <= b[2] then
+			local t = (zc - a[2]) / (b[2] - a[2])
+			cx, cz = a[1] + t * (b[1] - a[1]), zc
+			ux, uz = Geo.dir(a[1], a[2], b[1], b[2])
+		end
+	end
+	local nx, nz = -uz, ux -- zeigt vom Bach nach Westen (Zuschauerseite)
+	local function at(a, l) return cx + ux * a + nx * l, cz + uz * a + nz * l end
+	local yawU, yawN = Geo.yawOf(ux, uz), Geo.yawOf(nx, nz)
+	local wx, wz = at(0, 0)
+	add("Eisbachwelle", "wave", wx, -3.7, wz, 13, 5.5, 5.5, { 214, 234, 246 }, "SmoothPlastic", { shape = "Cylinder", yaw = yawN, transparency = 0.2, tag = "Eisbachwelle", attrs = { Surf = true } })
+	local sx, sz = at(-1.6, 0)
+	add("Wellenschaum", "wave", sx, -1.3, sz, 13, 0.6, 2.8, { 248, 252, 255 }, "SmoothPlastic", { yaw = yawN, transparency = 0.1 })
+	local tx, tz = at(3.6, 0)
+	add("Wellental", "wave", tx, -3.85, tz, 13, 0.3, 6, { 190, 220, 238 }, "SmoothPlastic", { yaw = yawN, transparency = 0.4 })
+	add("SurfZone", "zone", wx, -2.5, wz, 14, 6, 14, { 255, 255, 255 }, "SmoothPlastic", { yaw = yawN, transparency = 1, tag = "SurfZone", attrs = { Welle = "Eisbach" } })
+	local STONEW = { 170, 164, 150 }
+	for _, side in ipairs({ -1, 1 }) do -- Ufermauern an beiden Ufern
+		local mx, mz = at(0, side * 13.6)
+		add("Ufermauer", "wall", mx, -1.4, mz, 44, 5.2, 1.2, STONEW, "Concrete", { yaw = yawU, collide = true })
+	end
+	local dx, dz = at(0, 21) -- Zuschauerdeck mit Geländer und drei Bänken
+	add("Zuschauerdeck", "deck", dx, 0.25, dz, 26, 0.5, 10, { 140, 104, 70 }, "Wood", { yaw = yawU, collide = true })
+	local rx, rz = at(0, 15.8)
+	add("DeckGelaender", "deck", rx, 1.2, rz, 26, 1.2, 0.3, { 70, 62, 56 }, "Metal", { yaw = yawU, collide = true })
+	for _, a in ipairs({ -8, 0, 8 }) do
+		local bx, bz = at(a, 24)
+		bench(add, bx, 0.5, bz, math.deg(math.atan2(nx, nz)))
+	end
+	for _, da in ipairs({ -2.8, 2.8 }) do -- Fußgängerbrücke quer über den Bach
+		local bx, bz = at(-24 + da, 0)
+		add("BrueckeGelaender", "deck", bx, 1.5, bz, 36, 1.4, 0.4, { 70, 62, 56 }, "Metal", { yaw = yawN, collide = true })
+	end
+	local bx, bz = at(-24, 0)
+	add("BrueckeDeck", "deck", bx, 0, bz, 36, 0.8, 6, { 150, 112, 76 }, "Wood", { yaw = yawN, collide = true })
+	local px, pz = at(-12, 16.2)
+	local signYaw = yawU + 180
+	add("Schild", "decor", px, 3.4, pz, 9, 2.4, 0.3, { 36, 70, 110 }, "SmoothPlastic", { yaw = signYaw })
+	add("SchildPfosten", "decor", px, 1.6, pz, 0.5, 3.2, 0.5, { 70, 62, 56 }, "Metal", { yaw = signYaw, collide = true })
+	local tx2, tz2 = px + nx * 0.25, pz + nz * 0.25
+	add("Schrift", "text", tx2, 3.4, tz2, 8.4, 1.8, 0.2, { 255, 255, 255 }, "SmoothPlastic", { yaw = signYaw, text = { s = "EISBACHWELLE", color = { 255, 255, 255 } } })
+end
+
+-- Biergarten um den Chinesischen Turm: Kiesfläche, Ausschank mit Schild, Bierbänke in Reihen, Kastanien am Rand
+local function biergarten(cfg, add, rng, free)
+	local b, t = cfg.landmarks.biergarten, cfg.landmarks.turm
+	local cx, cz = (b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2
+	add("BiergartenKies", "plaza", cx, 0, cz, b.x1 - b.x0, 0.5, b.z1 - b.z0, { 214, 204, 176 }, "Pavement")
+	-- Ausschank am Nordrand
+	local kx, kz = b.x0 + 24, b.z0 + 8
+	add("AusschankWand", "decor", kx, 5.2, kz, 40, 10, 12, { 240, 236, 226 }, "SmoothPlastic", { collide = true })
+	add("AusschankDach", "decor", kx, 10.9, kz, 43, 0.8, 15, { 196, 84, 48 }, "Slate", { collide = true })
+	for i = -1, 1 do add("Ausschankfenster", "glass", kx + i * 12, 5.5, kz + 6.1, 8, 3.6, 0.3, { 50, 62, 78 }, "Glass") end
+	add("AusschankTheke", "decor", kx, 2.2, kz + 7, 38, 1.4, 1.6, { 140, 104, 70 }, "Wood", { collide = true })
+	add("BiergartenSchild", "decor", kx, 8.2, kz + 6.3, 18, 2.6, 0.3, { 36, 90, 60 }, "SmoothPlastic")
+	add("Schrift", "text", kx, 8.2, kz + 6.55, 16.4, 2, 0.2, { 255, 255, 255 }, "SmoothPlastic", { yaw = 180, text = { s = "BIERGARTEN", color = { 255, 255, 255 } } })
+	-- Bierbänke in Reihen, um den Turm herum ausgespart
+	local sets = 0
+	for x = b.x0 + 8, b.x1 - 8, 13 do
+		for z = b.z0 + 24, b.z1 - 6, 11 do
+			if math.sqrt((x - t.x) ^ 2 + (z - t.z) ^ 2) > 21 then
+				add("Biertisch", "decor", x, 2.9, z, 6, 0.35, 2.4, { 150, 112, 76 }, "Wood", { collide = true })
+				for _, sd in ipairs({ -2.1, 2.1 }) do add("Bierbank", "decor", x, 1.7, z + sd, 6, 0.3, 1.2, { 150, 112, 76 }, "Wood", { collide = true }) end
+				sets = sets + 1
+			end
+		end
+	end
+	-- Kastanien rund um die Fläche (Süd- und Ostkante, West- und Nordkante teilweise)
+	local trees = 0
+	for x = b.x0 + 4, b.x1 - 4, 14 do
+		for _, z in ipairs({ b.z1 + 3 }) do
+			if free(x, z, true) then tree(add, rng, x, 0, z, 1.25) trees = trees + 1 end
+		end
+	end
+	for z = b.z0 + 30, b.z1 - 8, 14 do
+		for _, x in ipairs({ b.x0 - 3, b.x1 + 3 }) do
+			if free(x, z, true) then tree(add, rng, x, 0, z, 1.25) trees = trees + 1 end
+		end
+	end
+	return { sets = sets, trees = trees }
+end
+
 function Garden.plan(cfg, roadPlan, specials)
 	local parts = {}
 	local add = emitter(parts)
 	local rng = newRng(7)
-	local function free(x, z) -- nicht auf Straßen, nicht im Bach, nicht in der Isar-Böschung, nicht auf Hügelkuppe/Terrasse
+	local b = cfg.landmarks.biergarten
+	local function free(x, z, ignoreZones) -- nicht auf Straßen, nicht im Bach, nicht in der Isar-Böschung, nicht auf Hügelkuppe/Terrasse
 		if inRoad(roadPlan.segments, x, z, 8) then return false end
 		if Geo.polyDist(x, z, cfg.water.bach.pts) < 22 then return false end
 		if Geo.polyDist(x, z, cfg.water.isar.pts) < cfg.water.isar.layers[1][3] + 6 then return false end
 		local h = cfg.hills[1]
 		if math.sqrt((x - h.x) ^ 2 + (z - h.z) ^ 2) < 24 then return false end
-		local t = cfg.terrace
-		if x > t.x0 - 6 and x < t.x1 + 6 and z > t.z0 - 6 and z < t.z1 + 6 then return false end
+		local tr = cfg.terrace
+		if x > tr.x0 - 6 and x < tr.x1 + 6 and z > tr.z0 - 6 and z < tr.z1 + 6 then return false end
+		if not ignoreZones then -- Biergarten, Eisbachwelle-Gelände
+			if x > b.x0 - 4 and x < b.x1 + 4 and z > b.z0 - 4 and z < b.z1 + 4 then return false end
+			if z > cfg.landmarks.eisbach.z - 50 and Geo.polyDist(x, z, cfg.water.bach.pts) < 46 then return false end
+		end
 		return true
 	end
 	local stats = {}
 	stats.hofTrees = hofgarten(cfg, add, rng, free)
 	monopteros(cfg, add)
 	stats.egTrees = englischerGarten(cfg, add, rng, free)
+	stats.biergarten = biergarten(cfg, add, rng, free)
+	eisbach(cfg, add)
 	stats.bank = isarBank(cfg, add, rng, cfg.isarBridges)
 	for _, sp in ipairs(specials or {}) do
 		if sp.name == "Prinz-Eins" then club(cfg, add, sp) end
@@ -2468,7 +2661,7 @@ local STEPS = {
 	landmarks = function(opts, origin)
 		local plan = Landmarks.plan(Config)
 		Builder.buildParts(plan.parts, Builder.container("Wahrzeichen"), origin)
-		return string.format("%d Teile (Siegestor, Friedensengel)", #plan.parts)
+		return string.format("%d Teile (Siegestor, Friedensengel, Frauenkirche, Chinesischer Turm)", #plan.parts)
 	end,
 	gardens = function(opts, origin)
 		local plan = Garden.plan(Config, RoadsPlanner.plan(Config), Specials)

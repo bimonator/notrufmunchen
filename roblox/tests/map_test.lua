@@ -489,6 +489,52 @@ do
 	end
 end
 
+-- Frauenkirche, Chinesischer Turm, Eisbachwelle, Biergarten
+do
+	local fk, tm = Landmarks.frauenkirche(Config), Landmarks.chinesischerTurm(Config)
+	local function count(list, name) local n = 0 for _, p in ipairs(list) do if p.name == name then n = n + 1 end end return n end
+	local maxY, minX, maxX, minZ, maxZ = 0, 1e9, -1e9, 1e9, -1e9
+	for _, p in ipairs(fk) do
+		maxY = math.max(maxY, p.pos[2] + p.size[2] / 2)
+		if p.collide ~= false and p.name ~= "Dach" and p.name ~= "First" then
+			minX, maxX = math.min(minX, p.pos[1] - p.size[1] / 2), math.max(maxX, p.pos[1] + p.size[1] / 2)
+			minZ, maxZ = math.min(minZ, p.pos[3] - p.size[3] / 2), math.max(maxZ, p.pos[3] + p.size[3] / 2)
+		end
+	end
+	check(minX >= -580 and maxX <= -520 and minZ >= 224 and maxZ <= 284, "Frauenkirche passt nicht auf die Marienplatz-Insel: " .. minX .. ".." .. maxX .. ", " .. minZ .. ".." .. maxZ)
+	check(count(fk, "Kuppel") == 2 and count(fk, "Uhr") == 4 and count(fk, "Dach") == 2, "Frauenkirche: Türme/Uhren/Dach")
+	check(count(fk, "Fenster") == 16, "Frauenkirche: Fenster " .. count(fk, "Fenster"))
+	check(maxY > 45 and maxY < 80, "Frauenkirche Höhe " .. maxY)
+	local roofs = 0
+	for _, p in ipairs(fk) do if p.name == "Dach" then roofs = roofs + 1 check(math.abs(p.pitch) > 45 and math.abs(p.pitch) < 60, "Dachneigung " .. p.pitch) end end
+	local bg = Config.landmarks.biergarten
+	check(count(tm, "TurmDach") == 5 and count(tm, "TurmSaeule") == 8, "Chinesischer Turm: Dächer/Säulen")
+	for _, p in ipairs(tm) do
+		check(p.pos[1] > bg.x0 and p.pos[1] < bg.x1 and p.pos[3] > bg.z0 and p.pos[3] < bg.z1, "Turm außerhalb des Biergartens: " .. p.name)
+	end
+	local sets, trees, wave, zone, signs, deckOk = 0, 0, nil, nil, 0, false
+	for _, p in ipairs(g) do
+		if p.name == "Biertisch" then sets = sets + 1 end
+		if p.name == "Eisbachwelle" then wave = p end
+		if p.name == "SurfZone" then zone = p end
+		if p.name == "Schrift" and p.text and (p.text.s == "BIERGARTEN" or p.text.s == "EISBACHWELLE") then signs = signs + 1 end
+		if p.name == "Zuschauerdeck" then deckOk = true end
+		if p.name == "Stamm" and p.pos[1] > bg.x0 and p.pos[1] < bg.x1 and p.pos[3] > bg.z0 and p.pos[3] < bg.z1 then trees = trees + 1 end
+	end
+	check(sets >= 15, "Biergarten: Bierbänke " .. sets)
+	check(trees == 0, "Bäume im Biergarten: " .. trees)
+	check(signs == 2 and deckOk, "Schilder/Deck fehlen")
+	check(wave and wave.tag == "Eisbachwelle" and zone and zone.tag == "SurfZone", "Eisbachwelle ohne Tags")
+	if wave then
+		check(Geo.polyDist(wave.pos[1], wave.pos[3], Config.water.bach.pts) < 1, "Welle liegt nicht im Bach")
+		check(wave.pos[2] - wave.size[2] / 2 > -7 and wave.pos[2] + wave.size[2] / 2 > Config.water.bach.waterTop + 1, "Welle ragt nicht aus dem Wasser")
+		check(wave.size[1] <= 2 * Config.water.bach.layers[2][3], "Welle breiter als der Bach")
+		for _, sp in ipairs(Specials) do
+			check(not (wave.pos[1] > sp.x0 - 10 and wave.pos[1] < sp.x1 + 10 and wave.pos[3] > sp.z0 - 10 and wave.pos[3] < sp.z1 + 10), "Welle zu nah an " .. sp.name)
+		end
+	end
+end
+
 print(string.format("Wand: Höhe %d bis %d", minH, maxH))
 if failures > 0 then
 	print(failures .. " FEHLER")
