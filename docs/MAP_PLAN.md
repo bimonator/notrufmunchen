@@ -95,7 +95,8 @@ Ladenzeile beidseitig, Z −400…−40, ~20 Gebäude pro Seite:
 - Schmaler Platz, Fußgängerzone Richtung Marienplatz
 
 ### 5.4 Marienplatz / Frauenkirche
-- Kreisel um den Platz; Frauenkirche mit 2 Zwiebeltürmen (orange Dächer wie in der Skizze → Zwiebelhauben **kupfergrün/grau** wären realistischer, orange nur falls bewusst gewollt)
+- **Stand Code:** Kreisel entfällt, Frauenkirche (395 × 150, Türme ~300 hoch) steht auf einem Kirchplatz (x −634…−200, z 140…368); Fußgängerzone beginnt hinter dem Chor.
+- (Plan früher:) Kreisel um den Platz; Frauenkirche mit 2 Zwiebeltürmen (orange Dächer wie in der Skizze → Zwiebelhauben **kupfergrün/grau** wären realistischer, orange nur falls bewusst gewollt)
 - Marienplatz-Fußgängerbereich mit Brunnen/Säule, Weihnachtsmarkt-Event später möglich
 
 ### 5.5 Hofgarten

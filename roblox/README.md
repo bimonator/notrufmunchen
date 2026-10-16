@@ -16,7 +16,7 @@ Baut die Karte aus `docs/MAP_PLAN.md` und `docs/phase1_bauplan.html` per Code: T
 [wasser] ok (... Wasser-Zellen am Messpunkt)
 [roads] 1475 Teile, 157 Parkbuchten
 [lights] 270 Laternen, 13 Ampelmasten, 2 Fußgängerampeln, 1529 Teile
-[landmarks] 210 Teile (Siegestor, Friedensengel, Frauenkirche, Chinesischer Turm)
+[landmarks] 279 Teile (Siegestor, Friedensengel, Frauenkirche, Chinesischer Turm)
 [gardens] 1050 Teile, 143 Bäume, 103 Uferweg-Platten, 50 Findlinge
 [houses] 154 Häuser, 12928 Teile
 [ampel] Script AmpelSteuerung in ServerScriptService angelegt

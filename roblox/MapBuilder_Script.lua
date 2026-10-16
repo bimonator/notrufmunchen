@@ -205,11 +205,9 @@ C.roads = {
 	{ name = "Diagonale", profile = "std48", pts = { { 0, 30 }, { 290, 36 }, { 455, -77 }, { 605, -212 }, { 770, -347 }, { 790, -472 } } },
 	{ name = "Isarspange", profile = "std48", pts = { { 455, -77 }, { 700, -60 }, { 780, -40 }, { 1012, 3 }, { 1030, 70 }, { 1076, 210 } } },
 	{ name = "V3", profile = "std48", pts = { { 300, -472 }, { 300, 32 } } },
-	{ name = "KreiselNord", profile = "std48", pts = { { -550, 30 }, { -550, 196 } } },
-	{ name = "KreiselWest", profile = "std48", pts = { { -661, 254 }, { -612, 254 } } },
-	{ name = "Kreisel", closed = true, profile = "kreisel24", pts = circle(-550, 254, 58, 24) },
+	{ name = "KirchplatzNord", profile = "std48", pts = { { -550, 30 }, { -550, 140 } } }, -- endet am Kirchplatz der Frauenkirche
 	{ name = "Maximilianstrasse", profile = "std48", pts = { { 395, 410 }, { 395, 298 }, { 876, 298 } } }, -- vom Ring zur Maximilianbrücke und den Stufen zum Friedensengel
-	{ name = "Fussgaengerzone", profile = "plaza40", pts = { { -480, 254 }, { -55, 254 } } },
+	{ name = "Fussgaengerzone", profile = "plaza40", pts = { { -200, 254 }, { -55, 254 } } },
 }
 
 -- Parkbuchten: Mittellinie des Parkstreifens, Buchtlänge 16, Breite 9. { x0, z0, x1, z1 }
@@ -224,7 +222,7 @@ C.bays = {
 
 C.plazas = {
 	{ name = "Odeonsplatz", x0 = -140, z0 = 296, x1 = 140, z1 = 386 },
-	{ name = "MarienplatzInsel", x0 = -580, z0 = 224, x1 = -520, z1 = 284 },
+	{ name = "Kirchplatz", x0 = -634, z0 = 140, x1 = -200, z1 = 368 }, -- Platz um die Frauenkirche (Kreisel entfällt)
 }
 
 -- Kleine Brücken (flaches Deck unter der Straße, Länge entlang der Straße, Breite quer, yaw in Grad)
@@ -290,7 +288,7 @@ C.pedSignals = { { name = "Siegestor_West", x = -62, z = 8, fx = 1, fz = 0 }, { 
 C.landmarks = {
 	siegestor = { x = 0, z = 0, baseY = 0.4 },
 	friedensengel = { x = 965, z = 298, baseY = 3.7 },
-	frauenkirche = { x = -550, z = 254, baseY = 0.7 }, -- auf der Marienplatz-Insel im Kreisel
+	frauenkirche = { x0 = -610, x1 = -215, z = 254, baseY = 0.7, width = 150, wallH = 72, roofRise = 62, towerH = 210 }, -- auf dem Kirchplatz, Türme im Westen
 	turm = { x = 573, z = 224, baseY = 0.2 }, -- Chinesischer Turm im Englischen Garten, Biergarten rundherum
 	biergarten = { x0 = 532, z0 = 186, x1 = 614, z1 = 262 },
 	eisbach = { z = 366 }, -- Eisbachwelle: Stelle am Bach, wo z so groß ist (südlich vom Park, neben Prinz Eins)
@@ -1710,61 +1708,67 @@ function Landmarks.friedensengel(cfg)
 	return parts
 end
 
--- Frauenkirche (nach Fotos): langes Backsteinschiff mit hohen Spitzbogenfenstern, riesiges steiles Ziegeldach, zwei Türme mit Uhren
--- und grünen Zwiebelhauben am Westende. Verkleinert (Schiff 55 lang, Türme 38 hoch), damit sie auf die Marienplatz-Insel passt.
+-- Frauenkirche (nach Fotos, nahe am Originalmaßstab von etwa 4 Studs je Meter): langes Backsteinschiff mit hohen Spitzbogenfenstern,
+-- riesiges steiles Ziegeldach, zwei sehr hohe Türme mit Uhren und grünen Zwiebelhauben am Westende. Steht auf dem Kirchplatz.
 function Landmarks.frauenkirche(cfg)
 	local parts = {}
 	local L = cfg.landmarks.frauenkirche
-	local add = new(parts, L.x, L.z)
+	local cxn = (L.x0 + L.x1) / 2
+	local add = new(parts, cxn, L.z)
 	local y0 = L.baseY
 	local BRICK, BRICK2, BAND, ROOF, GREEN, GOLD = { 150, 112, 88 }, { 138, 100, 78 }, { 196, 172, 142 }, { 196, 84, 48 }, { 96, 160, 140 }, { 214, 176, 70 }
-	local x0, x1, hw, wallH = -27, 28, 10, 20
-	local cxn = (x0 + x1) / 2
-	add("Sockel", cxn, y0 + 0.6, 0, x1 - x0 + 3, 1.2, 2 * hw + 3, { 150, 148, 142 }, "Concrete")
-	local yb = y0 + 1.2
-	add("Schiff", cxn, yb + wallH / 2, 0, x1 - x0, wallH, 2 * hw, BRICK, "Brick")
-	add("Gesims", cxn, yb + wallH + 0.4, 0, x1 - x0 + 1, 0.8, 2 * hw + 1, BAND, "Concrete")
-	for i = 0, 7 do -- hohe Fenster in beiden Längswänden
+	local len, hw, wallH, rise, H = L.x1 - L.x0, L.width / 2, L.wallH, L.roofRise, L.towerH
+	add("Sockel", 0, y0 + 1.5, 0, len + 10, 3, 2 * hw + 10, { 150, 148, 142 }, "Concrete")
+	local yb = y0 + 3
+	add("Schiff", 0, yb + wallH / 2, 0, len, wallH, 2 * hw, BRICK, "Brick", { collide = true })
+	add("Gesims", 0, yb + wallH + 1, 0, len + 3, 2, 2 * hw + 3, BAND, "Concrete")
+	-- hohe Spitzbogenfenster mit Pfeilern dazwischen, beide Längswände
+	local first = -len / 2 + 70 -- hinter den Türmen
+	local n = math.floor((len / 2 - 20 - first) / 22) + 1
+	for i = 0, n - 1 do
+		local wx = first + i * 22
 		for _, sd in ipairs({ -1, 1 }) do
-			add("Fenster", -12 + i * 5, yb + 10.5, sd * (hw + 0.2), 2.6, 11, 0.3, { 50, 62, 78 }, "Glass", { collide = false, kind = "glass", tag = "HouseWindow" })
-			add("FensterBogen", -12 + i * 5, yb + 16.4, sd * (hw + 0.2), 1.6, 1.4, 0.3, { 50, 62, 78 }, "Glass", { collide = false, kind = "glass" })
+			add("Fenster", wx, yb + 31, sd * (hw + 0.4), 8, 44, 0.8, { 50, 62, 78 }, "Glass", { collide = false, kind = "glass", tag = "HouseWindow" })
+			add("FensterBogen", wx, yb + 55, sd * (hw + 0.4), 4.4, 6, 0.8, { 50, 62, 78 }, "Glass", { collide = false, kind = "glass" })
+			add("FensterPfeiler", wx + 11, yb + wallH / 2, sd * (hw + 1), 3, wallH, 2.4, BAND, "Concrete")
 		end
 	end
-	-- Satteldach: zwei Platten mit Überstand, First, Giebelstufen am Ostende
-	local rise, run = 15, hw + 1.2
+	-- Satteldach mit Überstand, First, Giebelstufen am Ostende
+	local run = hw + 3
 	local slope = math.sqrt(run * run + rise * rise)
 	local ang = math.deg(math.atan2(rise, run))
 	for _, sd in ipairs({ -1, 1 }) do
-		add("Dach", cxn, yb + wallH + rise / 2 + 0.6, sd * run / 2, x1 - x0 + 2, 0.8, slope, ROOF, "Slate", { pitch = sd * ang })
+		add("Dach", 0, yb + wallH + rise / 2 + 2, sd * run / 2, len + 6, 1.6, slope, ROOF, "Slate", { pitch = sd * ang })
 	end
-	add("First", cxn, yb + wallH + rise + 1, 0, x1 - x0 + 2, 0.8, 1.6, { 170, 70, 40 }, "Slate")
-	for k = 1, 5 do
-		for _, gx in ipairs({ x1 - 0.4, x0 + 9.4 }) do
-			add("Giebel", gx, yb + wallH + (k - 0.5) * rise / 5 + 0.6, 0, 0.8, rise / 5, 2 * hw * (1 - (k - 1) / 5), BRICK, "Brick", { collide = true })
-		end
+	add("First", 0, yb + wallH + rise + 3, 0, len + 6, 1.6, 3, { 170, 70, 40 }, "Slate")
+	local steps = 12
+	for k = 1, steps do
+		add("Giebel", len / 2 - 0.8, yb + wallH + (k - 0.5) * rise / steps + 2, 0, 1.6, rise / steps, 2 * hw * (1 - (k - 1) / steps), BRICK, "Brick", { collide = true })
 	end
-	-- Türme am Westende
-	local H = 38
+	-- Türme: je 48 breit, am Nord- und Südrand der Westfassade
+	local tw, tx = 48, -len / 2 + 24
 	for _, sd in ipairs({ -1, 1 }) do
-		local tz, tx = sd * 8, -22
-		add("Turm", tx, yb + H / 2, tz, 9, H, 9, BRICK2, "Brick", { collide = true })
-		for _, cxx in ipairs({ -4.4, 4.4 }) do
-			for _, czz in ipairs({ -4.4, 4.4 }) do add("TurmEcke", tx + cxx, yb + H / 2, tz + czz, 1.2, H, 1.2, BAND, "Concrete") end
+		local tz = sd * (hw - tw / 2)
+		add("Turm", tx, yb + H / 2, tz, tw, H, tw, BRICK2, "Brick", { collide = true })
+		for _, cxx in ipairs({ -tw / 2 + 1.5, tw / 2 - 1.5 }) do
+			for _, czz in ipairs({ -tw / 2 + 1.5, tw / 2 - 1.5 }) do add("TurmEcke", tx + cxx, yb + H / 2, tz + czz, 3, H, 3, BAND, "Concrete") end
 		end
-		for k = 1, 4 do add("TurmBand", tx, yb + k * 8, tz, 10, 0.8, 10, BAND, "Concrete") end
-		for _, yy in ipairs({ 11, 21, 30 }) do -- Fensterschlitze an den drei Außenseiten
-			add("Turmfenster", tx - 4.6, yb + yy, tz, 0.3, 4.5, 1.4, { 40, 44, 52 }, "Glass", { collide = false, kind = "glass" })
-			add("Turmfenster", tx, yb + yy, tz + sd * 4.6, 1.4, 4.5, 0.3, { 40, 44, 52 }, "Glass", { collide = false, kind = "glass" })
+		for k = 1, 6 do add("TurmBand", tx, yb + k * 30, tz, tw + 1.6, 2, tw + 1.6, BAND, "Concrete") end
+		for _, yy in ipairs({ 45, 90, 135, 180 }) do -- Fensterschlitze an den drei Außenseiten
+			add("Turmfenster", tx - tw / 2 - 0.3, yb + yy, tz, 0.8, 18, 5, { 40, 44, 52 }, "Glass", { collide = false, kind = "glass" })
+			add("Turmfenster", tx, yb + yy, tz + sd * (tw / 2 + 0.3), 5, 18, 0.8, { 40, 44, 52 }, "Glass", { collide = false, kind = "glass" })
 		end
-		add("Uhr", tx - 4.7, yb + H - 7, tz, 0.3, 4.4, 4.4, { 244, 240, 228 }, "SmoothPlastic", { collide = false, shape = "Cylinder" })
-		add("Uhr", tx, yb + H - 7, tz + sd * 4.7, 0.3, 4.4, 4.4, { 244, 240, 228 }, "SmoothPlastic", { collide = false, shape = "Cylinder", yaw = 90 })
-		add("Trommel", tx, yb + H + 1.5, tz, 3, 9.6, 9.6, BRICK2, "Brick", { shape = "Cylinder", roll = 90, collide = true })
-		add("Kuppel", tx, yb + H + 7, tz, 11, 11, 11, GREEN, "Metal", { shape = "Ball", collide = true })
-		add("Laterne", tx, yb + H + 12.8, tz, 3.2, 3.4, 3.4, GREEN, "Metal", { shape = "Cylinder", roll = 90, collide = true })
-		add("Spitze", tx, yb + H + 15.2, tz, 2.4, 2.4, 2.4, GOLD, "Metal", { shape = "Ball", collide = false })
-		add("Kreuz", tx, yb + H + 18, tz, 0.5, 4.5, 0.5, GOLD, "Metal", { collide = false })
+		local clockY = yb + H - 28
+		add("Uhr", tx - tw / 2 - 0.5, clockY, tz, 0.8, 18, 18, { 244, 240, 228 }, "SmoothPlastic", { collide = false, shape = "Cylinder" })
+		add("Uhr", tx, clockY, tz + sd * (tw / 2 + 0.5), 0.8, 18, 18, { 244, 240, 228 }, "SmoothPlastic", { collide = false, shape = "Cylinder", yaw = 90 })
+		add("Trommel", tx, yb + H + 7, tz, 14, tw - 2, tw - 2, BRICK2, "Brick", { shape = "Cylinder", roll = 90, collide = true })
+		add("Kuppel", tx, yb + H + 14 + 22, tz, 56, 56, 56, GREEN, "Metal", { shape = "Ball", collide = true })
+		add("Laterne", tx, yb + H + 14 + 50 + 6, tz, 14, 12, 12, GREEN, "Metal", { shape = "Cylinder", roll = 90, collide = true })
+		add("Spitze", tx, yb + H + 14 + 50 + 16, tz, 8, 8, 8, GOLD, "Metal", { shape = "Ball", collide = false })
+		add("Kreuz", tx, yb + H + 14 + 50 + 28, tz, 1.4, 16, 1.4, GOLD, "Metal", { collide = false })
 	end
-	add("Portal", x0 - 0.2, yb + 4, 0, 0.5, 8, 5, { 56, 40, 32 }, "Wood", { collide = false })
+	add("Portal", -len / 2 - 0.4, yb + 14, 0, 1, 28, 14, { 56, 40, 32 }, "Wood", { collide = false })
+	add("PortalRahmen", -len / 2 - 0.8, yb + 15, 0, 0.8, 32, 20, BAND, "Concrete", { collide = false })
 	return parts
 end
 

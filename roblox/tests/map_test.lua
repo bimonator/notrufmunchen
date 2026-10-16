@@ -515,19 +515,28 @@ do
 	local fk, tm = Landmarks.frauenkirche(Config), Landmarks.chinesischerTurm(Config)
 	local function count(list, name) local n = 0 for _, p in ipairs(list) do if p.name == name then n = n + 1 end end return n end
 	local maxY, minX, maxX, minZ, maxZ = 0, 1e9, -1e9, 1e9, -1e9
+	local pl
+	for _, q in ipairs(Config.plazas) do if q.name == "Kirchplatz" then pl = q end end
 	for _, p in ipairs(fk) do
 		maxY = math.max(maxY, p.pos[2] + p.size[2] / 2)
-		if p.collide ~= false and p.name ~= "Dach" and p.name ~= "First" then
+		if p.collide ~= false and p.name ~= "Dach" and p.name ~= "First" and p.name ~= "Sockel" then
 			minX, maxX = math.min(minX, p.pos[1] - p.size[1] / 2), math.max(maxX, p.pos[1] + p.size[1] / 2)
 			minZ, maxZ = math.min(minZ, p.pos[3] - p.size[3] / 2), math.max(maxZ, p.pos[3] + p.size[3] / 2)
 		end
 	end
-	check(minX >= -580 and maxX <= -520 and minZ >= 224 and maxZ <= 284, "Frauenkirche passt nicht auf die Marienplatz-Insel: " .. minX .. ".." .. maxX .. ", " .. minZ .. ".." .. maxZ)
+	check(pl ~= nil and minX >= pl.x0 and maxX <= pl.x1 and minZ >= pl.z0 and maxZ <= pl.z1, "Frauenkirche passt nicht auf den Kirchplatz: " .. minX .. ".." .. maxX .. ", " .. minZ .. ".." .. maxZ)
+	check(maxX - minX >= 380 and maxZ - minZ >= 145, "Frauenkirche zu klein: " .. (maxX - minX) .. " x " .. (maxZ - minZ))
 	check(count(fk, "Kuppel") == 2 and count(fk, "Uhr") == 4 and count(fk, "Dach") == 2, "Frauenkirche: Türme/Uhren/Dach")
-	check(count(fk, "Fenster") == 16, "Frauenkirche: Fenster " .. count(fk, "Fenster"))
-	check(maxY > 45 and maxY < 80, "Frauenkirche Höhe " .. maxY)
+	check(count(fk, "Fenster") >= 28, "Frauenkirche: Fenster " .. count(fk, "Fenster"))
+	check(maxY > 280 and maxY < 380, "Frauenkirche Höhe " .. maxY)
 	local roofs = 0
-	for _, p in ipairs(fk) do if p.name == "Dach" then roofs = roofs + 1 check(math.abs(p.pitch) > 45 and math.abs(p.pitch) < 60, "Dachneigung " .. p.pitch) end end
+	for _, p in ipairs(fk) do if p.name == "Dach" then roofs = roofs + 1 check(math.abs(p.pitch) > 35 and math.abs(p.pitch) < 60, "Dachneigung " .. p.pitch) end end
+	-- keine Straße führt mehr durch die Kirche (Kreisel entfällt), die Fußgängerzone beginnt hinter dem Chor
+	for _, rd in ipairs(Config.roads) do
+		check(rd.name ~= "Kreisel" and rd.name ~= "KreiselWest", "Kreisel-Straße noch vorhanden: " .. rd.name)
+		if rd.name == "Fussgaengerzone" then check(rd.pts[1][1] >= maxX, "Fußgängerzone beginnt in der Kirche") end
+		if rd.name == "KirchplatzNord" then check(rd.pts[2][2] <= pl.z0, "Straße ragt in den Kirchplatz") end
+	end
 	local bg = Config.landmarks.biergarten
 	check(count(tm, "TurmDach") == 5 and count(tm, "TurmSaeule") == 8, "Chinesischer Turm: Dächer/Säulen")
 	for _, p in ipairs(tm) do
