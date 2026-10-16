@@ -106,6 +106,8 @@ C.bay = { length = 16, width = 9 }
 -- Allguth-Tankstelle: Grundstück und Ein-/Ausfahrten (z-Bereiche an der Straße, Einfahrt südlich, Ausfahrt nördlich davon).
 -- Vor den Einfahrten gibt es keine Parkbuchten und die Laternen stehen nicht im Weg (siehe driveways).
 C.tankstelle = { lot = { 57, -336, 180, -150 }, gaps = { { -262, -218 }, { -196, -152 } }, parking = { x0 = 96, zBack = -152, depth = 16, w = 8, kinds = { "H", "E", "E", "E", "N", "N", "N", "N", "N", "N" } } } -- parking: Stellplatzreihe im Südteil (H Behinderte, E Ladeplatz, N normal)
+-- Autohaus (Autohaus.lua): Grundstück östlich der V3, nördlich der Diagonale; Westwand bei frontX, Showroom und Werkstatt als z-Bereiche (Nord nach Süd)
+C.autohaus = { x0 = 332, z0 = -196, x1 = 442, z1 = -116, frontX = 394, showroom = { -170, -122 }, werkstatt = { -196, -170 } }
 C.driveways = {}
 for _, g in ipairs(C.tankstelle.gaps) do C.driveways[#C.driveways + 1] = { x0 = 43, x1 = 57, z0 = g[1] - 3, z1 = g[2] + 3 } end
 

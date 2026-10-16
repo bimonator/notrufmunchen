@@ -22,6 +22,7 @@ local Landmarks = M.Landmarks
 local Rathaus = M.Rathaus
 local Marienplatz = M.Marienplatz
 local Stachus = M.Stachus
+local Autohaus = M.Autohaus
 local Hochhaus = M.Hochhaus
 local Bushaltestellen = M.Bushaltestellen
 local TerrainPlanner = M.TerrainPlanner
@@ -358,6 +359,7 @@ local Marienplatz = Marienplatz
 local Hochhaus = Hochhaus
 local Bushaltestellen = Bushaltestellen
 local Stachus = Stachus
+local Autohaus = Autohaus
 local Garden = Garden
 local TerrainPlanner = TerrainPlanner
 local WallPlanner = WallPlanner
@@ -482,6 +484,11 @@ local plan = Bushaltestellen.plan(Config)
 Builder.buildParts(plan.parts, Builder.container("Bushaltestellen"), origin)
 return string.format("%d Haltestellen, %d Teile", plan.stats.stops, #plan.parts)
 end,
+autohaus = function(opts, origin)
+local plan = Autohaus.plan(Config)
+Builder.buildParts(plan.parts, Builder.container("Autohaus"), origin)
+return string.format("%d Teile (%d Boxenlinien, %d Leuchten, %d Bäume), keine Fahrzeuge", #plan.parts, plan.stats.bays, plan.stats.lamps, plan.stats.trees)
+end,
 stachus = function(opts, origin)
 local plan = Stachus.plan(Config)
 Builder.buildParts(plan.parts, Builder.container("Stachus"), origin)
@@ -545,7 +552,7 @@ local st = Planner.stats(plan)
 return string.format("%d Gebäude, %d Teile", st.houses, st.parts + #plan.parts)
 end,
 }
-BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "stachus", "gardens", "pave", "houses", "skyline", "bus", "wall" }
+BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "stachus", "autohaus", "gardens", "pave", "houses", "skyline", "bus", "wall" }
 local function afterTerrain(base)
 local ground = Builder.measureGround(base)
 print(string.format("[boden] Terrain-Oberkante gemessen: %.1f, alle weiteren Teile werden daran ausgerichtet", ground))

@@ -10,7 +10,7 @@ import re
 here = os.path.dirname(os.path.abspath(__file__))
 PARTS = [ # ModuleScripts (Name, Module); jedes Teil bekommt die Module der vorigen Teile über die Tabelle M
     ("Teil1", ["Geo", "Config", "Planner", "Blocks", "Specials"]),
-    ("Teil2", ["RoadsPlanner", "LightsPlanner", "Landmarks", "Rathaus", "Marienplatz", "Stachus", "Hochhaus", "Bushaltestellen", "TerrainPlanner", "Garden", "WallPlanner"]),
+    ("Teil2", ["RoadsPlanner", "LightsPlanner", "Landmarks", "Rathaus", "Marienplatz", "Stachus", "Autohaus", "Hochhaus", "Bushaltestellen", "TerrainPlanner", "Garden", "WallPlanner"]),
 ]
 MAIN = ["Ampel", "Builder", "BuildAll"]
 LIMIT = 190000  # Sicherheitsabstand zur Roblox-Grenze von ca. 200 000 Zeichen je Script
@@ -66,6 +66,7 @@ script = """-- MapBuilder_Script.lua  (automatisch erzeugt mit make_bundles.py, 
 --              Maximilianbrücke (zwei Bögen, Statuen)
 --   lights     270 Laternen (runder Mast, Bogenarm, Leuchtkopf), 13 Ampelmasten (Rundmast, Ausleger, Linsenköpfe mit Blenden)
 --   marienplatz Neues Rathaus, Mariensäule, U-Bahn-Abgang, Pflaster, Kugelleuchten, Platanen, Cafés (Frauenkirche verkleinert im Nordwesten)
+--   autohaus   Autohaus an der V3 mit Showroom, Parkdeck, Werkstatt, Pylon (ohne Fahrzeuge)
 --   stachus    Stachus: Halbkreis-Geschäftshäuser, Karlstor, Brunnen mit Strahlen, Taxistand (statt Casino/Kaffeehaus-Gelände am Odeonsplatz)
 --   landmarks  Siegestor auf Mittelinsel, Friedensengel (Engel mit Flügeln, Ölzweig, Nike; rundes Becken), Frauenkirche (runde Zwiebelhauben),
 --              Chinesischer Turm

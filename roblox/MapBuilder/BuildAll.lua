@@ -16,6 +16,7 @@ local Marienplatz = require(script and script.Parent.Marienplatz or "Marienplatz
 local Hochhaus = require(script and script.Parent.Hochhaus or "Hochhaus")
 local Bushaltestellen = require(script and script.Parent.Bushaltestellen or "Bushaltestellen")
 local Stachus = require(script and script.Parent.Stachus or "Stachus")
+local Autohaus = require(script and script.Parent.Autohaus or "Autohaus")
 local Garden = require(script and script.Parent.Garden or "Garden")
 local TerrainPlanner = require(script and script.Parent.TerrainPlanner or "TerrainPlanner")
 local WallPlanner = require(script and script.Parent.WallPlanner or "WallPlanner")
@@ -144,6 +145,11 @@ local STEPS = {
 		Builder.buildParts(plan.parts, Builder.container("Bushaltestellen"), origin)
 		return string.format("%d Haltestellen, %d Teile", plan.stats.stops, #plan.parts)
 	end,
+	autohaus = function(opts, origin)
+		local plan = Autohaus.plan(Config)
+		Builder.buildParts(plan.parts, Builder.container("Autohaus"), origin)
+		return string.format("%d Teile (%d Boxenlinien, %d Leuchten, %d Bäume), keine Fahrzeuge", #plan.parts, plan.stats.bays, plan.stats.lamps, plan.stats.trees)
+	end,
 	stachus = function(opts, origin)
 		local plan = Stachus.plan(Config)
 		Builder.buildParts(plan.parts, Builder.container("Stachus"), origin)
@@ -208,7 +214,7 @@ local STEPS = {
 	end,
 }
 
-BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "stachus", "gardens", "pave", "houses", "skyline", "bus", "wall" }
+BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "stachus", "autohaus", "gardens", "pave", "houses", "skyline", "bus", "wall" }
 
 -- Nach dem Terrain: echte Bodenhöhe messen (alles weitere wird daran ausgerichtet) und prüfen, ob Wasser da ist.
 local function afterTerrain(base)

@@ -583,6 +583,47 @@ do
 	print(string.format("Stachus: %d Teile (%d Abschnitte, %d Läden, %d Strahlen, %d Zinnen)", #plan.parts, st.segs, st.shops, st.jets, st.merlons))
 end
 
+-- ===== Autohaus an der V3 (ohne Fahrzeuge) =====
+do
+	local Config = require("Config")
+	local RoadsPlanner = require("RoadsPlanner")
+	local Autohaus = require("Autohaus")
+	local Specials = require("Specials")
+	local Blocks = require("Blocks")
+	local A = Config.autohaus
+	local plan = Autohaus.plan(Config)
+	local segs = RoadsPlanner.segments(Config)
+	local function roadAt(x, z)
+		for _, sg in ipairs(segs) do
+			local rc = sg.rect
+			local dx, dz = x - rc.ax, z - rc.az
+			local a, b = dx * rc.ux + dz * rc.uz, dx * rc.nx + dz * rc.nz
+			if a > rc.s0 and a < rc.s1 and math.abs(b) < rc.w + 1 then return sg end
+		end
+	end
+	local texts, outside, maxY = {}, 0, 0
+	for _, p in ipairs(plan.parts) do
+		local hx, hz = p.size[1] / 2, p.size[3] / 2
+		if p.roll == nil or p.roll == 90 or p.name == "Treppenwange" then
+			if p.pos[1] - hx < A.x0 - 0.5 or p.pos[1] + hx > A.x1 + 0.5 or p.pos[3] - hz < A.z0 - 0.5 or p.pos[3] + hz > A.z1 + 0.5 then
+				if p.name ~= "Treppenwange" then outside = outside + 1 print("Autohaus außerhalb: " .. p.name .. " " .. p.pos[1] .. "," .. p.pos[3]) end
+			end
+		end
+		maxY = math.max(maxY, p.pos[2] + p.size[2] / 2)
+		if p.text then texts[p.text.s] = (texts[p.text.s] or 0) + 1 end
+		check(not string.find(string.lower(p.name), "auto$") and p.name ~= "Fahrzeug" and p.tag ~= "VehicleSpawn", "Autohaus: Fahrzeuge sind noch nicht gewünscht")
+	end
+	check(outside == 0, "Autohaus: " .. outside .. " Teile außerhalb des Grundstücks")
+	for _, c in ipairs({ { A.x0, A.z0 }, { A.x1, A.z0 }, { A.x0, A.z1 }, { A.x1, A.z1 }, { (A.x0 + A.x1) / 2, A.z1 } }) do
+		check(roadAt(c[1], c[2]) == nil, string.format("Autohaus: Grundstücksecke (%d,%d) liegt in einer Straße", c[1], c[2]))
+	end
+	for _, sp in ipairs(Specials) do check(not (sp.x0 < A.x1 and sp.x1 > A.x0 and sp.z0 < A.z1 and sp.z1 > A.z0), sp.name .. " überlappt das Autohaus") end
+	for _, b in ipairs(Blocks) do check(not (b.xmin < A.x1 and b.xmax > A.x0 and b.zmin < A.z1 and b.zmax > A.z0), b.name .. " überlappt das Autohaus") end
+	check(texts["AUTOHAUS ISARTOR"] == 1 and texts["SERVICE"] == 1 and texts["AUTOHAUS"] == 1 and texts["ISARTOR"] == 1, "Autohaus: Schilder unvollständig")
+	check(#plan.parts > 100 and #plan.parts < 400 and maxY > 38 and maxY < 45, string.format("Autohaus: Teile %d, Höhe %.1f", #plan.parts, maxY))
+	print(string.format("Autohaus: %d Teile (%d Boxenlinien, %d Leuchten, %d Bäume), höchster Punkt %.1f", #plan.parts, plan.stats.bays, plan.stats.lamps, plan.stats.trees, maxY))
+end
+
 -- ===== Skyline, höhere Eckhäuser, Bushaltestellen =====
 do
 	local Config = require("Config")
