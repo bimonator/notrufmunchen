@@ -157,7 +157,7 @@ for _, block in ipairs(Blocks) do
 		end
 	end
 	if block.name == "G_LeopoldOst" then
-		check(#plan.inner >= 10, tag .. "zu wenige Hinterhäuser: " .. #plan.inner)
+		check(#plan.inner >= 4, tag .. "zu wenige Hinterhäuser: " .. #plan.inner)
 		local lane = block.reserved[1] -- Zufahrt zur Tankstelle bleibt frei
 		for _, h in ipairs(plan.houses) do
 			local x0, _, z0, x1, _, z1 = Planner.aabb(bodyOf(h))
@@ -237,6 +237,33 @@ do
 		check(not (p.color[3] > 150 and p.color[3] > p.color[1] + 40 and p.name:find("Shop", 1, true)), "Shop darf nicht blau sein: " .. p.name)
 	end
 	check(glass >= 4 and white == 1, "Shop: Glasfront/weiße Wände fehlen")
+	-- Allguth nach Fotos: Rasenstreifen (2 Abschnitte, nicht an den Einfahrten), Preis-Totem, Schirm mit Rundung, Schriftzug, 8 Stützen
+	local lawn, hedge, prices, brand, pillars, arcs, roundRoofs, totemH, logoA = 0, 0, 0, 0, 0, 0, 0, 0, 0
+	local lot = nil
+	for _, sp in ipairs(Specials) do if sp.lot then lot = sp end end
+	for _, p in ipairs(tank) do
+		if p.name == "Rasen" then
+			lawn = lawn + 1
+			for _, g in ipairs(lot.curbGaps) do check(not (p.pos[3] + p.size[3] / 2 > g[1] and p.pos[3] - p.size[3] / 2 < g[2]), "Rasen liegt in der Einfahrt") end
+		end
+		if p.name == "Hecke" then hedge = hedge + 1 end
+		if p.tag == "FuelPrice" then prices = prices + 1 end
+		if p.name == "Schrift" and p.text and p.text.s == "ALLGUTH" then brand = brand + 1 end
+		if p.name == "CanopyPillar" then pillars = pillars + 1 end
+		if p.name == "CanopyBand" and p.yaw ~= 0 and p.yaw ~= 90 and p.yaw ~= 180 and p.yaw ~= 270 then arcs = arcs + 1 end
+		if p.name == "CanopyRoofRund" then roundRoofs = roundRoofs + 1 end
+		if p.name == "TotemPylon" then totemH = p.size[2] end
+		if p.name == "LogoA" then logoA = logoA + 1 end
+	end
+	check(lawn == 2 and hedge >= 6, "Rasen/Hecke: " .. lawn .. "/" .. hedge)
+	check(prices == 10, "Preiszeilen " .. prices .. " (5 Sorten, beide Seiten)")
+	check(brand >= 5, "ALLGUTH-Schriftzüge " .. brand)
+	check(pillars == 8 and roundRoofs == 2 and arcs >= 12, "Schirm: Stützen " .. pillars .. ", Rundungen " .. roundRoofs .. ", Bogenstücke " .. arcs)
+	check(totemH >= 30, "Totem zu niedrig " .. totemH)
+	check(logoA == 0, "altes Dach-A noch vorhanden")
+	local offices = 0
+	for _, sp in ipairs(Specials) do if sp.style == "buero" then offices = offices + 1 end end
+	check(offices == 3, "Hintergrundgebäude " .. offices)
 	local gates = 0
 	for _, p in ipairs(wache) do
 		if p.tag == "FireGate" then gates = gates + 1 check(not p.collide, "Tor kollidiert") end

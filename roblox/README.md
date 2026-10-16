@@ -98,6 +98,11 @@ Das Plugin legt beim Bauen ein Script `AmpelSteuerung` in ServerScriptService an
 
 Das Test-Script `MapBuilder_Script.lua` startet die Steuerung direkt nach dem Bauen.
 
+## Allguth-Tankstelle
+
+Nach Fotos: Schirm mit abgerundeten Nordecken und rotem Band mit Schriftzug, 8 weiße Stützen, zwei Zapfsäulen-Inseln, Rasenstreifen mit Hecke und Büschen zwischen Gehweg und Station (nicht an den Einfahrten), EINFAHRT/AUSFAHRT-Schilder, quadratische Logoschilder und das Preis-Totem mit 5 Sorten.
+Die Preiszeilen tragen den Tag `FuelPrice` mit den Attributen `Fuel` und `Price` (nur Anzeige, ein Skript kann sie später ändern). Dahinter stehen drei Bürogebäude (Spezialbauten `Tankstellen-Buero-*`) mit Glasfassade, Geschossbändern und Stahlpfeilern.
+
 ## Offen / Backlog
 
 - **Siegestor und Friedensengel:** mehr Detail (Reliefs, Kapitell, Engel mit Gewand, Quadriga, Wasserspiele), bewusst später.
