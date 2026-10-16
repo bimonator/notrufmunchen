@@ -1297,7 +1297,19 @@ local function styleTankstelle(h, spec)
 	end
 	panes(z0 + 1.2, cz - door / 2)
 	panes(cz + door / 2, z1 - 1.2)
-	W3(h, "ShopTuer", "glass", x0 + 0.6, 6.2, cz, 0.3, 10.4, door, GL, "Glass", { tag = "ShopDoor" }) -- ohne Kollision, man läuft hinein
+	-- Eingang: automatische Schiebetür (zwei Flügel, Antrieb, Sensor) und daneben eine Glastür mit Griff; ohne Kollision, man läuft hinein
+	local DK, tx = { 70, 74, 80 }, x0 + 0.6
+	for _, zz in ipairs({ cz - 2.65, cz - 0.05 }) do
+		W3(h, "Schiebetuer", "glass", tx, 6.2, zz, 0.3, 10.2, 2.6, GL, "Glass", { tag = "ShopDoor" })
+		W3(h, "Schiebetuerrahmen", "trim", tx, 1.2, zz, 0.4, 0.4, 2.6, DK, "Metal")
+		W3(h, "Schiebetuerrahmen", "trim", tx, 11.2, zz, 0.4, 0.4, 2.6, DK, "Metal")
+	end
+	W3(h, "Schiebetuerantrieb", "trim", x0 + 0.2, 11.7, cz - 1.35, 0.9, 0.7, 5.6, DK, "Metal")
+	W3(h, "Tuersensor", "trim", x0 - 0.1, 11.4, cz - 1.35, 0.3, 0.4, 1.2, { 30, 32, 36 }, "SmoothPlastic")
+	W3(h, "Glastuer", "glass", tx, 6.2, cz + 2.75, 0.3, 10.2, 2.5, GL, "Glass", { tag = "ShopDoor" })
+	for _, zz in ipairs({ cz + 1.45, cz + 4.05 }) do W3(h, "GlastuerRahmen", "trim", tx, 6.2, zz, 0.5, 10.4, 0.3, DK, "Metal") end
+	W3(h, "GlastuerGriff", "trim", x0 - 0.15, 6, cz + 1.9, 0.25, 3, 0.25, { 190, 192, 196 }, "Metal")
+	W3(h, "Tuermatte", "decor", x0 - 1.8, 1.2, cz, 3, 0.3, door - 0.4, { 52, 54, 60 }, "Fabric")
 	for _, zz in ipairs({ cz - door / 2, cz + door / 2 }) do W3(h, "ShopTuerrahmen", "trim", x0 + 0.6, 6.2, zz, 0.7, 10.6, 0.5, RED, "SmoothPlastic") end
 	W3(h, "ShopTuerrahmen", "trim", x0 + 0.6, 11.6, cz, 0.7, 0.5, door, RED, "SmoothPlastic")
 	-- Einrichtung: Kasse am Eingang, Regale an der Rückwand

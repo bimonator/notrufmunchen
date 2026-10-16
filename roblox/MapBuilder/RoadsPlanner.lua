@@ -73,6 +73,8 @@ local function buildSegments(cfg)
 			segs[#segs + 1] = {
 				id = #segs + 1, road = road, prof = prof, ax = a[1], az = a[2], ux = dirs[i][1], uz = dirs[i][2], len = dirs[i][3],
 				extA = extA, extB = extB, rect = Geo.rect(a[1], a[2], b[1], b[2], prof.half, extA, extB),
+				-- core: andere Gehwege laufen bis an die Fahrbahn des Kreises durch und schließen so nahtlos an dessen Gehweg an
+				cutRect = prof.core and Geo.rect(a[1], a[2], b[1], b[2], prof.core, extA, extB) or nil,
 			}
 		end
 	end
@@ -107,7 +109,7 @@ local function crossCuts(segs, self, px, pz, L, margin)
 	for _, o in ipairs(segs) do
 		-- benachbarte Segmente derselben Straße mit kleinem Knick (Ellipse, Kurven) schneiden sich nicht gegenseitig: sonst reißt der Gehweg an jedem Knick auf
 		if o.id ~= self.id and not (o.road == self.road and o.ux * self.ux + o.uz * self.uz > 0.95) then
-			local lo, hi = Geo.within(px, pz, self.ux, self.uz, L, o.rect, margin)
+			local lo, hi = Geo.within(px, pz, self.ux, self.uz, L, o.cutRect or o.rect, margin)
 			if lo then cuts[#cuts + 1] = { lo, hi } end
 		end
 	end
@@ -167,6 +169,23 @@ function RoadsPlanner.plan(cfg)
 				end
 			end
 		end
+	end
+
+	-- Einfahrten: Kerbe im Gehweg (Rampe zur Straße, Asphalt auf Gehwegebene, Rampe zum Grundstück)
+	local RAMP = 2.5
+	for _, e in ipairs(cfg.einfahrten or {}) do
+		local alongX = (e.dir == "E" or e.dir == "W")
+		local a0, a1 = alongX and e.x0 or e.z0, alongX and e.x1 or e.z1
+		local b0, b1 = alongX and e.z0 or e.x0, alongX and e.z1 or e.x1
+		local function piece(name, p0, p1, top)
+			local ca, cb = (p0 + p1) / 2, (b0 + b1) / 2
+			local x, z, sx, sz = ca, cb, p1 - p0, b1 - b0
+			if not alongX then x, z, sx, sz = cb, ca, b1 - b0, p1 - p0 end
+			part(parts, name, "road", x, top - 0.3, z, sx, 0.6, sz, 0, COLOR.road, MATERIAL.road, {})
+		end
+		piece("EinfahrtRampe", a0, a0 + RAMP, 0.78)
+		piece("Einfahrt", a0 + RAMP, a1 - RAMP, 1.04)
+		piece("EinfahrtRampe", a1 - RAMP, a1, 0.78)
 	end
 
 	-- Parkbuchten: Trennlinien quer zum Parkstreifen

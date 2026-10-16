@@ -66,7 +66,11 @@ script = """-- MapBuilder_Script.lua  (automatisch erzeugt mit make_bundles.py, 
 --              Maximilianbrücke (zwei Bögen, Statuen)
 --   lights     270 Laternen (runder Mast, Bogenarm, Leuchtkopf), 13 Ampelmasten (Rundmast, Ausleger, Linsenköpfe mit Blenden)
 --   marienplatz Neues Rathaus, Mariensäule, U-Bahn-Abgang, Pflaster, Kugelleuchten, Platanen, Cafés (Frauenkirche verkleinert im Nordwesten)
---   autohaus   Autohaus an der V3 mit Showroom, Parkdeck, Werkstatt, Pylon (ohne Fahrzeuge)
+--   autohaus   Autohaus an der V3 mit Showroom (Glas um die Ecke), Parkdeck, Werkstatt, Pylon (ohne Fahrzeuge)
+--   einfahrten Einfahrten (Kerben im Gehweg) an Autohaus, Klinik, Polizei, Feuerwache, Parkhaus, Café, Prinz-Eins (nur diese Teile)
+--   kreiselwege Gehwege am Siegestor-Kreisel nahtlos an die Zufahrten angeschlossen (nur diese Gehwege)
+--   tankshop   Schiebetür und Glastür am Allguth-Shop (nur die Türteile)
+--   kaffeehaus Café mit Terrasse zur Leopoldstraße, Parkplatz im Süden (Modell neu)
 --   stachus    Stachus: Halbkreis-Geschäftshäuser, Karlstor, Brunnen mit Strahlen, Taxistand (statt Casino/Kaffeehaus-Gelände am Odeonsplatz)
 --   landmarks  Siegestor auf Mittelinsel, Friedensengel (Engel mit Flügeln, Ölzweig, Nike; rundes Becken), Frauenkirche (runde Zwiebelhauben),
 --              Chinesischer Turm

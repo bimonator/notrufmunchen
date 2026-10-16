@@ -127,8 +127,8 @@ allee = {
 half = 35.5, dashes = { -8.5 }, lamps = { offsets = { 3.5 }, spacing = 48 },
 strips = { { -35.5, -27.5, "walk" }, { -27.5, 1.5, "road" }, { 1.5, 5.5, "green" }, { 5.5, 13.5, "bike" }, { 13.5, 25.5, "green" }, { 25.5, 33.5, "walk" } }, -- Ufergehweg 8 breit, endet 3 Studs vor der Böschungskante
 },
-approach86 = { half = 43, dashes = {}, strips = { { -43, 43, "road" } } }, -- Zulauf der Achse zum Kreisverkehr (ohne Mittelstreifen)
-kreisel24 = { half = 22, dashes = {}, strips = { { -22, -12, "walk" }, { -12, 12, "road" } } }, -- Fahrbahn 24 breit, außen ein Gehweg (10) rund um den Kreisverkehr
+approach86 = { half = 55, dashes = {}, strips = { { -55, -43, "walk" }, { -43, 43, "road" }, { 43, 55, "walk" } } }, -- Zulauf der Achse zum Kreisverkehr (ohne Mittelstreifen), Gehwege der Achse laufen bis zum Kreis durch
+kreisel24 = { half = 22, core = 12, dashes = {}, strips = { { -22, -12, "walk" }, { -12, 12, "road" } } }, -- Fahrbahn 24 breit, außen ein Gehweg (10) rund um den Kreisverkehr
 plaza40 = { half = 20, dashes = {}, strips = { { -20, 20, "plaza" } } },
 }
 local function circle(cx, cz, r, n)
@@ -189,6 +189,21 @@ C.tankstelle = { lot = { 57, -336, 180, -150 }, gaps = { { -262, -218 }, { -196,
 C.autohaus = { x0 = 332, z0 = -196, x1 = 442, z1 = -116, frontX = 394, showroom = { -170, -122 }, werkstatt = { -196, -170 } }
 C.driveways = {}
 for _, g in ipairs(C.tankstelle.gaps) do C.driveways[#C.driveways + 1] = { x0 = 43, x1 = 57, z0 = g[1] - 3, z1 = g[2] + 3 } end
+C.einfahrten = {
+{ name = "Autohaus-Werkstatt", x0 = 314, z0 = -190, x1 = 332, z1 = -176, dir = "E" }, -- V3, Ostseite
+{ name = "Autohaus-Kunden", x0 = 314, z0 = -146, x1 = 332, z1 = -130, dir = "E" },
+{ name = "Krankenhaus-Notaufnahme", x0 = 314, z0 = -356, x1 = 340, z1 = -340, dir = "E" },
+{ name = "Prinz-Eins-Parkplatz", x0 = 409, z0 = 358, x1 = 436, z1 = 374, dir = "E" }, -- Maximilianstraße, Ostseite
+{ name = "Kaffeehaus-Parkplatz", x0 = 150, z0 = 384, x1 = 166, z1 = 396, dir = "N" }, -- Ring Süd
+{ name = "Polizei-Einfahrt", x0 = 224, z0 = 384, x1 = 238, z1 = 396, dir = "N" },
+{ name = "Polizei-Ausfahrt", x0 = 344, z0 = 384, x1 = 362, z1 = 396, dir = "N" },
+{ name = "Klinik-Parkhaus-Einfahrt", x0 = 564, z0 = -458, x1 = 576, z1 = -430, dir = "S" }, -- Ring Nord
+{ name = "Klinik-Parkhaus-Ausfahrt", x0 = 584, z0 = -458, x1 = 596, z1 = -430, dir = "S" },
+}
+for _, bz in ipairs({ -186.6, -162.2, -137.8, -113.4 }) do -- Feuerwache: vier Tore zur V1
+C.einfahrten[#C.einfahrten + 1] = { name = "Feuerwache-Tor", x0 = -441.5, z0 = bz - 10, x1 = -429.5, z1 = bz + 10, dir = "E" }
+end
+for _, e in ipairs(C.einfahrten) do C.driveways[#C.driveways + 1] = { x0 = e.x0, x1 = e.x1, z0 = e.z0, z1 = e.z1 } end
 C.bays = {
 { 38.5, -448, 38.5, -340 }, { 38.5, -334, 38.5, -274 }, { 38.5, -140, 38.5, -98 }, -- Achse Ost: Lücke vor der Tankstelleneinfahrt
 { -38.5, -448, -38.5, -314 }, { -38.5, -257, -38.5, -98 }, { -38.5, 98, -38.5, 226 }, { 38.5, 98, 38.5, 286 },
@@ -1486,7 +1501,18 @@ end
 end
 panes(z0 + 1.2, cz - door / 2)
 panes(cz + door / 2, z1 - 1.2)
-W3(h, "ShopTuer", "glass", x0 + 0.6, 6.2, cz, 0.3, 10.4, door, GL, "Glass", { tag = "ShopDoor" }) -- ohne Kollision, man läuft hinein
+local DK, tx = { 70, 74, 80 }, x0 + 0.6
+for _, zz in ipairs({ cz - 2.65, cz - 0.05 }) do
+W3(h, "Schiebetuer", "glass", tx, 6.2, zz, 0.3, 10.2, 2.6, GL, "Glass", { tag = "ShopDoor" })
+W3(h, "Schiebetuerrahmen", "trim", tx, 1.2, zz, 0.4, 0.4, 2.6, DK, "Metal")
+W3(h, "Schiebetuerrahmen", "trim", tx, 11.2, zz, 0.4, 0.4, 2.6, DK, "Metal")
+end
+W3(h, "Schiebetuerantrieb", "trim", x0 + 0.2, 11.7, cz - 1.35, 0.9, 0.7, 5.6, DK, "Metal")
+W3(h, "Tuersensor", "trim", x0 - 0.1, 11.4, cz - 1.35, 0.3, 0.4, 1.2, { 30, 32, 36 }, "SmoothPlastic")
+W3(h, "Glastuer", "glass", tx, 6.2, cz + 2.75, 0.3, 10.2, 2.5, GL, "Glass", { tag = "ShopDoor" })
+for _, zz in ipairs({ cz + 1.45, cz + 4.05 }) do W3(h, "GlastuerRahmen", "trim", tx, 6.2, zz, 0.5, 10.4, 0.3, DK, "Metal") end
+W3(h, "GlastuerGriff", "trim", x0 - 0.15, 6, cz + 1.9, 0.25, 3, 0.25, { 190, 192, 196 }, "Metal")
+W3(h, "Tuermatte", "decor", x0 - 1.8, 1.2, cz, 3, 0.3, door - 0.4, { 52, 54, 60 }, "Fabric")
 for _, zz in ipairs({ cz - door / 2, cz + door / 2 }) do W3(h, "ShopTuerrahmen", "trim", x0 + 0.6, 6.2, zz, 0.7, 10.6, 0.5, RED, "SmoothPlastic") end
 W3(h, "ShopTuerrahmen", "trim", x0 + 0.6, 11.6, cz, 0.7, 0.5, door, RED, "SmoothPlastic")
 W3(h, "Kasse", "trim", x0 + 5, 3, cz - 11, 3, 4, 9, { 190, 190, 194 }, "SmoothPlastic", { collide = true })
@@ -1857,7 +1883,7 @@ return {
 { name = "Polizei-Seitenfluegel", x0 = 202, z0 = 298, x1 = 218, z1 = 340, facing = "E", floors = 3, color = { 92, 94, 104 } },
 { name = "Krankenhaus", x0 = 340, z0 = -430, x1 = 500, z1 = -310, facing = "W", floors = 5, color = { 90, 170, 150 }, style = "klinik" },
 { name = "Kiosk", x0 = -420, z0 = 280, x1 = -370, z1 = 320, facing = "N", floors = 1, color = { 200, 70, 55 } }, -- auf dem Marienplatz
-{ name = "Kaffeehaus", x0 = 112, z0 = 300, x1 = 202, z1 = 360, facing = "N", floors = 3, color = { 244, 242, 232 }, style = "kaffee", lots = { { 60, 296, 110, 384 } } },
+{ name = "Kaffeehaus", x0 = 112, z0 = 300, x1 = 202, z1 = 360, facing = "W", floors = 3, color = { 244, 242, 232 }, style = "kaffee", lots = { { 112, 366, 202, 384 } } }, -- Terrasse zur Leopoldstraße (West), Parkplatz südlich, Rückseite zum Hofgarten,
 { name = "Prinz-Eins", x0 = 526, z0 = 326, x1 = 610, z1 = 366, facing = "S", floors = 3, color = { 52, 44, 76 }, lots = { { 436, 350, 522, 384 } } },
 { name = "Klinikum-Parkhaus", x0 = 500, z0 = -430, x1 = 660, z1 = -310, facing = "N", floors = 3, color = { 176, 176, 172 }, style = "parkhaus" }, -- grenzt an das Klinikum (x = 500)
 { name = "Volksbank", x0 = 330, z0 = -280, x1 = 404, z1 = -210, facing = "W", floors = 3, color = { 236, 238, 240 }, style = "bank" }, -- Lücke an der V3, südlich des Klinikums (erster grober Entwurf)

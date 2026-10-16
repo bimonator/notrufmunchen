@@ -17,7 +17,11 @@
 --              Maximilianbrücke (zwei Bögen, Statuen)
 --   lights     270 Laternen (runder Mast, Bogenarm, Leuchtkopf), 13 Ampelmasten (Rundmast, Ausleger, Linsenköpfe mit Blenden)
 --   marienplatz Neues Rathaus, Mariensäule, U-Bahn-Abgang, Pflaster, Kugelleuchten, Platanen, Cafés (Frauenkirche verkleinert im Nordwesten)
---   autohaus   Autohaus an der V3 mit Showroom, Parkdeck, Werkstatt, Pylon (ohne Fahrzeuge)
+--   autohaus   Autohaus an der V3 mit Showroom (Glas um die Ecke), Parkdeck, Werkstatt, Pylon (ohne Fahrzeuge)
+--   einfahrten Einfahrten (Kerben im Gehweg) an Autohaus, Klinik, Polizei, Feuerwache, Parkhaus, Café, Prinz-Eins (nur diese Teile)
+--   kreiselwege Gehwege am Siegestor-Kreisel nahtlos an die Zufahrten angeschlossen (nur diese Gehwege)
+--   tankshop   Schiebetür und Glastür am Allguth-Shop (nur die Türteile)
+--   kaffeehaus Café mit Terrasse zur Leopoldstraße, Parkplatz im Süden (Modell neu)
 --   stachus    Stachus: Halbkreis-Geschäftshäuser, Karlstor, Brunnen mit Strahlen, Taxistand (statt Casino/Kaffeehaus-Gelände am Odeonsplatz)
 --   landmarks  Siegestor auf Mittelinsel, Friedensengel (Engel mit Flügeln, Ölzweig, Nike; rundes Becken), Frauenkirche (runde Zwiebelhauben),
 --              Chinesischer Turm
@@ -215,6 +219,24 @@ gui.Parent = p
 end
 if spec.attrs then
 for k, v in pairs(spec.attrs) do p:SetAttribute(k, v) end -- z. B. Lampenfarbe für das Ampel-Skript
+end
+if spec.emitter then -- Düse: unsichtbares, geneigtes Teil mit Partikelstrahl nach oben (Top = Sprührichtung), z. B. Springbrunnen-Sprenkler
+local e = spec.emitter
+p.Transparency = 1
+p.CastShadow = false
+local pe = Instance.new("ParticleEmitter")
+pe.Texture = "rbxasset://textures/particles/smoke_main.dds"
+pe.Rate = e.rate
+pe.Lifetime = NumberRange.new(e.life, e.life * 1.3)
+pe.Speed = NumberRange.new(e.speed * 0.9, e.speed * 1.1)
+pe.SpreadAngle = Vector2.new(e.spread, e.spread)
+pe.Acceleration = Vector3.new(0, -e.gravity, 0)
+pe.EmissionDirection = Enum.NormalId.Top
+pe.Size = NumberSequence.new(e.size, e.size * 1.6)
+pe.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.25), NumberSequenceKeypoint.new(1, 1) })
+pe.Color = ColorSequence.new(Color3.fromRGB(e.color[1], e.color[2], e.color[3]))
+pe.LightEmission = 0.4
+pe.Parent = p
 end
 return p
 end
@@ -472,6 +494,24 @@ redo(map.Stachus, Stachus.plan(Config).parts)
 redo(map.Marienplatz, Marienplatz.plan(Config).parts)
 return string.format("%d Fugen und Bänder erneuert", n)
 end,
+zylinder = function(opts, origin) -- flache Scheiben (Pflasterringe, Baumscheiben) und Brunnen-Düsen in der fertigen Karte erneuern, übrige Teile bleiben
+local map = game:GetService("Workspace"):FindFirstChild("Map")
+local n = 0
+local function redo(folder, parts, names)
+for _, c in ipairs(folder:GetChildren()) do
+if names[c.Name] then c:Destroy() end
+end
+local list = {}
+for _, p in ipairs(parts) do
+if names[p.name] then list[#list + 1] = p end
+end
+Builder.buildParts(list, folder, origin)
+n = n + #list
+end
+redo(map.Stachus, Stachus.plan(Config).parts, { Wasserstrahl = true, Duese = true, Pflasterring = true, Baumscheibe = true })
+redo(map.Marienplatz, Marienplatz.plan(Config).parts, { SaeulenKreis = true, Baumscheibe = true })
+return string.format("%d Teile erneuert", n)
+end,
 stachuslaternen = function(opts, origin) -- nur die Kugelleuchten am Stachus in der fertigen Karte neu setzen
 local folder = game:GetService("Workspace"):FindFirstChild("Map").Stachus
 for _, c in ipairs(folder:GetChildren()) do
@@ -524,6 +564,63 @@ bus = function(opts, origin)
 local plan = Bushaltestellen.plan(Config)
 Builder.buildParts(plan.parts, Builder.container("Bushaltestellen"), origin)
 return string.format("%d Haltestellen, %d Teile", plan.stats.stops, #plan.parts)
+end,
+einfahrten = function(opts, origin) -- Einfahrten (Kerben im Gehweg) in der fertigen Karte erneuern, übrige Straßenteile bleiben
+local folder = game:GetService("Workspace"):FindFirstChild("Map").Strassen
+local removed = 0
+for _, c in ipairs(folder:GetChildren()) do
+if c.Name == "Einfahrt" or c.Name == "EinfahrtRampe" then c:Destroy() removed = removed + 1 end
+end
+local list = {}
+for _, p in ipairs(RoadsPlanner.plan(Config).parts) do
+if p.name == "Einfahrt" or p.name == "EinfahrtRampe" then list[#list + 1] = p end
+end
+Builder.buildParts(list, folder, origin)
+return string.format("%d alte Teile entfernt, %d neu", removed, #list)
+end,
+kreiselwege = function(opts, origin) -- Gehwege am Siegestor-Kreisel und seinen Zufahrten neu, damit sie nahtlos anschließen; neue Eckstücke nur ergänzen
+local folder = game:GetService("Workspace"):FindFirstChild("Map").Strassen
+local set = { AchseNord = true, ZulaufNord = true, ZulaufSued = true, AchseSued = true, SiegestorKreisel = true, H2 = true, Diagonale = true }
+local removed, have = 0, {}
+for _, c in ipairs(folder:GetChildren()) do
+local road = c.Name:match("^(%w+)_%d+_walk$")
+if road and set[road] then c:Destroy() removed = removed + 1
+else have[c.Name .. math.floor(c.Position.X - origin.X + 0.5) .. ":" .. math.floor(c.Position.Z - origin.Z + 0.5)] = true end
+end
+local list = {}
+for _, p in ipairs(RoadsPlanner.plan(Config).parts) do
+local road = p.name:match("^(%w+)_%d+_walk$")
+if road and set[road] then list[#list + 1] = p
+elseif (p.name == "GehwegEcke" or p.name == "GehwegEckeRund" or p.name == "EckAsphalt") and not have[p.name .. math.floor(p.pos[1] + 0.5) .. ":" .. math.floor(p.pos[3] + 0.5)] then list[#list + 1] = p end
+end
+Builder.buildParts(list, folder, origin)
+return string.format("%d alte Gehwegteile entfernt, %d neu", removed, #list)
+end,
+tankshop = function(opts, origin) -- nur die Eingangstür des Allguth-Shops (Schiebetür, Glastür, Matte) erneuern
+local model = game:GetService("Workspace"):FindFirstChild("Map").Gebaeude.Sonderbauten["Sonder_Tankstellen-Shop"]
+local NAMES = { ShopTuer = true, ShopTuerrahmen = true, Schiebetuer = true, Schiebetuerrahmen = true, Schiebetuerantrieb = true, Tuersensor = true,
+Glastuer = true, GlastuerRahmen = true, GlastuerGriff = true, Tuermatte = true }
+local removed = 0
+for _, c in ipairs(model:GetChildren()) do
+if NAMES[c.Name] then c:Destroy() removed = removed + 1 end
+end
+local spec
+for _, sp in ipairs(Specials) do if sp.name == "Tankstellen-Shop" then spec = sp end end
+local list = {}
+for _, p in ipairs(Planner.planSpecial(spec, { seed = opts.seed or 1 }).houses[1].parts) do
+if NAMES[p.name] then list[#list + 1] = p end
+end
+Builder.buildParts(list, model, origin)
+return string.format("%d alte Türteile entfernt, %d neu", removed, #list)
+end,
+kaffeehaus = function(opts, origin) -- Café neu (Terrasse zur Leopoldstraße, Parkplatz im Süden)
+local folder = game:GetService("Workspace"):FindFirstChild("Map").Gebaeude.Sonderbauten
+local old = folder:FindFirstChild("Sonder_Kaffeehaus")
+if old then old:Destroy() end
+for _, sp in ipairs(Specials) do
+if sp.name == "Kaffeehaus" then Builder.build(Planner.planSpecial(sp, { seed = opts.seed or 1 }), folder, origin) end
+end
+return "Kaffeehaus neu gebaut"
 end,
 autohaus = function(opts, origin)
 local plan = Autohaus.plan(Config)

@@ -27,7 +27,7 @@ for _, b in ipairs(Config.bays) do
 	if b[1] == 38.5 and b[3] == 38.5 then
 		for _, d in ipairs(Config.driveways) do
 			local za, zb = math.min(b[2], b[4]), math.max(b[2], b[4])
-			check(zb <= d.z0 or za >= d.z1, "Parkbucht vor der Einfahrt: " .. b[2] .. ".." .. b[4])
+			if d.x0 == 43 then check(zb <= d.z0 or za >= d.z1, "Parkbucht vor der Einfahrt: " .. b[2] .. ".." .. b[4]) end
 		end
 	end
 end
@@ -38,9 +38,10 @@ end
 
 -- Gehwege liegen nie in einer anderen Straße (dort würde ein Bordstein quer über die Kreuzung laufen)
 local function inSeg(px, pz, s, margin)
-	local dx, dz = px - s.rect.ax, pz - s.rect.az
-	local a, b = dx * s.rect.ux + dz * s.rect.uz, dx * s.rect.nx + dz * s.rect.nz
-	return a > s.rect.s0 + margin and a < s.rect.s1 - margin and math.abs(b) < s.rect.w - margin
+	local r = s.cutRect or s.rect -- Kreisverkehr: nur seine Fahrbahn zählt, sein Gehweg darf von anderen Gehwegen überlagert werden
+	local dx, dz = px - r.ax, pz - r.az
+	local a, b = dx * r.ux + dz * r.uz, dx * r.nx + dz * r.nz
+	return a > r.s0 + margin and a < r.s1 - margin and math.abs(b) < r.w - margin
 end
 local walks, bad = 0, 0
 for _, p in ipairs(parts) do

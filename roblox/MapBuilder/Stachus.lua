@@ -33,7 +33,7 @@ function Stachus.plan(cfg)
 		parts[#parts + 1] = {
 			name = name, kind = kind, size = { Geo.round3(sx), Geo.round3(sy), Geo.round3(sz) }, pos = { Geo.round3(x), Geo.round3(y), Geo.round3(z) },
 			yaw = e.yaw or 0, pitch = e.pitch or 0, roll = e.roll, color = color, material = mat, collide = e.collide == true, shape = e.shape,
-			text = e.text, tag = e.tag, lit = e.lit, attrs = e.attrs, transparency = e.transparency,
+			text = e.text, tag = e.tag, lit = e.lit, attrs = e.attrs, transparency = e.transparency, emitter = e.emitter,
 		}
 	end
 	local function vcyl(name, kind, x, y, z, h, d, color, mat, e)
@@ -89,7 +89,7 @@ function Stachus.plan(cfg)
 			add("Fuge", "plaza", (S.x0 + S.x1) / 2, 1.1, z, S.x1 - S.x0, 0.2, 0.3, { 172, 166, 156 }, "SmoothPlastic")
 		end
 	end
-	for i, rr in ipairs({ 52, 49, 46 }) do vcyl("Pflasterring", "plaza", cx, 1.08 + i * 0.01, cz, 0.08, 2 * rr, i == 2 and { 150, 96, 84 } or { 186, 180, 170 }, "Granite") end
+	for i, rr in ipairs({ 52, 49, 46 }) do vcyl("Pflasterring", "plaza", cx, 1.0 + i * 0.15, cz, 0.3, 2 * rr, i == 2 and { 150, 96, 84 } or { 186, 180, 170 }, "Granite") end
 
 	-- Brunnen: Beckenrand aus Granitblöcken, Wasser, Strahlenkränze, Mittelstrahl, Poller
 	local R = S.basin
@@ -99,14 +99,12 @@ function Stachus.plan(cfg)
 	end
 	vcyl("Beckenboden", "plaza", cx, 1.2, cz, 0.3, 2 * R, { 120, 140, 156 }, "Concrete")
 	vcyl("Wasser", "plaza", cx, 2.3, cz, 0.4, 2 * R - 2, { 130, 180, 214 }, "SmoothPlastic", { transparency = 0.45 })
-	for _, ring in ipairs({ { 20, 24, 10, 6 }, { 32, 30, 8, 5 } }) do -- Radius, Strahlen, Reichweite, Höhe des Bogens
+	for _, ring in ipairs({ { 20, 24, 10, 6, 30, 26 }, { 32, 30, 8, 5, 35, 22 } }) do -- Radius, Düsen, Reichweite, Höhe, Neigung nach außen (Grad), Strahlgeschwindigkeit
 		for k = 0, ring[2] - 1 do
 			local a = math.rad(k * 360 / ring[2] + (ring[1] > 25 and 6 or 0))
-			for j = 0, 5 do
-				local t = j / 5
-				local r = ring[1] + ring[3] * t
-				add("Wasserstrahl", "plaza", cx + r * math.cos(a), 2.6 + 4 * ring[4] * t * (1 - t), cz + r * math.sin(a), 0.9, 0.9, 0.9, { 240, 248, 255 }, "SmoothPlastic", { shape = "Ball", transparency = 0.25 })
-			end
+			-- Sprenkler: unsichtbare Düse, nach außen geneigt, sprüht einen Partikelstrahl im Bogen (Reichweite ca. ring[3], Höhe ca. ring[4] / 1,5)
+			add("Duese", "plaza", cx + ring[1] * math.cos(a), 2.6, cz + ring[1] * math.sin(a), 0.5, 0.5, 0.5, { 240, 248, 255 }, "SmoothPlastic",
+				{ yaw = (90 - math.deg(a)) % 360, pitch = ring[5], emitter = { rate = 16, speed = ring[6], spread = 3, gravity = 60, life = 1.1, size = 0.5, color = { 225, 240, 255 } } })
 			stats.jets = stats.jets + 1
 		end
 	end
@@ -359,7 +357,7 @@ function Stachus.plan(cfg)
 	local GREENS = { { 70, 120, 60 }, { 88, 140, 70 }, { 60, 108, 58 } }
 	for i, z in ipairs({ 80, 122, 164, 206, 248, 290, 332, 372 }) do
 		local x = -64
-		vcyl("Baumscheibe", "plaza", x, 1.05, z, 0.1, 6, { 70, 66, 60 }, "Metal")
+		vcyl("Baumscheibe", "plaza", x, 1.15, z, 0.3, 6, { 70, 66, 60 }, "Metal")
 		vcyl("PlataneStamm", "plaza", x, 7, z, 12, 2.2, { 150, 138, 116 }, "Wood", { collide = true })
 		add("PlataneKrone", "plaza", x, 18, z, 17, 15, 17, GREENS[i % 3 + 1], "Grass", { shape = "Ball" })
 		add("PlataneKrone", "plaza", x + 3, 15.5, z - 3, 12, 11, 12, GREENS[(i + 1) % 3 + 1], "Grass", { shape = "Ball" })

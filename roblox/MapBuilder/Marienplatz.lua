@@ -59,8 +59,8 @@ function Marienplatz.plan(cfg)
 
 	-- Mariensäule: Kreis im Pflaster, achteckige Stufen, Balustrade mit Blumen, Sockel, Putten, Marmorschaft, Kapitell, goldene Madonna
 	local MARBLE, RED, BRONZE, GOLD, PINK = { 214, 206, 194 }, { 150, 58, 58 }, { 64, 68, 60 }, { 230, 188, 70 }, { 222, 86, 140 }
-	vcyl("SaeulenKreis", S.x, 1.04, S.z, 0.08, 46, BAND, "Granite")
-	vcyl("SaeulenKreis", S.x, 1.07, S.z, 0.08, 40, GRANITE, "Granite")
+	vcyl("SaeulenKreis", S.x, 1.15, S.z, 0.3, 46, BAND, "Granite")
+	vcyl("SaeulenKreis", S.x, 1.3, S.z, 0.3, 40, GRANITE, "Granite")
 	for k = 1, 3 do
 		local d = 34 - 5 * k
 		for _, yw in ipairs({ 0, 45 }) do add("SaeulenStufe", S.x, 1 + 0.8 * k - 0.4, S.z, d, 0.8, d, MARBLE, "Marble", { yaw = yw, collide = true }) end
@@ -169,7 +169,7 @@ function Marienplatz.plan(cfg)
 	local trees = { { -606, 214 }, { -572, 238 }, { -538, 214 }, { -504, 240 }, { -470, 214 }, { -560, 300 }, { -330, 300 }, { -236, 222 } }
 	local GREENS = { { 70, 120, 60 }, { 88, 140, 70 }, { 60, 108, 58 } }
 	for i, t in ipairs(trees) do
-		vcyl("Baumscheibe", t[1], 1.05, t[2], 0.1, 6, { 70, 66, 60 }, "Metal")
+		vcyl("Baumscheibe", t[1], 1.15, t[2], 0.3, 6, { 70, 66, 60 }, "Metal")
 		vcyl("PlataneStamm", t[1], 7, t[2], 12, 2.2, { 150, 138, 116 }, "Wood", { collide = true })
 		add("PlataneKrone", t[1], 18, t[2], 17, 15, 17, GREENS[i % 3 + 1], "Grass", { shape = "Ball" })
 		add("PlataneKrone", t[1] + 4, 15.5, t[2] - 3, 12, 11, 12, GREENS[(i + 1) % 3 + 1], "Grass", { shape = "Ball" })

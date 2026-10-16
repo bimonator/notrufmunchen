@@ -28,8 +28,8 @@ C.profiles = {
 		half = 35.5, dashes = { -8.5 }, lamps = { offsets = { 3.5 }, spacing = 48 },
 		strips = { { -35.5, -27.5, "walk" }, { -27.5, 1.5, "road" }, { 1.5, 5.5, "green" }, { 5.5, 13.5, "bike" }, { 13.5, 25.5, "green" }, { 25.5, 33.5, "walk" } }, -- Ufergehweg 8 breit, endet 3 Studs vor der Böschungskante
 	},
-	approach86 = { half = 43, dashes = {}, strips = { { -43, 43, "road" } } }, -- Zulauf der Achse zum Kreisverkehr (ohne Mittelstreifen)
-	kreisel24 = { half = 22, dashes = {}, strips = { { -22, -12, "walk" }, { -12, 12, "road" } } }, -- Fahrbahn 24 breit, außen ein Gehweg (10) rund um den Kreisverkehr
+	approach86 = { half = 55, dashes = {}, strips = { { -55, -43, "walk" }, { -43, 43, "road" }, { 43, 55, "walk" } } }, -- Zulauf der Achse zum Kreisverkehr (ohne Mittelstreifen), Gehwege der Achse laufen bis zum Kreis durch
+	kreisel24 = { half = 22, core = 12, dashes = {}, strips = { { -22, -12, "walk" }, { -12, 12, "road" } } }, -- Fahrbahn 24 breit, außen ein Gehweg (10) rund um den Kreisverkehr
 	plaza40 = { half = 20, dashes = {}, strips = { { -20, 20, "plaza" } } },
 }
 
@@ -110,6 +110,24 @@ C.tankstelle = { lot = { 57, -336, 180, -150 }, gaps = { { -262, -218 }, { -196,
 C.autohaus = { x0 = 332, z0 = -196, x1 = 442, z1 = -116, frontX = 394, showroom = { -170, -122 }, werkstatt = { -196, -170 } }
 C.driveways = {}
 for _, g in ipairs(C.tankstelle.gaps) do C.driveways[#C.driveways + 1] = { x0 = 43, x1 = 57, z0 = g[1] - 3, z1 = g[2] + 3 } end
+
+-- Einfahrten über den Gehweg (RoadsPlanner): Rechteck von der Fahrbahnkante bis zur Grundstücksgrenze, dir = Richtung von der Straße ins Grundstück.
+-- Der Gehweg bekommt dort eine Kerbe: abgesenkter Bordstein (Rampe), Asphalt auf Gehwegebene, Rampe zum Grundstück.
+C.einfahrten = {
+	{ name = "Autohaus-Werkstatt", x0 = 314, z0 = -190, x1 = 332, z1 = -176, dir = "E" }, -- V3, Ostseite
+	{ name = "Autohaus-Kunden", x0 = 314, z0 = -146, x1 = 332, z1 = -130, dir = "E" },
+	{ name = "Krankenhaus-Notaufnahme", x0 = 314, z0 = -356, x1 = 340, z1 = -340, dir = "E" },
+	{ name = "Prinz-Eins-Parkplatz", x0 = 409, z0 = 358, x1 = 436, z1 = 374, dir = "E" }, -- Maximilianstraße, Ostseite
+	{ name = "Kaffeehaus-Parkplatz", x0 = 150, z0 = 384, x1 = 166, z1 = 396, dir = "N" }, -- Ring Süd
+	{ name = "Polizei-Einfahrt", x0 = 224, z0 = 384, x1 = 238, z1 = 396, dir = "N" },
+	{ name = "Polizei-Ausfahrt", x0 = 344, z0 = 384, x1 = 362, z1 = 396, dir = "N" },
+	{ name = "Klinik-Parkhaus-Einfahrt", x0 = 564, z0 = -458, x1 = 576, z1 = -430, dir = "S" }, -- Ring Nord
+	{ name = "Klinik-Parkhaus-Ausfahrt", x0 = 584, z0 = -458, x1 = 596, z1 = -430, dir = "S" },
+}
+for _, bz in ipairs({ -186.6, -162.2, -137.8, -113.4 }) do -- Feuerwache: vier Tore zur V1
+	C.einfahrten[#C.einfahrten + 1] = { name = "Feuerwache-Tor", x0 = -441.5, z0 = bz - 10, x1 = -429.5, z1 = bz + 10, dir = "E" }
+end
+for _, e in ipairs(C.einfahrten) do C.driveways[#C.driveways + 1] = { x0 = e.x0, x1 = e.x1, z0 = e.z0, z1 = e.z1 } end
 
 C.bays = {
 	{ 38.5, -448, 38.5, -340 }, { 38.5, -334, 38.5, -274 }, { 38.5, -140, 38.5, -98 }, -- Achse Ost: Lücke vor der Tankstelleneinfahrt

@@ -70,6 +70,7 @@ local extA, extB = prev and ext(prev, i) or 0, nxt and ext(i, nxt) or 0
 segs[#segs + 1] = {
 id = #segs + 1, road = road, prof = prof, ax = a[1], az = a[2], ux = dirs[i][1], uz = dirs[i][2], len = dirs[i][3],
 extA = extA, extB = extB, rect = Geo.rect(a[1], a[2], b[1], b[2], prof.half, extA, extB),
+cutRect = prof.core and Geo.rect(a[1], a[2], b[1], b[2], prof.core, extA, extB) or nil,
 }
 end
 end
@@ -97,7 +98,7 @@ local function crossCuts(segs, self, px, pz, L, margin)
 local cuts = {}
 for _, o in ipairs(segs) do
 if o.id ~= self.id and not (o.road == self.road and o.ux * self.ux + o.uz * self.uz > 0.95) then
-local lo, hi = Geo.within(px, pz, self.ux, self.uz, L, o.rect, margin)
+local lo, hi = Geo.within(px, pz, self.ux, self.uz, L, o.cutRect or o.rect, margin)
 if lo then cuts[#cuts + 1] = { lo, hi } end
 end
 end
@@ -154,6 +155,21 @@ t = t + 12
 end
 end
 end
+end
+local RAMP = 2.5
+for _, e in ipairs(cfg.einfahrten or {}) do
+local alongX = (e.dir == "E" or e.dir == "W")
+local a0, a1 = alongX and e.x0 or e.z0, alongX and e.x1 or e.z1
+local b0, b1 = alongX and e.z0 or e.x0, alongX and e.z1 or e.x1
+local function piece(name, p0, p1, top)
+local ca, cb = (p0 + p1) / 2, (b0 + b1) / 2
+local x, z, sx, sz = ca, cb, p1 - p0, b1 - b0
+if not alongX then x, z, sx, sz = cb, ca, b1 - b0, p1 - p0 end
+part(parts, name, "road", x, top - 0.3, z, sx, 0.6, sz, 0, COLOR.road, MATERIAL.road, {})
+end
+piece("EinfahrtRampe", a0, a0 + RAMP, 0.78)
+piece("Einfahrt", a0 + RAMP, a1 - RAMP, 1.04)
+piece("EinfahrtRampe", a1 - RAMP, a1, 0.78)
 end
 for _, b in ipairs(cfg.bays) do
 local x0, z0, x1, z1 = b[1], b[2], b[3], b[4]
@@ -1304,8 +1320,8 @@ line("Band", P.x0 + 1.2, P.z0, P.x0 + 1.2, P.z1, 2.4, BAND, 1.15, 0.3)
 line("Band", P.x1 - 1.2, P.z0, P.x1 - 1.2, P.z1, 2.4, BAND, 1.15, 0.3)
 line("Band", P.x0, P.z1 - 1.2, P.x1, P.z1 - 1.2, 2.4, BAND, 1.15, 0.3)
 local MARBLE, RED, BRONZE, GOLD, PINK = { 214, 206, 194 }, { 150, 58, 58 }, { 64, 68, 60 }, { 230, 188, 70 }, { 222, 86, 140 }
-vcyl("SaeulenKreis", S.x, 1.04, S.z, 0.08, 46, BAND, "Granite")
-vcyl("SaeulenKreis", S.x, 1.07, S.z, 0.08, 40, GRANITE, "Granite")
+vcyl("SaeulenKreis", S.x, 1.15, S.z, 0.3, 46, BAND, "Granite")
+vcyl("SaeulenKreis", S.x, 1.3, S.z, 0.3, 40, GRANITE, "Granite")
 for k = 1, 3 do
 local d = 34 - 5 * k
 for _, yw in ipairs({ 0, 45 }) do add("SaeulenStufe", S.x, 1 + 0.8 * k - 0.4, S.z, d, 0.8, d, MARBLE, "Marble", { yaw = yw, collide = true }) end
@@ -1403,7 +1419,7 @@ end
 local trees = { { -606, 214 }, { -572, 238 }, { -538, 214 }, { -504, 240 }, { -470, 214 }, { -560, 300 }, { -330, 300 }, { -236, 222 } }
 local GREENS = { { 70, 120, 60 }, { 88, 140, 70 }, { 60, 108, 58 } }
 for i, t in ipairs(trees) do
-vcyl("Baumscheibe", t[1], 1.05, t[2], 0.1, 6, { 70, 66, 60 }, "Metal")
+vcyl("Baumscheibe", t[1], 1.15, t[2], 0.3, 6, { 70, 66, 60 }, "Metal")
 vcyl("PlataneStamm", t[1], 7, t[2], 12, 2.2, { 150, 138, 116 }, "Wood", { collide = true })
 add("PlataneKrone", t[1], 18, t[2], 17, 15, 17, GREENS[i % 3 + 1], "Grass", { shape = "Ball" })
 add("PlataneKrone", t[1] + 4, 15.5, t[2] - 3, 12, 11, 12, GREENS[(i + 1) % 3 + 1], "Grass", { shape = "Ball" })
@@ -1463,7 +1479,7 @@ e = e or {}
 parts[#parts + 1] = {
 name = name, kind = kind, size = { Geo.round3(sx), Geo.round3(sy), Geo.round3(sz) }, pos = { Geo.round3(x), Geo.round3(y), Geo.round3(z) },
 yaw = e.yaw or 0, pitch = e.pitch or 0, roll = e.roll, color = color, material = mat, collide = e.collide == true, shape = e.shape,
-text = e.text, tag = e.tag, lit = e.lit, attrs = e.attrs, transparency = e.transparency,
+text = e.text, tag = e.tag, lit = e.lit, attrs = e.attrs, transparency = e.transparency, emitter = e.emitter,
 }
 end
 local function vcyl(name, kind, x, y, z, h, d, color, mat, e)
@@ -1516,7 +1532,7 @@ else
 add("Fuge", "plaza", (S.x0 + S.x1) / 2, 1.1, z, S.x1 - S.x0, 0.2, 0.3, { 172, 166, 156 }, "SmoothPlastic")
 end
 end
-for i, rr in ipairs({ 52, 49, 46 }) do vcyl("Pflasterring", "plaza", cx, 1.08 + i * 0.01, cz, 0.08, 2 * rr, i == 2 and { 150, 96, 84 } or { 186, 180, 170 }, "Granite") end
+for i, rr in ipairs({ 52, 49, 46 }) do vcyl("Pflasterring", "plaza", cx, 1.0 + i * 0.15, cz, 0.3, 2 * rr, i == 2 and { 150, 96, 84 } or { 186, 180, 170 }, "Granite") end
 local R = S.basin
 for i = 0, 35 do
 local a = math.rad(i * 10)
@@ -1524,14 +1540,11 @@ add("Beckenrand", "plaza", cx + R * math.cos(a), 2.1, cz + R * math.sin(a), 8, 2
 end
 vcyl("Beckenboden", "plaza", cx, 1.2, cz, 0.3, 2 * R, { 120, 140, 156 }, "Concrete")
 vcyl("Wasser", "plaza", cx, 2.3, cz, 0.4, 2 * R - 2, { 130, 180, 214 }, "SmoothPlastic", { transparency = 0.45 })
-for _, ring in ipairs({ { 20, 24, 10, 6 }, { 32, 30, 8, 5 } }) do -- Radius, Strahlen, Reichweite, Höhe des Bogens
+for _, ring in ipairs({ { 20, 24, 10, 6, 30, 26 }, { 32, 30, 8, 5, 35, 22 } }) do -- Radius, Düsen, Reichweite, Höhe, Neigung nach außen (Grad), Strahlgeschwindigkeit
 for k = 0, ring[2] - 1 do
 local a = math.rad(k * 360 / ring[2] + (ring[1] > 25 and 6 or 0))
-for j = 0, 5 do
-local t = j / 5
-local r = ring[1] + ring[3] * t
-add("Wasserstrahl", "plaza", cx + r * math.cos(a), 2.6 + 4 * ring[4] * t * (1 - t), cz + r * math.sin(a), 0.9, 0.9, 0.9, { 240, 248, 255 }, "SmoothPlastic", { shape = "Ball", transparency = 0.25 })
-end
+add("Duese", "plaza", cx + ring[1] * math.cos(a), 2.6, cz + ring[1] * math.sin(a), 0.5, 0.5, 0.5, { 240, 248, 255 }, "SmoothPlastic",
+{ yaw = (90 - math.deg(a)) % 360, pitch = ring[5], emitter = { rate = 16, speed = ring[6], spread = 3, gravity = 60, life = 1.1, size = 0.5, color = { 225, 240, 255 } } })
 stats.jets = stats.jets + 1
 end
 end
@@ -1766,7 +1779,7 @@ end
 local GREENS = { { 70, 120, 60 }, { 88, 140, 70 }, { 60, 108, 58 } }
 for i, z in ipairs({ 80, 122, 164, 206, 248, 290, 332, 372 }) do
 local x = -64
-vcyl("Baumscheibe", "plaza", x, 1.05, z, 0.1, 6, { 70, 66, 60 }, "Metal")
+vcyl("Baumscheibe", "plaza", x, 1.15, z, 0.3, 6, { 70, 66, 60 }, "Metal")
 vcyl("PlataneStamm", "plaza", x, 7, z, 12, 2.2, { 150, 138, 116 }, "Wood", { collide = true })
 add("PlataneKrone", "plaza", x, 18, z, 17, 15, 17, GREENS[i % 3 + 1], "Grass", { shape = "Ball" })
 add("PlataneKrone", "plaza", x + 3, 15.5, z - 3, 12, 11, 12, GREENS[(i + 1) % 3 + 1], "Grass", { shape = "Ball" })
@@ -1824,14 +1837,33 @@ for _, z in ipairs({ zc - 14, zc, zc + 14 }) do disc("Drehteller", bx - 6, Y + 0
 for _, z in ipairs({ A.z0 + 0.4, A.z1 - 0.4 }) do add("Zaun", "fence", (A.x0 + bx) / 2, Y + 0.7, z, bx - A.x0, 1.4, 0.2, DARK, "Metal") end
 local H = 12
 add("ShowroomBoden", "floor", xm, Y + 0.3, zc, xe - bx, 0.6, zS1 - zS0, { 200, 200, 196 }, "Concrete", { collide = true })
-add("Glasfront", "glass", bx + 0.15, Y + H / 2 + 0.6, zc, 0.3, H, zS1 - zS0, GLASS, "Glass", { tag = "HouseWindow", lit = true })
-add("Glasfront", "glass", xm, Y + H / 2 + 0.6, zS1 - 0.15, xe - bx, H, 0.3, GLASS, "Glass", { tag = "HouseWindow", lit = true })
-for z = zS0, zS1, (zS1 - zS0) / 4 do add("Pfosten", "trim", bx, Y + H / 2 + 0.6, z, 0.6, H + 0.2, 0.6, DARK, "Metal") end
-for x = bx, xe, (xe - bx) / 4 do add("Pfosten", "trim", x, Y + H / 2 + 0.6, zS1, 0.6, H + 0.2, 0.6, DARK, "Metal") end
-for _, yy in ipairs({ Y + 0.8 + H / 2, Y + H + 0.9 }) do
-add("Riegel", "trim", bx, yy, zc, 0.7, 0.5, zS1 - zS0, DARK, "Metal")
-add("Riegel", "trim", xm, yy, zS1, xe - bx, 0.5, 0.7, DARK, "Metal")
+local R, N = 9, 6
+local cx, cz = bx + R, zS1 - R
+local gy = Y + H / 2 + 0.6
+local function pane(x, z, len, yaw)
+add("Glasfront", "glass", x, gy, z, len, H, 0.3, GLASS, "Glass", { yaw = yaw, tag = "HouseWindow", lit = true })
+for _, yy in ipairs({ Y + 0.8 + H / 2, Y + H + 0.9 }) do add("Riegel", "trim", x, yy, z, len, 0.5, 0.7, DARK, "Metal", { yaw = yaw }) end
 end
+pane(bx + 0.15, (zS0 + cz) / 2, cz - zS0, 90)
+pane((cx + xe) / 2, zS1 - 0.15, xe - cx, 0)
+for k = 0, N do -- Pfosten an den Scheibenübergängen
+local a = math.rad(90 * k / N)
+add("Pfosten", "trim", cx - R * math.cos(a), Y + H / 2 + 0.6, cz + R * math.sin(a), 0.6, H + 0.2, 0.6, DARK, "Metal")
+end
+for k = 0, N - 1 do
+local a0, a1 = math.rad(90 * k / N), math.rad(90 * (k + 1) / N)
+local am = (a0 + a1) / 2
+pane(cx - R * math.cos(am), cz + R * math.sin(am), 2 * R * math.sin((a1 - a0) / 2), math.deg(math.atan2(-math.cos(am), math.sin(am))))
+end
+for z = zS0, cz, (cz - zS0) / 3 do add("Pfosten", "trim", bx, Y + H / 2 + 0.6, z, 0.6, H + 0.2, 0.6, DARK, "Metal") end
+for x = cx, xe, (xe - cx) / 3 do add("Pfosten", "trim", x, Y + H / 2 + 0.6, zS1, 0.6, H + 0.2, 0.6, DARK, "Metal") end
+for _, dz in ipairs({ -2.1, 2.1 }) do
+add("Eingangstuer", "glass", bx - 0.3, Y + 0.6 + 4.9, zc + dz, 0.3, 9.8, 4, { 160, 196, 212 }, "Glass", { tag = "ShopDoor" })
+add("Tuergriff", "trim", bx - 0.7, Y + 0.6 + 4.6, zc + dz * 0.3, 0.3, 3, 0.25, { 200, 202, 206 }, "Metal")
+end
+for _, dz in ipairs({ -4.3, 0, 4.3 }) do add("Tuerrahmen", "trim", bx - 0.3, Y + 0.6 + 5, zc + dz, 0.6, 10.2, 0.4, DARK, "Metal") end
+add("Tuerrahmen", "trim", bx - 0.3, Y + 0.6 + 10.1, zc, 0.6, 0.4, 8.8, DARK, "Metal")
+add("Fussmatte", "decor", bx - 2.5, Y + 0.1, zc, 4, 0.2, 8.4, { 52, 54, 60 }, "Fabric")
 add("Wand", "body", xm, Y + H / 2 + 0.6, zS0 + 0.4, xe - bx, H, 0.8, WHITE, "SmoothPlastic", { collide = true })
 add("Wand", "body", xe + 0.4, Y + H / 2 + 0.6, zc, 0.8, H, zS1 - zS0, WHITE, "SmoothPlastic", { collide = true })
 local roofY = Y + H + 1.2
@@ -1840,6 +1872,18 @@ for _, z in ipairs({ zc - 14, zc, zc + 14 }) do -- Podeste im Showroom (leer)
 disc("Podest", bx + 10, Y + 0.85, z, 0.5, 9, { 224, 224, 220 }, "SmoothPlastic", true)
 add("Deckenlicht", "light", xm, Y + H + 0.2, z, xe - bx - 4, 0.2, 0.8, { 255, 250, 236 }, "Neon")
 end
+add("Empfangstheke", "decor", xe - 9, Y + 0.6 + 1.8, zS0 + 12, 3, 3.6, 14, { 224, 224, 220 }, "SmoothPlastic", { collide = true })
+add("EmpfangsPlatte", "decor", xe - 9, Y + 0.6 + 3.7, zS0 + 12, 3.6, 0.3, 14.6, BLUE, "SmoothPlastic")
+local lx, lz = xe - 10, zS1 - 10
+disc("Loungetisch", lx, Y + 0.6 + 1.2, lz, 0.4, 5, WHITE, "SmoothPlastic", true)
+add("Sofa", "decor", lx, Y + 0.6 + 1.4, lz - 4.5, 7, 2.8, 2.6, BLUE, "Fabric", { collide = true })
+add("Sofa", "decor", lx, Y + 0.6 + 1.4, lz + 4.5, 7, 2.8, 2.6, BLUE, "Fabric", { collide = true })
+for _, q in ipairs({ { bx + 4, zS0 + 4 }, { bx + 4, zS1 - 4 }, { xe - 3, zS1 - 3 } }) do
+add("Topf", "decor", q[1], Y + 0.6 + 1, q[2], 2.4, 2, 2.4, { 70, 66, 62 }, "Concrete", { collide = true })
+add("Zimmerpflanze", "bush", q[1], Y + 0.6 + 3.6, q[2], 3.4, 3.4, 3.4, { 52, 110, 58 }, "Grass", { shape = "Ball" })
+end
+add("InnenSchild", "sign", xe - 0.3, Y + 0.6 + 8, zc, 0.3, 3, 24, BLUE, "SmoothPlastic")
+add("InnenSchrift", "sign", xe - 0.55, Y + 0.6 + 8, zc, 20, 2.4, 0.1, { 0, 0, 0 }, "SmoothPlastic", { yaw = 90, text = { s = "WILLKOMMEN", color = { 255, 255, 255 } } })
 add("Vordach", "roof", bx - 3.5, Y + H, zc, 7, 0.5, 18, WHITE, "SmoothPlastic", { collide = true })
 for _, z in ipairs({ zc - 8, zc + 8 }) do add("VordachStuetze", "trim", bx - 6.8, Y + H / 2, z, 0.5, H, 0.5, DARK, "Metal", { collide = true }) end
 local signY = roofY + 0.6 + 2.3
@@ -1879,12 +1923,18 @@ add("PylonMast", "trim", px, Y + 9, pz, 1.6, 17, 1.6, GREY, "Metal", { collide =
 add("PylonSchild", "sign", px, Y + 16, pz, 0.8, 6, 10, BLUE, "SmoothPlastic")
 add("PylonSchrift", "sign", px - 0.45, Y + 17.2, pz, 9, 1.8, 0.1, { 0, 0, 0 }, "SmoothPlastic", { yaw = 90, text = { s = "AUTOHAUS", color = { 255, 255, 255 } } })
 add("PylonSchrift", "sign", px - 0.45, Y + 14.9, pz, 9, 1.6, 0.1, { 0, 0, 0 }, "SmoothPlastic", { yaw = 90, text = { s = "ISARTOR", color = { 255, 255, 255 } } })
+local ppz = zS1 - 22
+add("ParkplatzPfosten", "decor", A.x0 + 6, Y + 3.4, ppz, 0.4, 6.8, 0.4, GREY, "Metal", { collide = true })
+add("ParkplatzSchild", "sign", A.x0 + 6, Y + 7.6, ppz, 0.3, 3.2, 3.2, BLUE, "SmoothPlastic")
+add("ParkplatzSchrift", "sign", A.x0 + 5.8, Y + 7.6, ppz, 2.6, 2.6, 0.1, { 0, 0, 0 }, "SmoothPlastic", { yaw = 90, text = { s = "P", color = { 255, 255, 255 } } })
+add("KundenSchild", "sign", A.x0 + 6, Y + 5.4, ppz, 0.3, 1.2, 5.6, BLUE, "SmoothPlastic")
+add("KundenSchrift", "sign", A.x0 + 5.8, Y + 5.4, ppz, 5, 0.9, 0.1, { 0, 0, 0 }, "SmoothPlastic", { yaw = 90, text = { s = "KUNDEN", color = { 255, 255, 255 } } })
 for _, z in ipairs({ zW1 + 6, zc, zS1 - 6 }) do
 add("LampenMast", "lamp", A.x0 + 28, Y + 5, z, 0.5, 10, 0.5, { 40, 56, 48 }, "Metal", { collide = true })
 add("LampenKopf", "lamp", A.x0 + 28, Y + 10.3, z, 2.6, 0.6, 1.2, { 255, 226, 150 }, "Neon", { tag = "StreetLamp", attrs = { Lit = true } })
 stats.lamps = stats.lamps + 1
 end
-for _, q in ipairs({ { A.x0 + 4, A.z0 + 6 }, { A.x0 + 40, A.z0 + 4 }, { A.x0 + 50, A.z1 - 6 } }) do
+for _, q in ipairs({ { A.x0 + 4, A.z0 + 6 }, { A.x0 + 40, A.z0 + 4 }, { A.x0 + 4, A.z1 - 5 } }) do
 add("AutohausStamm", "tree", q[1], Y + 4, q[2], 1.2, 8, 1.2, { 96, 70, 48 }, "Wood", { collide = true })
 add("AutohausKrone", "tree", q[1], Y + 11, q[2], 9, 9, 9, { 88, 140, 70 }, "Grass", { shape = "Ball" })
 stats.trees = stats.trees + 1

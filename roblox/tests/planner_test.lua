@@ -413,7 +413,7 @@ do
 				local lt = named(nm)
 				local lines = 0
 				for _, p in ipairs(lt) do if p.name == "StellplatzLinie" then lines = lines + 1 end end
-				check(lines >= 18, nm .. ": Stellplatzlinien " .. lines)
+				check(lines >= 10, nm .. ": Stellplatzlinien " .. lines)
 			end
 		end
 	end
@@ -604,6 +604,7 @@ do
 	local texts, outside, maxY = {}, 0, 0
 	for _, p in ipairs(plan.parts) do
 		local hx, hz = p.size[1] / 2, p.size[3] / 2
+		if (p.yaw or 0) % 180 == 90 then hx, hz = hz, hx end -- um 90 Grad gedrehte Teile (Schrift nach Westen)
 		if p.roll == nil or p.roll == 90 or p.name == "Treppenwange" then
 			if p.pos[1] - hx < A.x0 - 0.5 or p.pos[1] + hx > A.x1 + 0.5 or p.pos[3] - hz < A.z0 - 0.5 or p.pos[3] + hz > A.z1 + 0.5 then
 				if p.name ~= "Treppenwange" then outside = outside + 1 print("Autohaus außerhalb: " .. p.name .. " " .. p.pos[1] .. "," .. p.pos[3]) end

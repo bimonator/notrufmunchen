@@ -56,6 +56,24 @@ local function buildPart(spec, origin)
 	if spec.attrs then
 		for k, v in pairs(spec.attrs) do p:SetAttribute(k, v) end -- z. B. Lampenfarbe für das Ampel-Skript
 	end
+	if spec.emitter then -- Düse: unsichtbares, geneigtes Teil mit Partikelstrahl nach oben (Top = Sprührichtung), z. B. Springbrunnen-Sprenkler
+		local e = spec.emitter
+		p.Transparency = 1
+		p.CastShadow = false
+		local pe = Instance.new("ParticleEmitter")
+		pe.Texture = "rbxasset://textures/particles/smoke_main.dds"
+		pe.Rate = e.rate
+		pe.Lifetime = NumberRange.new(e.life, e.life * 1.3)
+		pe.Speed = NumberRange.new(e.speed * 0.9, e.speed * 1.1)
+		pe.SpreadAngle = Vector2.new(e.spread, e.spread)
+		pe.Acceleration = Vector3.new(0, -e.gravity, 0)
+		pe.EmissionDirection = Enum.NormalId.Top
+		pe.Size = NumberSequence.new(e.size, e.size * 1.6)
+		pe.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.25), NumberSequenceKeypoint.new(1, 1) })
+		pe.Color = ColorSequence.new(Color3.fromRGB(e.color[1], e.color[2], e.color[3]))
+		pe.LightEmission = 0.4
+		pe.Parent = p
+	end
 	return p
 end
 

@@ -17,7 +17,11 @@
 --              Maximilianbrücke (zwei Bögen, Statuen)
 --   lights     270 Laternen (runder Mast, Bogenarm, Leuchtkopf), 13 Ampelmasten (Rundmast, Ausleger, Linsenköpfe mit Blenden)
 --   marienplatz Neues Rathaus, Mariensäule, U-Bahn-Abgang, Pflaster, Kugelleuchten, Platanen, Cafés (Frauenkirche verkleinert im Nordwesten)
---   autohaus   Autohaus an der V3 mit Showroom, Parkdeck, Werkstatt, Pylon (ohne Fahrzeuge)
+--   autohaus   Autohaus an der V3 mit Showroom (Glas um die Ecke), Parkdeck, Werkstatt, Pylon (ohne Fahrzeuge)
+--   einfahrten Einfahrten (Kerben im Gehweg) an Autohaus, Klinik, Polizei, Feuerwache, Parkhaus, Café, Prinz-Eins (nur diese Teile)
+--   kreiselwege Gehwege am Siegestor-Kreisel nahtlos an die Zufahrten angeschlossen (nur diese Gehwege)
+--   tankshop   Schiebetür und Glastür am Allguth-Shop (nur die Türteile)
+--   kaffeehaus Café mit Terrasse zur Leopoldstraße, Parkplatz im Süden (Modell neu)
 --   stachus    Stachus: Halbkreis-Geschäftshäuser, Karlstor, Brunnen mit Strahlen, Taxistand (statt Casino/Kaffeehaus-Gelände am Odeonsplatz)
 --   landmarks  Siegestor auf Mittelinsel, Friedensengel (Engel mit Flügeln, Ölzweig, Nike; rundes Becken), Frauenkirche (runde Zwiebelhauben),
 --              Chinesischer Turm
@@ -172,8 +176,8 @@ allee = {
 half = 35.5, dashes = { -8.5 }, lamps = { offsets = { 3.5 }, spacing = 48 },
 strips = { { -35.5, -27.5, "walk" }, { -27.5, 1.5, "road" }, { 1.5, 5.5, "green" }, { 5.5, 13.5, "bike" }, { 13.5, 25.5, "green" }, { 25.5, 33.5, "walk" } }, -- Ufergehweg 8 breit, endet 3 Studs vor der Böschungskante
 },
-approach86 = { half = 43, dashes = {}, strips = { { -43, 43, "road" } } }, -- Zulauf der Achse zum Kreisverkehr (ohne Mittelstreifen)
-kreisel24 = { half = 22, dashes = {}, strips = { { -22, -12, "walk" }, { -12, 12, "road" } } }, -- Fahrbahn 24 breit, außen ein Gehweg (10) rund um den Kreisverkehr
+approach86 = { half = 55, dashes = {}, strips = { { -55, -43, "walk" }, { -43, 43, "road" }, { 43, 55, "walk" } } }, -- Zulauf der Achse zum Kreisverkehr (ohne Mittelstreifen), Gehwege der Achse laufen bis zum Kreis durch
+kreisel24 = { half = 22, core = 12, dashes = {}, strips = { { -22, -12, "walk" }, { -12, 12, "road" } } }, -- Fahrbahn 24 breit, außen ein Gehweg (10) rund um den Kreisverkehr
 plaza40 = { half = 20, dashes = {}, strips = { { -20, 20, "plaza" } } },
 }
 local function circle(cx, cz, r, n)
@@ -234,6 +238,21 @@ C.tankstelle = { lot = { 57, -336, 180, -150 }, gaps = { { -262, -218 }, { -196,
 C.autohaus = { x0 = 332, z0 = -196, x1 = 442, z1 = -116, frontX = 394, showroom = { -170, -122 }, werkstatt = { -196, -170 } }
 C.driveways = {}
 for _, g in ipairs(C.tankstelle.gaps) do C.driveways[#C.driveways + 1] = { x0 = 43, x1 = 57, z0 = g[1] - 3, z1 = g[2] + 3 } end
+C.einfahrten = {
+{ name = "Autohaus-Werkstatt", x0 = 314, z0 = -190, x1 = 332, z1 = -176, dir = "E" }, -- V3, Ostseite
+{ name = "Autohaus-Kunden", x0 = 314, z0 = -146, x1 = 332, z1 = -130, dir = "E" },
+{ name = "Krankenhaus-Notaufnahme", x0 = 314, z0 = -356, x1 = 340, z1 = -340, dir = "E" },
+{ name = "Prinz-Eins-Parkplatz", x0 = 409, z0 = 358, x1 = 436, z1 = 374, dir = "E" }, -- Maximilianstraße, Ostseite
+{ name = "Kaffeehaus-Parkplatz", x0 = 150, z0 = 384, x1 = 166, z1 = 396, dir = "N" }, -- Ring Süd
+{ name = "Polizei-Einfahrt", x0 = 224, z0 = 384, x1 = 238, z1 = 396, dir = "N" },
+{ name = "Polizei-Ausfahrt", x0 = 344, z0 = 384, x1 = 362, z1 = 396, dir = "N" },
+{ name = "Klinik-Parkhaus-Einfahrt", x0 = 564, z0 = -458, x1 = 576, z1 = -430, dir = "S" }, -- Ring Nord
+{ name = "Klinik-Parkhaus-Ausfahrt", x0 = 584, z0 = -458, x1 = 596, z1 = -430, dir = "S" },
+}
+for _, bz in ipairs({ -186.6, -162.2, -137.8, -113.4 }) do -- Feuerwache: vier Tore zur V1
+C.einfahrten[#C.einfahrten + 1] = { name = "Feuerwache-Tor", x0 = -441.5, z0 = bz - 10, x1 = -429.5, z1 = bz + 10, dir = "E" }
+end
+for _, e in ipairs(C.einfahrten) do C.driveways[#C.driveways + 1] = { x0 = e.x0, x1 = e.x1, z0 = e.z0, z1 = e.z1 } end
 C.bays = {
 { 38.5, -448, 38.5, -340 }, { 38.5, -334, 38.5, -274 }, { 38.5, -140, 38.5, -98 }, -- Achse Ost: Lücke vor der Tankstelleneinfahrt
 { -38.5, -448, -38.5, -314 }, { -38.5, -257, -38.5, -98 }, { -38.5, 98, -38.5, 226 }, { 38.5, 98, 38.5, 286 },
@@ -1531,7 +1550,18 @@ end
 end
 panes(z0 + 1.2, cz - door / 2)
 panes(cz + door / 2, z1 - 1.2)
-W3(h, "ShopTuer", "glass", x0 + 0.6, 6.2, cz, 0.3, 10.4, door, GL, "Glass", { tag = "ShopDoor" }) -- ohne Kollision, man läuft hinein
+local DK, tx = { 70, 74, 80 }, x0 + 0.6
+for _, zz in ipairs({ cz - 2.65, cz - 0.05 }) do
+W3(h, "Schiebetuer", "glass", tx, 6.2, zz, 0.3, 10.2, 2.6, GL, "Glass", { tag = "ShopDoor" })
+W3(h, "Schiebetuerrahmen", "trim", tx, 1.2, zz, 0.4, 0.4, 2.6, DK, "Metal")
+W3(h, "Schiebetuerrahmen", "trim", tx, 11.2, zz, 0.4, 0.4, 2.6, DK, "Metal")
+end
+W3(h, "Schiebetuerantrieb", "trim", x0 + 0.2, 11.7, cz - 1.35, 0.9, 0.7, 5.6, DK, "Metal")
+W3(h, "Tuersensor", "trim", x0 - 0.1, 11.4, cz - 1.35, 0.3, 0.4, 1.2, { 30, 32, 36 }, "SmoothPlastic")
+W3(h, "Glastuer", "glass", tx, 6.2, cz + 2.75, 0.3, 10.2, 2.5, GL, "Glass", { tag = "ShopDoor" })
+for _, zz in ipairs({ cz + 1.45, cz + 4.05 }) do W3(h, "GlastuerRahmen", "trim", tx, 6.2, zz, 0.5, 10.4, 0.3, DK, "Metal") end
+W3(h, "GlastuerGriff", "trim", x0 - 0.15, 6, cz + 1.9, 0.25, 3, 0.25, { 190, 192, 196 }, "Metal")
+W3(h, "Tuermatte", "decor", x0 - 1.8, 1.2, cz, 3, 0.3, door - 0.4, { 52, 54, 60 }, "Fabric")
 for _, zz in ipairs({ cz - door / 2, cz + door / 2 }) do W3(h, "ShopTuerrahmen", "trim", x0 + 0.6, 6.2, zz, 0.7, 10.6, 0.5, RED, "SmoothPlastic") end
 W3(h, "ShopTuerrahmen", "trim", x0 + 0.6, 11.6, cz, 0.7, 0.5, door, RED, "SmoothPlastic")
 W3(h, "Kasse", "trim", x0 + 5, 3, cz - 11, 3, 4, 9, { 190, 190, 194 }, "SmoothPlastic", { collide = true })
@@ -1902,7 +1932,7 @@ return {
 { name = "Polizei-Seitenfluegel", x0 = 202, z0 = 298, x1 = 218, z1 = 340, facing = "E", floors = 3, color = { 92, 94, 104 } },
 { name = "Krankenhaus", x0 = 340, z0 = -430, x1 = 500, z1 = -310, facing = "W", floors = 5, color = { 90, 170, 150 }, style = "klinik" },
 { name = "Kiosk", x0 = -420, z0 = 280, x1 = -370, z1 = 320, facing = "N", floors = 1, color = { 200, 70, 55 } }, -- auf dem Marienplatz
-{ name = "Kaffeehaus", x0 = 112, z0 = 300, x1 = 202, z1 = 360, facing = "N", floors = 3, color = { 244, 242, 232 }, style = "kaffee", lots = { { 60, 296, 110, 384 } } },
+{ name = "Kaffeehaus", x0 = 112, z0 = 300, x1 = 202, z1 = 360, facing = "W", floors = 3, color = { 244, 242, 232 }, style = "kaffee", lots = { { 112, 366, 202, 384 } } }, -- Terrasse zur Leopoldstraße (West), Parkplatz südlich, Rückseite zum Hofgarten,
 { name = "Prinz-Eins", x0 = 526, z0 = 326, x1 = 610, z1 = 366, facing = "S", floors = 3, color = { 52, 44, 76 }, lots = { { 436, 350, 522, 384 } } },
 { name = "Klinikum-Parkhaus", x0 = 500, z0 = -430, x1 = 660, z1 = -310, facing = "N", floors = 3, color = { 176, 176, 172 }, style = "parkhaus" }, -- grenzt an das Klinikum (x = 500)
 { name = "Volksbank", x0 = 330, z0 = -280, x1 = 404, z1 = -210, facing = "W", floors = 3, color = { 236, 238, 240 }, style = "bank" }, -- Lücke an der V3, südlich des Klinikums (erster grober Entwurf)
@@ -1973,6 +2003,7 @@ local extA, extB = prev and ext(prev, i) or 0, nxt and ext(i, nxt) or 0
 segs[#segs + 1] = {
 id = #segs + 1, road = road, prof = prof, ax = a[1], az = a[2], ux = dirs[i][1], uz = dirs[i][2], len = dirs[i][3],
 extA = extA, extB = extB, rect = Geo.rect(a[1], a[2], b[1], b[2], prof.half, extA, extB),
+cutRect = prof.core and Geo.rect(a[1], a[2], b[1], b[2], prof.core, extA, extB) or nil,
 }
 end
 end
@@ -2000,7 +2031,7 @@ local function crossCuts(segs, self, px, pz, L, margin)
 local cuts = {}
 for _, o in ipairs(segs) do
 if o.id ~= self.id and not (o.road == self.road and o.ux * self.ux + o.uz * self.uz > 0.95) then
-local lo, hi = Geo.within(px, pz, self.ux, self.uz, L, o.rect, margin)
+local lo, hi = Geo.within(px, pz, self.ux, self.uz, L, o.cutRect or o.rect, margin)
 if lo then cuts[#cuts + 1] = { lo, hi } end
 end
 end
@@ -2057,6 +2088,21 @@ t = t + 12
 end
 end
 end
+end
+local RAMP = 2.5
+for _, e in ipairs(cfg.einfahrten or {}) do
+local alongX = (e.dir == "E" or e.dir == "W")
+local a0, a1 = alongX and e.x0 or e.z0, alongX and e.x1 or e.z1
+local b0, b1 = alongX and e.z0 or e.x0, alongX and e.z1 or e.x1
+local function piece(name, p0, p1, top)
+local ca, cb = (p0 + p1) / 2, (b0 + b1) / 2
+local x, z, sx, sz = ca, cb, p1 - p0, b1 - b0
+if not alongX then x, z, sx, sz = cb, ca, b1 - b0, p1 - p0 end
+part(parts, name, "road", x, top - 0.3, z, sx, 0.6, sz, 0, COLOR.road, MATERIAL.road, {})
+end
+piece("EinfahrtRampe", a0, a0 + RAMP, 0.78)
+piece("Einfahrt", a0 + RAMP, a1 - RAMP, 1.04)
+piece("EinfahrtRampe", a1 - RAMP, a1, 0.78)
 end
 for _, b in ipairs(cfg.bays) do
 local x0, z0, x1, z1 = b[1], b[2], b[3], b[4]
@@ -3207,8 +3253,8 @@ line("Band", P.x0 + 1.2, P.z0, P.x0 + 1.2, P.z1, 2.4, BAND, 1.15, 0.3)
 line("Band", P.x1 - 1.2, P.z0, P.x1 - 1.2, P.z1, 2.4, BAND, 1.15, 0.3)
 line("Band", P.x0, P.z1 - 1.2, P.x1, P.z1 - 1.2, 2.4, BAND, 1.15, 0.3)
 local MARBLE, RED, BRONZE, GOLD, PINK = { 214, 206, 194 }, { 150, 58, 58 }, { 64, 68, 60 }, { 230, 188, 70 }, { 222, 86, 140 }
-vcyl("SaeulenKreis", S.x, 1.04, S.z, 0.08, 46, BAND, "Granite")
-vcyl("SaeulenKreis", S.x, 1.07, S.z, 0.08, 40, GRANITE, "Granite")
+vcyl("SaeulenKreis", S.x, 1.15, S.z, 0.3, 46, BAND, "Granite")
+vcyl("SaeulenKreis", S.x, 1.3, S.z, 0.3, 40, GRANITE, "Granite")
 for k = 1, 3 do
 local d = 34 - 5 * k
 for _, yw in ipairs({ 0, 45 }) do add("SaeulenStufe", S.x, 1 + 0.8 * k - 0.4, S.z, d, 0.8, d, MARBLE, "Marble", { yaw = yw, collide = true }) end
@@ -3306,7 +3352,7 @@ end
 local trees = { { -606, 214 }, { -572, 238 }, { -538, 214 }, { -504, 240 }, { -470, 214 }, { -560, 300 }, { -330, 300 }, { -236, 222 } }
 local GREENS = { { 70, 120, 60 }, { 88, 140, 70 }, { 60, 108, 58 } }
 for i, t in ipairs(trees) do
-vcyl("Baumscheibe", t[1], 1.05, t[2], 0.1, 6, { 70, 66, 60 }, "Metal")
+vcyl("Baumscheibe", t[1], 1.15, t[2], 0.3, 6, { 70, 66, 60 }, "Metal")
 vcyl("PlataneStamm", t[1], 7, t[2], 12, 2.2, { 150, 138, 116 }, "Wood", { collide = true })
 add("PlataneKrone", t[1], 18, t[2], 17, 15, 17, GREENS[i % 3 + 1], "Grass", { shape = "Ball" })
 add("PlataneKrone", t[1] + 4, 15.5, t[2] - 3, 12, 11, 12, GREENS[(i + 1) % 3 + 1], "Grass", { shape = "Ball" })
@@ -3366,7 +3412,7 @@ e = e or {}
 parts[#parts + 1] = {
 name = name, kind = kind, size = { Geo.round3(sx), Geo.round3(sy), Geo.round3(sz) }, pos = { Geo.round3(x), Geo.round3(y), Geo.round3(z) },
 yaw = e.yaw or 0, pitch = e.pitch or 0, roll = e.roll, color = color, material = mat, collide = e.collide == true, shape = e.shape,
-text = e.text, tag = e.tag, lit = e.lit, attrs = e.attrs, transparency = e.transparency,
+text = e.text, tag = e.tag, lit = e.lit, attrs = e.attrs, transparency = e.transparency, emitter = e.emitter,
 }
 end
 local function vcyl(name, kind, x, y, z, h, d, color, mat, e)
@@ -3419,7 +3465,7 @@ else
 add("Fuge", "plaza", (S.x0 + S.x1) / 2, 1.1, z, S.x1 - S.x0, 0.2, 0.3, { 172, 166, 156 }, "SmoothPlastic")
 end
 end
-for i, rr in ipairs({ 52, 49, 46 }) do vcyl("Pflasterring", "plaza", cx, 1.08 + i * 0.01, cz, 0.08, 2 * rr, i == 2 and { 150, 96, 84 } or { 186, 180, 170 }, "Granite") end
+for i, rr in ipairs({ 52, 49, 46 }) do vcyl("Pflasterring", "plaza", cx, 1.0 + i * 0.15, cz, 0.3, 2 * rr, i == 2 and { 150, 96, 84 } or { 186, 180, 170 }, "Granite") end
 local R = S.basin
 for i = 0, 35 do
 local a = math.rad(i * 10)
@@ -3427,14 +3473,11 @@ add("Beckenrand", "plaza", cx + R * math.cos(a), 2.1, cz + R * math.sin(a), 8, 2
 end
 vcyl("Beckenboden", "plaza", cx, 1.2, cz, 0.3, 2 * R, { 120, 140, 156 }, "Concrete")
 vcyl("Wasser", "plaza", cx, 2.3, cz, 0.4, 2 * R - 2, { 130, 180, 214 }, "SmoothPlastic", { transparency = 0.45 })
-for _, ring in ipairs({ { 20, 24, 10, 6 }, { 32, 30, 8, 5 } }) do -- Radius, Strahlen, Reichweite, Höhe des Bogens
+for _, ring in ipairs({ { 20, 24, 10, 6, 30, 26 }, { 32, 30, 8, 5, 35, 22 } }) do -- Radius, Düsen, Reichweite, Höhe, Neigung nach außen (Grad), Strahlgeschwindigkeit
 for k = 0, ring[2] - 1 do
 local a = math.rad(k * 360 / ring[2] + (ring[1] > 25 and 6 or 0))
-for j = 0, 5 do
-local t = j / 5
-local r = ring[1] + ring[3] * t
-add("Wasserstrahl", "plaza", cx + r * math.cos(a), 2.6 + 4 * ring[4] * t * (1 - t), cz + r * math.sin(a), 0.9, 0.9, 0.9, { 240, 248, 255 }, "SmoothPlastic", { shape = "Ball", transparency = 0.25 })
-end
+add("Duese", "plaza", cx + ring[1] * math.cos(a), 2.6, cz + ring[1] * math.sin(a), 0.5, 0.5, 0.5, { 240, 248, 255 }, "SmoothPlastic",
+{ yaw = (90 - math.deg(a)) % 360, pitch = ring[5], emitter = { rate = 16, speed = ring[6], spread = 3, gravity = 60, life = 1.1, size = 0.5, color = { 225, 240, 255 } } })
 stats.jets = stats.jets + 1
 end
 end
@@ -3669,7 +3712,7 @@ end
 local GREENS = { { 70, 120, 60 }, { 88, 140, 70 }, { 60, 108, 58 } }
 for i, z in ipairs({ 80, 122, 164, 206, 248, 290, 332, 372 }) do
 local x = -64
-vcyl("Baumscheibe", "plaza", x, 1.05, z, 0.1, 6, { 70, 66, 60 }, "Metal")
+vcyl("Baumscheibe", "plaza", x, 1.15, z, 0.3, 6, { 70, 66, 60 }, "Metal")
 vcyl("PlataneStamm", "plaza", x, 7, z, 12, 2.2, { 150, 138, 116 }, "Wood", { collide = true })
 add("PlataneKrone", "plaza", x, 18, z, 17, 15, 17, GREENS[i % 3 + 1], "Grass", { shape = "Ball" })
 add("PlataneKrone", "plaza", x + 3, 15.5, z - 3, 12, 11, 12, GREENS[(i + 1) % 3 + 1], "Grass", { shape = "Ball" })
@@ -3727,14 +3770,33 @@ for _, z in ipairs({ zc - 14, zc, zc + 14 }) do disc("Drehteller", bx - 6, Y + 0
 for _, z in ipairs({ A.z0 + 0.4, A.z1 - 0.4 }) do add("Zaun", "fence", (A.x0 + bx) / 2, Y + 0.7, z, bx - A.x0, 1.4, 0.2, DARK, "Metal") end
 local H = 12
 add("ShowroomBoden", "floor", xm, Y + 0.3, zc, xe - bx, 0.6, zS1 - zS0, { 200, 200, 196 }, "Concrete", { collide = true })
-add("Glasfront", "glass", bx + 0.15, Y + H / 2 + 0.6, zc, 0.3, H, zS1 - zS0, GLASS, "Glass", { tag = "HouseWindow", lit = true })
-add("Glasfront", "glass", xm, Y + H / 2 + 0.6, zS1 - 0.15, xe - bx, H, 0.3, GLASS, "Glass", { tag = "HouseWindow", lit = true })
-for z = zS0, zS1, (zS1 - zS0) / 4 do add("Pfosten", "trim", bx, Y + H / 2 + 0.6, z, 0.6, H + 0.2, 0.6, DARK, "Metal") end
-for x = bx, xe, (xe - bx) / 4 do add("Pfosten", "trim", x, Y + H / 2 + 0.6, zS1, 0.6, H + 0.2, 0.6, DARK, "Metal") end
-for _, yy in ipairs({ Y + 0.8 + H / 2, Y + H + 0.9 }) do
-add("Riegel", "trim", bx, yy, zc, 0.7, 0.5, zS1 - zS0, DARK, "Metal")
-add("Riegel", "trim", xm, yy, zS1, xe - bx, 0.5, 0.7, DARK, "Metal")
+local R, N = 9, 6
+local cx, cz = bx + R, zS1 - R
+local gy = Y + H / 2 + 0.6
+local function pane(x, z, len, yaw)
+add("Glasfront", "glass", x, gy, z, len, H, 0.3, GLASS, "Glass", { yaw = yaw, tag = "HouseWindow", lit = true })
+for _, yy in ipairs({ Y + 0.8 + H / 2, Y + H + 0.9 }) do add("Riegel", "trim", x, yy, z, len, 0.5, 0.7, DARK, "Metal", { yaw = yaw }) end
 end
+pane(bx + 0.15, (zS0 + cz) / 2, cz - zS0, 90)
+pane((cx + xe) / 2, zS1 - 0.15, xe - cx, 0)
+for k = 0, N do -- Pfosten an den Scheibenübergängen
+local a = math.rad(90 * k / N)
+add("Pfosten", "trim", cx - R * math.cos(a), Y + H / 2 + 0.6, cz + R * math.sin(a), 0.6, H + 0.2, 0.6, DARK, "Metal")
+end
+for k = 0, N - 1 do
+local a0, a1 = math.rad(90 * k / N), math.rad(90 * (k + 1) / N)
+local am = (a0 + a1) / 2
+pane(cx - R * math.cos(am), cz + R * math.sin(am), 2 * R * math.sin((a1 - a0) / 2), math.deg(math.atan2(-math.cos(am), math.sin(am))))
+end
+for z = zS0, cz, (cz - zS0) / 3 do add("Pfosten", "trim", bx, Y + H / 2 + 0.6, z, 0.6, H + 0.2, 0.6, DARK, "Metal") end
+for x = cx, xe, (xe - cx) / 3 do add("Pfosten", "trim", x, Y + H / 2 + 0.6, zS1, 0.6, H + 0.2, 0.6, DARK, "Metal") end
+for _, dz in ipairs({ -2.1, 2.1 }) do
+add("Eingangstuer", "glass", bx - 0.3, Y + 0.6 + 4.9, zc + dz, 0.3, 9.8, 4, { 160, 196, 212 }, "Glass", { tag = "ShopDoor" })
+add("Tuergriff", "trim", bx - 0.7, Y + 0.6 + 4.6, zc + dz * 0.3, 0.3, 3, 0.25, { 200, 202, 206 }, "Metal")
+end
+for _, dz in ipairs({ -4.3, 0, 4.3 }) do add("Tuerrahmen", "trim", bx - 0.3, Y + 0.6 + 5, zc + dz, 0.6, 10.2, 0.4, DARK, "Metal") end
+add("Tuerrahmen", "trim", bx - 0.3, Y + 0.6 + 10.1, zc, 0.6, 0.4, 8.8, DARK, "Metal")
+add("Fussmatte", "decor", bx - 2.5, Y + 0.1, zc, 4, 0.2, 8.4, { 52, 54, 60 }, "Fabric")
 add("Wand", "body", xm, Y + H / 2 + 0.6, zS0 + 0.4, xe - bx, H, 0.8, WHITE, "SmoothPlastic", { collide = true })
 add("Wand", "body", xe + 0.4, Y + H / 2 + 0.6, zc, 0.8, H, zS1 - zS0, WHITE, "SmoothPlastic", { collide = true })
 local roofY = Y + H + 1.2
@@ -3743,6 +3805,18 @@ for _, z in ipairs({ zc - 14, zc, zc + 14 }) do -- Podeste im Showroom (leer)
 disc("Podest", bx + 10, Y + 0.85, z, 0.5, 9, { 224, 224, 220 }, "SmoothPlastic", true)
 add("Deckenlicht", "light", xm, Y + H + 0.2, z, xe - bx - 4, 0.2, 0.8, { 255, 250, 236 }, "Neon")
 end
+add("Empfangstheke", "decor", xe - 9, Y + 0.6 + 1.8, zS0 + 12, 3, 3.6, 14, { 224, 224, 220 }, "SmoothPlastic", { collide = true })
+add("EmpfangsPlatte", "decor", xe - 9, Y + 0.6 + 3.7, zS0 + 12, 3.6, 0.3, 14.6, BLUE, "SmoothPlastic")
+local lx, lz = xe - 10, zS1 - 10
+disc("Loungetisch", lx, Y + 0.6 + 1.2, lz, 0.4, 5, WHITE, "SmoothPlastic", true)
+add("Sofa", "decor", lx, Y + 0.6 + 1.4, lz - 4.5, 7, 2.8, 2.6, BLUE, "Fabric", { collide = true })
+add("Sofa", "decor", lx, Y + 0.6 + 1.4, lz + 4.5, 7, 2.8, 2.6, BLUE, "Fabric", { collide = true })
+for _, q in ipairs({ { bx + 4, zS0 + 4 }, { bx + 4, zS1 - 4 }, { xe - 3, zS1 - 3 } }) do
+add("Topf", "decor", q[1], Y + 0.6 + 1, q[2], 2.4, 2, 2.4, { 70, 66, 62 }, "Concrete", { collide = true })
+add("Zimmerpflanze", "bush", q[1], Y + 0.6 + 3.6, q[2], 3.4, 3.4, 3.4, { 52, 110, 58 }, "Grass", { shape = "Ball" })
+end
+add("InnenSchild", "sign", xe - 0.3, Y + 0.6 + 8, zc, 0.3, 3, 24, BLUE, "SmoothPlastic")
+add("InnenSchrift", "sign", xe - 0.55, Y + 0.6 + 8, zc, 20, 2.4, 0.1, { 0, 0, 0 }, "SmoothPlastic", { yaw = 90, text = { s = "WILLKOMMEN", color = { 255, 255, 255 } } })
 add("Vordach", "roof", bx - 3.5, Y + H, zc, 7, 0.5, 18, WHITE, "SmoothPlastic", { collide = true })
 for _, z in ipairs({ zc - 8, zc + 8 }) do add("VordachStuetze", "trim", bx - 6.8, Y + H / 2, z, 0.5, H, 0.5, DARK, "Metal", { collide = true }) end
 local signY = roofY + 0.6 + 2.3
@@ -3782,12 +3856,18 @@ add("PylonMast", "trim", px, Y + 9, pz, 1.6, 17, 1.6, GREY, "Metal", { collide =
 add("PylonSchild", "sign", px, Y + 16, pz, 0.8, 6, 10, BLUE, "SmoothPlastic")
 add("PylonSchrift", "sign", px - 0.45, Y + 17.2, pz, 9, 1.8, 0.1, { 0, 0, 0 }, "SmoothPlastic", { yaw = 90, text = { s = "AUTOHAUS", color = { 255, 255, 255 } } })
 add("PylonSchrift", "sign", px - 0.45, Y + 14.9, pz, 9, 1.6, 0.1, { 0, 0, 0 }, "SmoothPlastic", { yaw = 90, text = { s = "ISARTOR", color = { 255, 255, 255 } } })
+local ppz = zS1 - 22
+add("ParkplatzPfosten", "decor", A.x0 + 6, Y + 3.4, ppz, 0.4, 6.8, 0.4, GREY, "Metal", { collide = true })
+add("ParkplatzSchild", "sign", A.x0 + 6, Y + 7.6, ppz, 0.3, 3.2, 3.2, BLUE, "SmoothPlastic")
+add("ParkplatzSchrift", "sign", A.x0 + 5.8, Y + 7.6, ppz, 2.6, 2.6, 0.1, { 0, 0, 0 }, "SmoothPlastic", { yaw = 90, text = { s = "P", color = { 255, 255, 255 } } })
+add("KundenSchild", "sign", A.x0 + 6, Y + 5.4, ppz, 0.3, 1.2, 5.6, BLUE, "SmoothPlastic")
+add("KundenSchrift", "sign", A.x0 + 5.8, Y + 5.4, ppz, 5, 0.9, 0.1, { 0, 0, 0 }, "SmoothPlastic", { yaw = 90, text = { s = "KUNDEN", color = { 255, 255, 255 } } })
 for _, z in ipairs({ zW1 + 6, zc, zS1 - 6 }) do
 add("LampenMast", "lamp", A.x0 + 28, Y + 5, z, 0.5, 10, 0.5, { 40, 56, 48 }, "Metal", { collide = true })
 add("LampenKopf", "lamp", A.x0 + 28, Y + 10.3, z, 2.6, 0.6, 1.2, { 255, 226, 150 }, "Neon", { tag = "StreetLamp", attrs = { Lit = true } })
 stats.lamps = stats.lamps + 1
 end
-for _, q in ipairs({ { A.x0 + 4, A.z0 + 6 }, { A.x0 + 40, A.z0 + 4 }, { A.x0 + 50, A.z1 - 6 } }) do
+for _, q in ipairs({ { A.x0 + 4, A.z0 + 6 }, { A.x0 + 40, A.z0 + 4 }, { A.x0 + 4, A.z1 - 5 } }) do
 add("AutohausStamm", "tree", q[1], Y + 4, q[2], 1.2, 8, 1.2, { 96, 70, 48 }, "Wood", { collide = true })
 add("AutohausKrone", "tree", q[1], Y + 11, q[2], 9, 9, 9, { 88, 140, 70 }, "Grass", { shape = "Ball" })
 stats.trees = stats.trees + 1
@@ -4789,6 +4869,24 @@ end
 if spec.attrs then
 for k, v in pairs(spec.attrs) do p:SetAttribute(k, v) end -- z. B. Lampenfarbe für das Ampel-Skript
 end
+if spec.emitter then -- Düse: unsichtbares, geneigtes Teil mit Partikelstrahl nach oben (Top = Sprührichtung), z. B. Springbrunnen-Sprenkler
+local e = spec.emitter
+p.Transparency = 1
+p.CastShadow = false
+local pe = Instance.new("ParticleEmitter")
+pe.Texture = "rbxasset://textures/particles/smoke_main.dds"
+pe.Rate = e.rate
+pe.Lifetime = NumberRange.new(e.life, e.life * 1.3)
+pe.Speed = NumberRange.new(e.speed * 0.9, e.speed * 1.1)
+pe.SpreadAngle = Vector2.new(e.spread, e.spread)
+pe.Acceleration = Vector3.new(0, -e.gravity, 0)
+pe.EmissionDirection = Enum.NormalId.Top
+pe.Size = NumberSequence.new(e.size, e.size * 1.6)
+pe.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.25), NumberSequenceKeypoint.new(1, 1) })
+pe.Color = ColorSequence.new(Color3.fromRGB(e.color[1], e.color[2], e.color[3]))
+pe.LightEmission = 0.4
+pe.Parent = p
+end
 return p
 end
 local count = 0
@@ -5045,6 +5143,24 @@ redo(map.Stachus, Stachus.plan(Config).parts)
 redo(map.Marienplatz, Marienplatz.plan(Config).parts)
 return string.format("%d Fugen und Bänder erneuert", n)
 end,
+zylinder = function(opts, origin) -- flache Scheiben (Pflasterringe, Baumscheiben) und Brunnen-Düsen in der fertigen Karte erneuern, übrige Teile bleiben
+local map = game:GetService("Workspace"):FindFirstChild("Map")
+local n = 0
+local function redo(folder, parts, names)
+for _, c in ipairs(folder:GetChildren()) do
+if names[c.Name] then c:Destroy() end
+end
+local list = {}
+for _, p in ipairs(parts) do
+if names[p.name] then list[#list + 1] = p end
+end
+Builder.buildParts(list, folder, origin)
+n = n + #list
+end
+redo(map.Stachus, Stachus.plan(Config).parts, { Wasserstrahl = true, Duese = true, Pflasterring = true, Baumscheibe = true })
+redo(map.Marienplatz, Marienplatz.plan(Config).parts, { SaeulenKreis = true, Baumscheibe = true })
+return string.format("%d Teile erneuert", n)
+end,
 stachuslaternen = function(opts, origin) -- nur die Kugelleuchten am Stachus in der fertigen Karte neu setzen
 local folder = game:GetService("Workspace"):FindFirstChild("Map").Stachus
 for _, c in ipairs(folder:GetChildren()) do
@@ -5097,6 +5213,63 @@ bus = function(opts, origin)
 local plan = Bushaltestellen.plan(Config)
 Builder.buildParts(plan.parts, Builder.container("Bushaltestellen"), origin)
 return string.format("%d Haltestellen, %d Teile", plan.stats.stops, #plan.parts)
+end,
+einfahrten = function(opts, origin) -- Einfahrten (Kerben im Gehweg) in der fertigen Karte erneuern, übrige Straßenteile bleiben
+local folder = game:GetService("Workspace"):FindFirstChild("Map").Strassen
+local removed = 0
+for _, c in ipairs(folder:GetChildren()) do
+if c.Name == "Einfahrt" or c.Name == "EinfahrtRampe" then c:Destroy() removed = removed + 1 end
+end
+local list = {}
+for _, p in ipairs(RoadsPlanner.plan(Config).parts) do
+if p.name == "Einfahrt" or p.name == "EinfahrtRampe" then list[#list + 1] = p end
+end
+Builder.buildParts(list, folder, origin)
+return string.format("%d alte Teile entfernt, %d neu", removed, #list)
+end,
+kreiselwege = function(opts, origin) -- Gehwege am Siegestor-Kreisel und seinen Zufahrten neu, damit sie nahtlos anschließen; neue Eckstücke nur ergänzen
+local folder = game:GetService("Workspace"):FindFirstChild("Map").Strassen
+local set = { AchseNord = true, ZulaufNord = true, ZulaufSued = true, AchseSued = true, SiegestorKreisel = true, H2 = true, Diagonale = true }
+local removed, have = 0, {}
+for _, c in ipairs(folder:GetChildren()) do
+local road = c.Name:match("^(%w+)_%d+_walk$")
+if road and set[road] then c:Destroy() removed = removed + 1
+else have[c.Name .. math.floor(c.Position.X - origin.X + 0.5) .. ":" .. math.floor(c.Position.Z - origin.Z + 0.5)] = true end
+end
+local list = {}
+for _, p in ipairs(RoadsPlanner.plan(Config).parts) do
+local road = p.name:match("^(%w+)_%d+_walk$")
+if road and set[road] then list[#list + 1] = p
+elseif (p.name == "GehwegEcke" or p.name == "GehwegEckeRund" or p.name == "EckAsphalt") and not have[p.name .. math.floor(p.pos[1] + 0.5) .. ":" .. math.floor(p.pos[3] + 0.5)] then list[#list + 1] = p end
+end
+Builder.buildParts(list, folder, origin)
+return string.format("%d alte Gehwegteile entfernt, %d neu", removed, #list)
+end,
+tankshop = function(opts, origin) -- nur die Eingangstür des Allguth-Shops (Schiebetür, Glastür, Matte) erneuern
+local model = game:GetService("Workspace"):FindFirstChild("Map").Gebaeude.Sonderbauten["Sonder_Tankstellen-Shop"]
+local NAMES = { ShopTuer = true, ShopTuerrahmen = true, Schiebetuer = true, Schiebetuerrahmen = true, Schiebetuerantrieb = true, Tuersensor = true,
+Glastuer = true, GlastuerRahmen = true, GlastuerGriff = true, Tuermatte = true }
+local removed = 0
+for _, c in ipairs(model:GetChildren()) do
+if NAMES[c.Name] then c:Destroy() removed = removed + 1 end
+end
+local spec
+for _, sp in ipairs(Specials) do if sp.name == "Tankstellen-Shop" then spec = sp end end
+local list = {}
+for _, p in ipairs(Planner.planSpecial(spec, { seed = opts.seed or 1 }).houses[1].parts) do
+if NAMES[p.name] then list[#list + 1] = p end
+end
+Builder.buildParts(list, model, origin)
+return string.format("%d alte Türteile entfernt, %d neu", removed, #list)
+end,
+kaffeehaus = function(opts, origin) -- Café neu (Terrasse zur Leopoldstraße, Parkplatz im Süden)
+local folder = game:GetService("Workspace"):FindFirstChild("Map").Gebaeude.Sonderbauten
+local old = folder:FindFirstChild("Sonder_Kaffeehaus")
+if old then old:Destroy() end
+for _, sp in ipairs(Specials) do
+if sp.name == "Kaffeehaus" then Builder.build(Planner.planSpecial(sp, { seed = opts.seed or 1 }), folder, origin) end
+end
+return "Kaffeehaus neu gebaut"
 end,
 autohaus = function(opts, origin)
 local plan = Autohaus.plan(Config)
