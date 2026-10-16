@@ -8,15 +8,16 @@
 --            Die Karte ist nach dem Stoppen weg. Dauerhaft bauen: MapBuilder_Plugin.lua als lokales Plugin.
 --
 -- WAS GEBAUT WIRD (Schritte, in dieser Reihenfolge; Output zeigt je Schritt eine Zeile):
---   terrain    Boden, Parks, Hügel (Monopteros), Terrasse (Friedensengel), Isar mit 3-stufiger Böschung, Bach, Tunnelgraben
---   roads      Ring, Leopoldstraße/Ludwigstraße (Achse mit Siegestor-Unterführung), Schwabinger Raster, Diagonale, Isarspange,
+--   terrain    Boden, Parks, Hügel (Monopteros), Terrasse (Friedensengel), Isar mit 3-stufiger Böschung, Bach
+--   roads      Ring, Leopoldstraße/Ludwigstraße (Achse, rund um das Siegestor ein Kreisverkehr), Schwabinger Raster, Diagonale, Isarspange,
 --              Maximilianstraße, Kreisel, Fußgängerzone mit Fliesen, Parkbuchten, 4 Brücken über die Isar (flach, auf Säulen),
 --              Maximilianbrücke (zwei Bögen, Statuen)
---   lights     270 Laternen, 13 Ampelmasten (Mast + Ausleger), 2 Fußgängerampeln
---   landmarks  Siegestor, Friedensengel, Frauenkirche, Chinesischer Turm
+--   lights     270 Laternen (runder Mast, Bogenarm, Leuchtkopf), 13 Ampelmasten (Rundmast, Ausleger, Linsenköpfe mit Blenden)
+--   landmarks  Siegestor auf Mittelinsel, Friedensengel (Engel mit Flügeln, Ölzweig, Nike; rundes Becken), Frauenkirche (runde Zwiebelhauben),
+--              Chinesischer Turm
 --   gardens    Hofgarten, Englischer Garten, Monopteros-Tempel, Biergarten, Eisbachwelle, Isar-Uferwege, Prinz-Eins-Vorplatz
 --   houses     7 Häuserblöcke mit Rück- und Hinterhäusern, 13 Sonderbauten (Feuerwache, Polizeiwache mit Hof, Klinikum,
---              Tankstelle mit Schirm und Shop, Bank, Parkhaus, ...)
+--              Tankstelle mit Schirm, Shop und E-Ladepark (8 Plätze, 4 Ladesäulen), Bank, Parkhaus, ...)
 --   wall       Häuserband um die Karte (Mapgrenze) mit Toren und Flusstoren
 --
 -- WAS FUNKTIONIERT WIE:
@@ -175,12 +176,13 @@ C.profiles = {
 	std48 = { half = 24, dashes = { 0 }, strips = { { -24, -14, "walk" }, { -14, 14, "road" }, { 14, 24, "walk" } } },
 	raster57 = { half = 28.5, dashes = { -4.5 }, strips = { { -28.5, -18.5, "walk" }, { -18.5, 18.5, "road" }, { 18.5, 28.5, "walk" } } },
 	axis110 = {
-		half = 55, dashes = { -20, 20 }, dashesUnderground = true,
+		half = 55, dashes = { -20, 20 },
 		strips = {
-			{ -55, -43, "walk" }, { -43, -34, "road" }, { -34, -6, "road", true }, { -6, 6, "median", true },
-			{ 6, 34, "road", true }, { 34, 43, "road" }, { 43, 55, "walk" },
+			{ -55, -43, "walk" }, { -43, -34, "road" }, { -34, -6, "road" }, { -6, 6, "median" },
+			{ 6, 34, "road" }, { 34, 43, "road" }, { 43, 55, "walk" },
 		},
 	},
+	approach86 = { half = 43, dashes = {}, strips = { { -43, 43, "road" } } }, -- Zulauf der Achse zum Kreisverkehr (ohne Mittelstreifen)
 	kreisel24 = { half = 12, dashes = {}, strips = { { -12, 12, "road" } } },
 	plaza40 = { half = 20, dashes = {}, strips = { { -20, 20, "plaza" } } },
 }
@@ -197,12 +199,17 @@ end
 -- Fahrtrichtung der Raster-Straßen: V nach Norden, H nach Osten, damit die Parkseite (positiv) östlich bzw. südlich liegt.
 C.roads = {
 	{ name = "Ring", closed = true, profile = "std48", pts = { { -661, -472 }, { 1076, -472 }, { 1076, 410 }, { -661, 410 } } },
-	{ name = "Achse", profile = "axis110", pts = { { 0, -472 }, { 0, 410 } } },
+	-- Leopoldstraße / Ludwigstraße: läuft oben in den Kreisverkehr um das Siegestor (Mittelradius 68, Insel Radius 52)
+	{ name = "AchseNord", profile = "axis110", pts = { { 0, -472 }, { 0, -84 } } },
+	{ name = "ZulaufNord", profile = "approach86", pts = { { 0, -84 }, { 0, -60 } } },
+	{ name = "ZulaufSued", profile = "approach86", pts = { { 0, 60 }, { 0, 84 } } },
+	{ name = "AchseSued", profile = "axis110", pts = { { 0, 84 }, { 0, 410 } } },
+	{ name = "SiegestorKreisel", closed = true, profile = "kreisel24", pts = circle(0, 0, 68, 24) },
 	{ name = "V1", profile = "raster57", pts = { { -460, 30 }, { -460, -472 } } },
 	{ name = "V2", profile = "raster57", pts = { { -235, 30 }, { -235, -472 } } },
 	{ name = "H1", profile = "raster57", pts = { { -661, -285 }, { 0, -285 } } },
-	{ name = "H2", profile = "raster57", pts = { { -661, 30 }, { 0, 30 } } },
-	{ name = "Diagonale", profile = "std48", pts = { { 0, 30 }, { 290, 36 }, { 455, -77 }, { 605, -212 }, { 770, -347 }, { 790, -472 } } },
+	{ name = "H2", profile = "raster57", pts = { { -661, 30 }, { -61, 30 } } },
+	{ name = "Diagonale", profile = "std48", pts = { { 61, 30 }, { 290, 36 }, { 455, -77 }, { 605, -212 }, { 770, -347 }, { 790, -472 } } },
 	{ name = "Isarspange", profile = "std48", pts = { { 455, -77 }, { 700, -60 }, { 780, -40 }, { 1012, 3 }, { 1030, 70 }, { 1076, 210 } } },
 	{ name = "V3", profile = "std48", pts = { { 300, -472 }, { 300, 32 } } },
 	{ name = "KirchplatzNord", profile = "std48", pts = { { -550, 30 }, { -550, 140 } } }, -- endet am Kirchplatz der Frauenkirche
@@ -214,13 +221,13 @@ C.roads = {
 C.bay = { length = 16, width = 9 }
 -- Allguth-Tankstelle: Grundstück und Ein-/Ausfahrten (z-Bereiche an der Straße, Einfahrt südlich, Ausfahrt nördlich davon).
 -- Vor den Einfahrten gibt es keine Parkbuchten und die Laternen stehen nicht im Weg (siehe driveways).
-C.tankstelle = { lot = { 57, -336, 180, -150 }, gaps = { { -262, -218 }, { -196, -152 } } }
+C.tankstelle = { lot = { 57, -336, 180, -150 }, gaps = { { -262, -218 }, { -196, -152 } }, ev = { x0 = 162, x1 = 178, z0 = -290, n = 8, w = 9 } } -- ev: E-Ladepark an der Ostseite (Stellplatzfeld)
 C.driveways = {}
 for _, g in ipairs(C.tankstelle.gaps) do C.driveways[#C.driveways + 1] = { x0 = 43, x1 = 57, z0 = g[1] - 3, z1 = g[2] + 3 } end
 
 C.bays = {
-	{ 38.5, -448, 38.5, -340 }, { 38.5, -334, 38.5, -274 }, { 38.5, -140, 38.5, -40 }, -- Achse Ost: Lücke vor der Tankstelleneinfahrt
-	{ -38.5, -448, -38.5, -314 }, { -38.5, -257, -38.5, -40 }, { -38.5, 64, -38.5, 226 }, { 38.5, 64, 38.5, 286 },
+	{ 38.5, -448, 38.5, -340 }, { 38.5, -334, 38.5, -274 }, { 38.5, -140, 38.5, -98 }, -- Achse Ost: Lücke vor der Tankstelleneinfahrt
+	{ -38.5, -448, -38.5, -314 }, { -38.5, -257, -38.5, -98 }, { -38.5, 98, -38.5, 226 }, { 38.5, 98, 38.5, 286 },
 	{ -633, -271, -497, -271 }, { -432, -271, -272, -271 }, { -207, -271, -59, -271 },
 	{ -633, 44, -578, 44 }, { -522, 44, -497, 44 }, { -432, 44, -272, 44 }, { -207, 44, -59, 44 },
 	{ -446, -448, -446, -317 }, { -446, -253, -446, -211 }, { -446, -89, -446, -3 },
@@ -248,9 +255,6 @@ C.isarBridges = {
 	-- Maximilianbrücke: zwei flache Segmentbögen über einen Mittelpfeiler mit Statuen, führt von der Maximilianstraße zur Friedensengel-Terrasse
 	{ name = "B6", style = "maximilian", x = 751, z = 298, len = 244, wid = 28, walk = 14, yaw = 0, span = 60, rise = 4.5 },
 }
-
--- Siegestor-Unterführung: die vier Fahrspuren der Achse tauchen unter der Querstraße H2/D ab
-C.tunnel = { road = "Achse", half = 34, z0 = -144, rampN = { -144, -8 }, box = { -8, 64 }, rampS = { 64, 200 }, z1 = 200, floorTop = -16.5, surfaceTop = 0.5 }
 
 C.water = {
 	isar = {
@@ -290,11 +294,11 @@ C.signals = {
 	{ name = "Wache_V1", x = -436.5, z = -90, fx = 0, fz = 1, ax = -1, az = 0 }, { name = "Wache_V1", x = -483.5, z = -210, fx = 0, fz = -1, ax = 1, az = 0 },
 	{ name = "Wache_V2", x = -211.5, z = -90, fx = 0, fz = 1, ax = -1, az = 0 }, { name = "Wache_V2", x = -258.5, z = -210, fx = 0, fz = -1, ax = 1, az = 0 },
 }
-C.pedSignals = { { name = "Siegestor_West", x = -62, z = 8, fx = 1, fz = 0 }, { name = "Siegestor_Ost", x = 62, z = 14, fx = -1, fz = 0 } }
+C.pedSignals = {} -- die Fußgängerampeln am Siegestor entfallen (Kreisverkehr)
 
 -- Wahrzeichen: Siegestor steht auf dem Tunneldeckel (Mitte = Ursprung), Friedensengel in der Mitte der Terrasse
 C.landmarks = {
-	siegestor = { x = 0, z = 0, baseY = 0.4 },
+	siegestor = { x = 0, z = 0, baseY = 1.4, islandR = 52, ringR = 68 }, -- steht auf der Mittelinsel des Kreisverkehrs
 	friedensengel = { x = 965, z = 298, baseY = 3.7 },
 	frauenkirche = { x0 = -610, x1 = -215, z = 254, baseY = 0.7, width = 150, wallH = 72, roofRise = 62, towerH = 210 }, -- auf dem Kirchplatz, Türme im Westen
 	turm = { x = 573, z = 224, baseY = 0.2 }, -- Chinesischer Turm im Englischen Garten, Biergarten rundherum
@@ -1297,6 +1301,42 @@ local function lotDecor(h, spec)
 	end
 end
 
+-- E-Ladepark an der freien Ostseite des Tankstellen-Grundstücks (simuliert, ohne Ladelogik): n Stellplätze (Tiefe x1-x0, Breite w) mit grünen
+-- Bodenfeldern, weißen Linien und Radstoppern; je zwei Stellplätze teilen sich eine Ladesäule am hinteren Rand (Display "EV", zwei Ladekabel),
+-- darüber ein Solar-Carport mit Schriftband "E-LADESTATION". Die Säulen tragen den Tag "EVCharger" (Attribute Station, kW) für ein späteres Ladeskript.
+local function evPark(h, spec)
+	local e = spec.ev
+	local x0, x1, z0, n, w = e.x0, e.x1, e.z0, e.n, e.w
+	local z1, zm, cx = z0 + n * w, z0 + n * w / 2, (x0 + x1) / 2
+	local GREEN, WHITE, DARK, CONC = { 40, 168, 110 }, { 244, 244, 246 }, { 24, 28, 34 }, { 190, 188, 182 }
+	for i = 0, n - 1 do
+		local zc = z0 + (i + 0.5) * w
+		W3(h, "EVStellplatz", "decor", cx, 1.03, zc, x1 - x0, 0.06, w - 0.5, { 56, 140, 104 }, "SmoothPlastic")
+		W3(h, "EVRadstopper", "decor", x1 - 1.6, 1.4, zc, 0.8, 0.8, 5, CONC, "Concrete", { collide = true })
+	end
+	for i = 0, n do W3(h, "EVLinie", "dash", cx, 1.08, z0 + i * w, x1 - x0, 0.1, 0.3, WHITE, "SmoothPlastic") end
+	for j = 0, n / 2 - 1 do -- Ladesäule zwischen zwei Stellplätzen
+		local zc, px = z0 + (2 * j + 1) * w, x1 - 3.6
+		W3(h, "EVSockel", "decor", px, 1.3, zc, 3.4, 0.6, 3.4, CONC, "Concrete", { collide = true })
+		W3(h, "EVSaeule", "trim", px, 4.2, zc, 1.8, 6, 2.4, WHITE, "SmoothPlastic", { collide = true, tag = "EVCharger", attrs = { Station = j + 1, kW = 50 } })
+		W3(h, "EVKopf", "trim", px, 7.6, zc, 2.0, 1.4, 2.6, GREEN, "SmoothPlastic")
+		W3(h, "EVDisplay", "text", px - 1.0, 5.8, zc, 2.0, 1.4, 0.2, DARK, "SmoothPlastic", { yaw = 90, text = { s = "EV", color = { 90, 235, 150 } } })
+		for _, sd in ipairs({ -1, 1 }) do
+			W3(h, "EVHalter", "trim", px - 0.2, 5.0, zc + sd * 1.4, 0.9, 1.2, 0.7, DARK, "SmoothPlastic")
+			W3(h, "EVKabel", "trim", px - 1.0, 3.2, zc + sd * 1.4, 3.2, 0.35, 0.35, DARK, "SmoothPlastic", { shape = "Cylinder", roll = 90 })
+			W3(h, "EVStecker", "trim", px - 1.0, 1.7, zc + sd * 1.4, 0.6, 0.9, 0.6, GREEN, "SmoothPlastic")
+		end
+	end
+	-- Carport: Pfosten an den Stellplatzgrenzen (hinten), dunkles Solardach, weiße Blende mit Schriftzügen, grüne Leuchten
+	for i = 0, n, 2 do W3(h, "EVPfosten", "trim", x1 - 0.8, 5.5, z0 + i * w, 1.2, 9, 1.2, WHITE, "SmoothPlastic", { collide = true }) end
+	W3(h, "EVDach", "trim", cx - 0.25, 10.2, zm, x1 - x0 + 1.5, 0.8, n * w + 2, { 28, 44, 84 }, "SmoothPlastic")
+	W3(h, "EVBlende", "trim", x0 - 1, 10.2, zm, 0.6, 1.6, n * w + 2, WHITE, "SmoothPlastic")
+	W3(h, "EVBlende", "trim", cx - 0.25, 10.2, z1 + 1, x1 - x0 + 1.5, 1.6, 0.6, WHITE, "SmoothPlastic")
+	W3(h, "EVSchrift", "text", x0 - 1.4, 10.2, zm, 26, 1.2, 0.2, { 40, 168, 110 }, "SmoothPlastic", { yaw = 90, text = { s = "E-LADESTATION", color = { 40, 168, 110 } } })
+	W3(h, "EVSchrift", "text", cx - 0.25, 10.2, z1 + 1.4, 12, 1.2, 0.2, { 40, 168, 110 }, "SmoothPlastic", { yaw = 180, text = { s = "E-LADEN", color = { 40, 168, 110 } } })
+	for i = 0, n - 1 do W3(h, "EVLicht", "trim", cx, 9.6, z0 + (i + 0.5) * w, 0.2, 1.6, 1.6, { 120, 255, 190 }, "Neon", { shape = "Cylinder", roll = 90 }) end
+end
+
 -- Sonderbau (Bank, Wache, Krankenhaus ...) als Platzhalter-Gebäude auf einer Rechteckfläche.
 -- spec = { name, x0, z0, x1, z1, facing = "N"|"S"|"E"|"W" (Seite zur Straße), floors, color, canopy = { x0, z0, x1, z1 } }
 function Planner.planSpecial(spec, opts)
@@ -1332,6 +1372,7 @@ function Planner.planSpecial(spec, opts)
 			W3(h, "Auffahrt", "trim", (43.4 + l[1] + 0.4) / 2, 0.91, (g[1] + g[2]) / 2, l[1] + 0.4 - 43.4, 0.3, g[2] - g[1], { 78, 80, 86 }, "Asphalt", { collide = true })
 		end
 		lotDecor(h, spec)
+		if spec.ev then evPark(h, spec) end
 	end
 	if spec.compound then COMPOUNDS[spec.compound](h, spec, o) end
 	return { houses = { h } }
@@ -1416,8 +1457,8 @@ return {
 	{ name = "C_LeopoldWestNord", xmin = -206.5, zmin = -448, xmax = -55, zmax = -313.5, reserved = { { -127, -385, -55, -315 } } },
 	{ name = "D_West", xmin = -637, zmin = -256.5, xmax = -488.5, zmax = 1.5 },
 	{ name = "E_Mitte", xmin = -431.5, zmin = -256.5, xmax = -263.5, zmax = 1.5, reserved = { { -429.5, -200, -265.5, -100 } } },
-	{ name = "F_LeopoldWestSued", xmin = -206.5, zmin = -256.5, xmax = -55, zmax = 1.5, reserved = { { -205, -250, -109, -140 } } },
-	{ name = "G_LeopoldOst", xmin = 55, zmin = -448, xmax = 276, zmax = 4, reserved = { { T.lot[1], T.lot[2], 86, T.lot[4] } }, lot = T.lot, avoidInner = { { 190, -400, 234, -108 } } }, -- Lücke in der Häuserzeile: Tankstelle liegt frei an der Straße, lot = ihr Grundstück
+	{ name = "F_LeopoldWestSued", xmin = -206.5, zmin = -256.5, xmax = -55, zmax = 1.5, reserved = { { -205, -250, -109, -140 }, { -106, -90, -55, 2 } } }, -- zweite Fläche: Kreisverkehr um das Siegestor
+	{ name = "G_LeopoldOst", xmin = 55, zmin = -448, xmax = 276, zmax = 4, reserved = { { T.lot[1], T.lot[2], 86, T.lot[4] }, { 55, -90, 106, 6 } }, lot = T.lot, avoidInner = { { 190, -400, 234, -108 } } }, -- Lücke in der Häuserzeile: Tankstelle liegt frei an der Straße, lot = ihr Grundstück
 }
 
 end)()
@@ -1434,7 +1475,7 @@ return {
 	{ name = "Isarbank", x0 = -127, z0 = -385, x1 = -55, z1 = -315, facing = "E", floors = 4, color = { 176, 120, 100 } },
 	{ name = "Parkhaus", x0 = -205, z0 = -250, x1 = -109, z1 = -140, facing = "N", floors = 4, color = { 170, 170, 176 } },
 	-- Shop liegt am Nordende des Schirms (gegenüber der Einfahrt), Glasfront zur Straße
-	{ name = "Tankstellen-Shop", x0 = 78, z0 = -332, x1 = 146, z1 = -298, facing = "W", floors = 1, color = { 250, 250, 250 }, style = "tankstelle", canopy = { 78, -298, 146, -202 }, lot = T.lot, curbGaps = T.gaps },
+	{ name = "Tankstellen-Shop", x0 = 78, z0 = -332, x1 = 146, z1 = -298, facing = "W", floors = 1, color = { 250, 250, 250 }, style = "tankstelle", canopy = { 78, -298, 146, -202 }, lot = T.lot, curbGaps = T.gaps, ev = T.ev },
 	{ name = "Tankstellen-Buero-Nord", x0 = 190, z0 = -400, x1 = 234, z1 = -318, facing = "W", floors = 5, color = { 38, 48, 62 }, style = "buero" },
 	{ name = "Tankstellen-Buero-Mitte", x0 = 190, z0 = -302, x1 = 234, z1 = -210, facing = "W", floors = 6, color = { 38, 48, 62 }, style = "buero" },
 	{ name = "Tankstellen-Buero-Sued", x0 = 190, z0 = -194, x1 = 234, z1 = -108, facing = "W", floors = 5, color = { 38, 48, 62 }, style = "buero" },
@@ -1454,7 +1495,7 @@ end)()
 
 local RoadsPlanner = (function()
 -- RoadsPlanner.lua
--- Straßen, Gehwege, Markierungen, Parkbuchten, Plätze, Brücken und die Siegestor-Unterführung als Teileliste.
+-- Straßen, Gehwege, Markierungen, Parkbuchten, Plätze, Brücken als Teileliste.
 -- Reine Geometrie (keine Roblox-Funktionen). Teile haben dieselben Felder wie die Häuser aus Planner.lua, dazu optional pitch.
 
 local Geo = Geo
@@ -1570,7 +1611,6 @@ end
 function RoadsPlanner.plan(cfg)
 	local parts = {}
 	local segs = buildSegments(cfg)
-	local tun = cfg.tunnel
 	local stats = { bays = 0, dashes = 0 }
 	local level = roadLevels(segs)
 
@@ -1579,13 +1619,6 @@ function RoadsPlanner.plan(cfg)
 		local p0x, p0z = seg.ax - seg.ux * seg.extA, seg.az - seg.uz * seg.extA
 		local L = seg.len + seg.extA + seg.extB
 		local nx, nz = -seg.uz, seg.ux
-		-- Tunnelbereich als Abschnitt entlang dieser Straße (nur die Achse läuft in z-Richtung)
-		local tunnelCut
-		if seg.road.name == tun.road then
-			local t0, t1 = (tun.z0 - p0z) * seg.uz, (tun.z1 - p0z) * seg.uz
-			if t0 > t1 then t0, t1 = t1, t0 end
-			tunnelCut = { t0, t1 }
-		end
 		local bridgeCuts = {}
 		for _, b in ipairs(cfg.isarBridges) do
 			local br = math.rad(b.yaw)
@@ -1602,7 +1635,6 @@ function RoadsPlanner.plan(cfg)
 			local cuts = {}
 			local lift = (kind == "road") and LEVEL_STEP * level[seg.id] or (kind == "plaza" and PLAZA_LIFT or 0)
 			if kind == "walk" then cuts = crossCuts(segs, seg, sx, sz, L, 0.05) end
-			if st[4] and tunnelCut then cuts[#cuts + 1] = tunnelCut end
 			for _, bc in ipairs(bridgeCuts) do cuts[#cuts + 1] = bc end
 			for _, sp in ipairs(Geo.subtract({ { 0, L } }, cuts)) do
 				local len = sp[2] - sp[1]
@@ -1618,7 +1650,6 @@ function RoadsPlanner.plan(cfg)
 		for _, d in ipairs(seg.prof.dashes) do
 			local sx, sz = p0x + nx * d, p0z + nz * d
 			local cuts = crossCuts(segs, seg, sx, sz, L, 0.5)
-			if seg.prof.dashesUnderground and tunnelCut then cuts[#cuts + 1] = tunnelCut end
 			for _, bc in ipairs(bridgeCuts) do cuts[#cuts + 1] = bc end
 			for _, sp in ipairs(Geo.subtract({ { 0, L } }, cuts)) do
 				local t = sp[1] + 1
@@ -1774,22 +1805,6 @@ function RoadsPlanner.plan(cfg)
 		end
 	end
 
-	-- Unterführung: Rampen (geneigt), Boden, Decke unter der Querstraße, Seitenwände des Tunnelkastens
-	local w = tun.half * 2
-	local drop = tun.surfaceTop - tun.floorTop
-	for _, ramp in ipairs({ { tun.rampN, 1 }, { tun.rampS, -1 } }) do
-		local z0, z1 = ramp[1][1], ramp[1][2]
-		local dz = z1 - z0
-		local L = math.sqrt(dz * dz + drop * drop)
-		local ang = math.deg(math.atan2(drop, dz)) -- positiv = fällt nach Süden
-		part(parts, "Rampe", "tunnel", 0, (tun.surfaceTop + tun.floorTop) / 2 - 0.5, (z0 + z1) / 2, w, 1, L, 0, COLOR.road, "Asphalt", { pitch = ramp[2] * ang })
-	end
-	local bz0, bz1 = tun.box[1], tun.box[2]
-	part(parts, "TunnelBoden", "tunnel", 0, tun.floorTop - 0.5, (bz0 + bz1) / 2, w, 1, bz1 - bz0, 0, COLOR.road, "Asphalt", {})
-	part(parts, "TunnelDecke", "tunnel", 0, -1.1, (bz0 + bz1) / 2, w, 3, bz1 - bz0, 0, COLOR.tunnel, "Concrete", {})
-	for _, side in ipairs({ -1, 1 }) do
-		part(parts, "TunnelWand", "tunnel", side * (tun.half + 1), tun.floorTop - 1 + 8.75, (bz0 + bz1) / 2, 2, 17.5, bz1 - bz0, 0, COLOR.tunnel, "Concrete", {})
-	end
 	stats.stalls = stats.bays
 	return { parts = parts, stats = stats, segments = segs }
 end
@@ -1817,7 +1832,7 @@ local function part(parts, name, kind, x, y, z, sx, sy, sz, yaw, color, material
 	extra = extra or {}
 	parts[#parts + 1] = {
 		name = name, kind = kind, size = { sx, sy, sz }, pos = { Geo.round3(x), Geo.round3(y), Geo.round3(z) }, yaw = Geo.round3(yaw), pitch = extra.pitch or 0,
-		color = color, material = material, collide = extra.collide == true, tag = extra.tag, attrs = extra.attrs,
+		color = color, material = material, collide = extra.collide == true, tag = extra.tag, attrs = extra.attrs, shape = extra.shape, roll = extra.roll,
 	}
 end
 
@@ -1835,28 +1850,45 @@ local function onWalk(walks, x, z)
 	return false
 end
 
--- Laterne: schlanker Stahlmast, ansteigender Ausleger und flacher Kopf mit Leuchtplatte (Neon, Tag "StreetLamp") über der Fahrbahn
+-- Laterne (abgerundet): runder Fuß, zweistufiger konischer Zylindermast, Bogenarm aus vier Zylinderstücken (Viertelkreis, Radius 5),
+-- walzenförmiger Kopf mit Leuchtlinse unten (Neon, Tag "StreetLamp") über der Fahrbahn
 local function lamp(parts, x, z, tx, tz, h)
-	local yawZ = Geo.yawOf(tx, tz) + 90 -- lokale z-Achse der Teile läuft zur Straße
+	local yawT = Geo.yawOf(tx, tz)
 	local top = WALK_TOP + h
-	part(parts, "LaternenFuss", "lamp", x, WALK_TOP + 1.2, z, 1.3, 2.4, 1.3, 0, STEEL, "Metal", { collide = true })
-	part(parts, "LaternenMast", "lamp", x, WALK_TOP + h / 2, z, 0.6, h, 0.6, 0, STEEL, "Metal", { collide = true })
-	part(parts, "LaternenArm", "lamp", x + tx * 1.6, top + 0.5, z + tz * 1.6, 0.5, 0.5, 3.6, yawZ, STEEL, "Metal", { pitch = -20 })
-	part(parts, "LaternenKopf", "lamp", x + tx * 5.2, top + 1.4, z + tz * 5.2, 1.7, 0.8, 4.6, yawZ, STEEL, "Metal")
-	part(parts, "LaternenLicht", "lamp", x + tx * 5.2, top + 0.92, z + tz * 5.2, 1.3, 0.2, 3.8, yawZ, WARM, "Neon", { tag = "StreetLamp", attrs = { Lit = true } })
+	local CYL = { shape = "Cylinder", roll = 90 }
+	local function cyl(name, px, py, pz, len, dia, collide) part(parts, name, "lamp", px, py, pz, len, dia, dia, 0, STEEL, "Metal", { collide = collide, shape = "Cylinder", roll = 90 }) end
+	cyl("LaternenFuss", x, WALK_TOP + 1.2, z, 2.4, 2.0, true)
+	local lowH = h * 0.55
+	cyl("LaternenMast", x, WALK_TOP + lowH / 2, z, lowH, 1.0, true)
+	cyl("LaternenMastOben", x, WALK_TOP + lowH + (h - lowH) / 2, z, h - lowH, 0.65, true)
+	local r, n = 5, 4
+	for k = 1, n do
+		local a0, a1 = (k - 1) / n * math.pi / 2, k / n * math.pi / 2
+		local px0, py0, px1, py1 = r * (1 - math.cos(a0)), r * math.sin(a0), r * (1 - math.cos(a1)), r * math.sin(a1)
+		local len = math.sqrt((px1 - px0) ^ 2 + (py1 - py0) ^ 2) + 0.25
+		part(parts, "LaternenArm", "lamp", x + tx * (px0 + px1) / 2, top + (py0 + py1) / 2, z + tz * (px0 + px1) / 2, len, 0.5, 0.5, yawT, STEEL, "Metal",
+			{ shape = "Cylinder", roll = math.deg(math.atan2(py1 - py0, px1 - px0)) })
+	end
+	part(parts, "LaternenArm", "lamp", x + tx * (r + 1.2), top + r, z + tz * (r + 1.2), 2.6, 0.5, 0.5, yawT, STEEL, "Metal", { shape = "Cylinder" })
+	part(parts, "LaternenKopf", "lamp", x + tx * (r + 4.8), top + r, z + tz * (r + 4.8), 5.2, 1.7, 1.7, yawT, STEEL, "Metal", { shape = "Cylinder" })
+	part(parts, "LaternenLicht", "lamp", x + tx * (r + 4.8), top + r - 0.8, z + tz * (r + 4.8), 0.25, 1.9, 1.9, 0, WARM, "Neon", { shape = "Cylinder", roll = 90, tag = "StreetLamp", attrs = { Lit = true } })
 end
 
--- Signalkopf mit n Lampen (3: rot/gelb/grün, 2: rot/grün), Mitte (x, y, z), Front zeigt in Richtung (fx, fz); heller Rahmen dahinter
+-- Signalkopf mit n Lampen (3: rot/gelb/grün, 2: rot/grün), Mitte (x, y, z), Front zeigt in Richtung (fx, fz): heller Rahmen, schlankes Gehäuse,
+-- je Lampe ein rundes Blendenrohr (Zylinder) mit runder Linse davor
 local function head(parts, s, x, y, z, lamps, tag)
 	local yaw = Geo.yawOf(s.fx, s.fz)
 	local n = #lamps
-	local hgt = 1.3 * n + 0.7
-	part(parts, "AmpelRahmen", "signal", x - s.fx * 0.5, y, z - s.fz * 0.5, 0.15, hgt + 0.9, 2.1, yaw, PLATE, "SmoothPlastic")
-	part(parts, "AmpelKopf", "signal", x, y, z, 0.9, hgt, 1.5, yaw, HOUSING, "Metal")
+	local sp = 1.7
+	local hgt = sp * n + 0.6
+	part(parts, "AmpelRahmen", "signal", x - s.fx * 0.55, y, z - s.fz * 0.55, 0.15, hgt + 0.9, 2.3, yaw, PLATE, "SmoothPlastic")
+	part(parts, "AmpelKopf", "signal", x - s.fx * 0.1, y, z - s.fz * 0.1, 0.7, hgt, 1.2, yaw, HOUSING, "Metal")
 	for i, l in ipairs(lamps) do
+		local yy = y + hgt / 2 - 0.3 - sp * (i - 0.5)
+		part(parts, "AmpelBlende", "signal", x + s.fx * 0.45, yy, z + s.fz * 0.45, 0.9, 1.5, 1.5, yaw, HOUSING, "Metal", { shape = "Cylinder" })
 		local lit = i == 1 -- Standard: rot an, bis Ampel.lua schaltet
-		part(parts, "AmpelLampe", "signal", x + s.fx * 0.55, y + hgt / 2 - 0.35 - 1.3 * (i - 0.5) + 0.3, z + s.fz * 0.55, 0.3, 0.95, 0.95, yaw,
-			lit and l.on or l.dim, lit and "Neon" or "SmoothPlastic", { tag = tag, attrs = { Lamp = l.name, Group = s.name, Axis = (s.fz ~= 0) and "NS" or "EW", Lit = lit } })
+		part(parts, "AmpelLampe", "signal", x + s.fx * 0.95, yy, z + s.fz * 0.95, 0.3, 1.25, 1.25, yaw,
+			lit and l.on or l.dim, lit and "Neon" or "SmoothPlastic", { shape = "Cylinder", tag = tag, attrs = { Lamp = l.name, Group = s.name, Axis = (s.fz ~= 0) and "NS" or "EW", Lit = lit } })
 	end
 end
 
@@ -1894,15 +1926,18 @@ function LightsPlanner.plan(cfg, roadPlan)
 	local lamps2 = { { name = "Red", on = RED, dim = DIM.Red }, { name = "Green", on = GREEN, dim = DIM.Green } }
 	local ARM = 14
 	for _, s in ipairs(cfg.signals) do
-		part(parts, "AmpelMast", "signal", s.x, WALK_TOP + 12, s.z, 0.9, 24, 0.9, 0, STEEL, "Metal", { collide = true })
-		part(parts, "AmpelArm", "signal", s.x + s.ax * ARM / 2, WALK_TOP + 21, s.z + s.az * ARM / 2, ARM, 0.5, 0.5, Geo.yawOf(s.ax, s.az), STEEL, "Metal")
-		part(parts, "AmpelHalter", "signal", s.x + s.ax * (ARM - 1.5), WALK_TOP + 20, s.z + s.az * (ARM - 1.5), 0.3, 2, 0.3, 0, STEEL, "Metal")
+		part(parts, "AmpelMast", "signal", s.x, WALK_TOP + 7.5, s.z, 15, 1.1, 1.1, 0, STEEL, "Metal", { collide = true, shape = "Cylinder", roll = 90 })
+		part(parts, "AmpelMastOben", "signal", s.x, WALK_TOP + 19.5, s.z, 9, 0.8, 0.8, 0, STEEL, "Metal", { collide = true, shape = "Cylinder", roll = 90 })
+		part(parts, "AmpelKappe", "signal", s.x, WALK_TOP + 24.2, s.z, 1.2, 1.2, 1.2, 0, STEEL, "Metal", { shape = "Ball" })
+		part(parts, "AmpelGelenk", "signal", s.x, WALK_TOP + 21, s.z, 1.6, 1.6, 1.6, 0, STEEL, "Metal", { shape = "Ball" })
+		part(parts, "AmpelArm", "signal", s.x + s.ax * ARM / 2, WALK_TOP + 21, s.z + s.az * ARM / 2, ARM, 0.6, 0.6, Geo.yawOf(s.ax, s.az), STEEL, "Metal", { shape = "Cylinder" })
+		part(parts, "AmpelHalter", "signal", s.x + s.ax * (ARM - 1.5), WALK_TOP + 20, s.z + s.az * (ARM - 1.5), 2, 0.35, 0.35, 0, STEEL, "Metal", { shape = "Cylinder", roll = 90 })
 		head(parts, s, s.x + s.ax * (ARM - 1.5) + s.fx * 0.4, WALK_TOP + 17.4, s.z + s.az * (ARM - 1.5) + s.fz * 0.4, lamps3, "TrafficLight")
 		head(parts, s, s.x + s.fx * 1.0, WALK_TOP + 9, s.z + s.fz * 1.0, lamps3, "TrafficLight")
 		stats.signals = stats.signals + 1
 	end
 	for _, s in ipairs(cfg.pedSignals) do
-		part(parts, "FussgaengerMast", "signal", s.x, WALK_TOP + 5, s.z, 0.7, 10, 0.7, 0, STEEL, "Metal", { collide = true })
+		part(parts, "FussgaengerMast", "signal", s.x, WALK_TOP + 5, s.z, 10, 0.8, 0.8, 0, STEEL, "Metal", { collide = true, shape = "Cylinder", roll = 90 })
 		head(parts, s, s.x + s.fx * 0.9, WALK_TOP + 7.8, s.z + s.fz * 0.9, lamps2, "PedLight")
 		stats.ped = stats.ped + 1
 	end
@@ -1934,7 +1969,7 @@ local function new(parts, cx, cz)
 	end
 end
 
--- Siegestor: Breite 64 (quer zur Achse), Tiefe 12, Höhe bis Attika 58, Statue darüber. Mitte = Ursprung, steht auf dem Tunneldeckel.
+-- Siegestor: Breite 64 (quer zur Achse), Tiefe 12, Höhe bis Attika 58, Statue darüber. Mitte = Ursprung, steht auf der Mittelinsel des Kreisverkehrs (siehe siegestorInsel).
 -- Öffnungen: Mittelbogen 16 breit (Kämpfer 20, Scheitel 28), Seitenbögen 10 breit (Kämpfer 14, Scheitel 19).
 function Landmarks.siegestor(cfg)
 	local parts = {}
@@ -1991,42 +2026,136 @@ function Landmarks.siegestor(cfg)
 	return parts
 end
 
--- Friedensengel: Becken mit Wasser, gestufter Sockel, Säule, Kapitell, goldener Engel mit Flügeln und Palmzweig.
+-- Mittelinsel des Kreisverkehrs um das Siegestor: Rasenscheibe, Kranz aus Randsteinen, Natursteinplatte unter dem Tor.
+function Landmarks.siegestorInsel(cfg)
+	local parts = {}
+	local L = cfg.landmarks.siegestor
+	local add = new(parts, L.x, L.z)
+	local R = L.islandR
+	add("InselRasen", 0, 0.35, 0, 1.5, 2 * R, 2 * R, { 96, 156, 72 }, "Grass", { shape = "Cylinder", roll = 90, collide = true })
+	local n = 44
+	for i = 1, n do -- Randsteine auf dem Kreis (Radius R + 1,2), Oberkante 1,5
+		local a = 2 * math.pi * (i - 0.5) / n
+		local rr = R + 1.2
+		add("InselRandstein", rr * math.cos(a), 0.65, rr * math.sin(a), 2 * math.pi * rr / n + 0.25, 1.7, 2.4, { 190, 186, 176 }, "Concrete",
+			{ yaw = math.deg(math.atan2(-math.cos(a), -math.sin(a))) % 360, collide = true })
+	end
+	add("InselPlatte", 0, L.baseY - 0.2, 0, 80, 0.4, 30, { 206, 200, 186 }, "Concrete", { collide = true })
+	return parts
+end
+
+-- Friedensengel: rundes Becken mit Wasser und Strahlen, gestufter Sockel mit Reliefs und Urnen, kannelierte Säule, korinthisches Kapitell
+-- und der goldene Engel: wallendes Gewand, Flügel aus je fünf Federn, erhobener rechter Arm mit Ölzweig, linke Hand mit kleiner Nike.
+-- Der Engel blickt nach Westen (zur Maximilianstraße).
 function Landmarks.friedensengel(cfg)
 	local parts = {}
 	local L = cfg.landmarks.friedensengel
 	local add = new(parts, L.x, L.z)
 	local y0 = L.baseY
 	local STONE, VERD, BRONZE, GOLD, WATER = { 206, 200, 186 }, { 150, 176, 166 }, { 52, 62, 58 }, { 236, 184, 44 }, { 120, 170, 210 }
-	add("Rondell", 0, y0 + 0.45, 0, 60, 0.9, 60, STONE, "Concrete") -- Platte, Oberkante y0 + 0,9 (4,6)
+	local function vcyl(name, x, y, z, h, d, color, mat, extra)
+		extra = extra or {}
+		add(name, x, y, z, h, d, d, color, mat, { shape = "Cylinder", roll = 90, collide = extra.collide ~= false, transparency = extra.transparency })
+	end
+	vcyl("Rondell", 0, y0 + 0.45, 0, 0.9, 62, STONE, "Concrete")
 	local yb = y0 + 0.9
-	for _, e in ipairs({ { 0, -19, 38, 2 }, { 0, 19, 38, 2 } }) do -- Beckenrand (Nord/Süd)
-		add("Beckenrand", e[1], yb + 1, e[2], e[3], e[4], 2, STONE, "Concrete")
+	-- Beckenrand: 24 Steinblöcke auf einem Kreis (Radius 18), tangential gedreht
+	for i = 0, 23 do
+		local a = math.rad(i * 15)
+		local tx, tz = -math.sin(a), math.cos(a)
+		add("Beckenrand", 18 * math.cos(a), yb + 1, 18 * math.sin(a), 5.2, 2, 2, STONE, "Concrete", { yaw = math.deg(math.atan2(-tz, tx)) % 360 })
 	end
-	for _, e in ipairs({ { -19, 0 }, { 19, 0 } }) do -- Beckenrand (West/Ost)
-		add("Beckenrand", e[1], yb + 1, e[2], 2, 2, 36, STONE, "Concrete")
-	end
-	add("Wasser", 0, yb + 0.9, 0, 36, 0.4, 36, WATER, "SmoothPlastic", { collide = false, transparency = 0.45 })
-	add("SockelStufe", 0, yb + 1.5, 0, 22, 3, 22, STONE, "Concrete")
-	add("SockelStufe", 0, yb + 4.5, 0, 16, 3, 16, STONE, "Concrete")
+	vcyl("Wasser", 0, yb + 0.9, 0, 0.4, 35.6, WATER, "SmoothPlastic", { collide = false, transparency = 0.45 })
+	vcyl("SockelStufe", 0, yb + 1.5, 0, 3, 23, STONE, "Concrete")
+	vcyl("SockelStufe", 0, yb + 4.5, 0, 3, 17, STONE, "Concrete")
 	add("SockelStufe", 0, yb + 9, 0, 11, 6, 11, STONE, "Concrete")
-	local ys = yb + 12 -- Säulenfuß
-	add("SaeuleFuss", 0, ys + 1.5, 0, 3, 9, 9, STONE, "Concrete", { shape = "Cylinder", roll = 90 })
-	add("Saeule", 0, ys + 3 + 32, 0, 64, 7, 7, VERD, "Concrete", { shape = "Cylinder", roll = 90 })
-	local yk = ys + 3 + 64
-	add("Kapitell", 0, yk + 3, 0, 6, 11, 11, BRONZE, "Metal", { shape = "Cylinder", roll = 90 })
-	add("Abakus", 0, yk + 7, 0, 11, 2, 11, BRONZE, "Metal")
-	add("Trommel", 0, yk + 11, 0, 6, 6.5, 6.5, BRONZE, "Metal", { shape = "Cylinder", roll = 90 })
-	local ya = yk + 14
-	local k = 1.9 -- Engel größer als maßstäblich, damit er aus der Ferne als goldener Punkt auf der Säule zu erkennen ist
-	add("EngelRock", 0, ya + 3 * k, 0, 4.2 * k, 6 * k, 4.2 * k, GOLD, "Metal")
-	add("EngelRumpf", 0, ya + 8 * k, 0, 3 * k, 5 * k, 3 * k, GOLD, "Metal")
-	add("EngelKopf", 0, ya + 11.4 * k, 0, 2 * k, 2 * k, 2 * k, GOLD, "Metal")
-	for _, side in ipairs({ -1, 1 }) do -- Flügel in V-Form quer zur Blickrichtung (nach Westen)
-		add("EngelFluegel", 0, ya + 11 * k, side * 3.4 * k, 0.6, 8 * k, 3.6 * k, GOLD, "Metal", { pitch = side * 35, collide = false })
+	add("SockelGesims", 0, yb + 12.3, 0, 12.6, 0.8, 12.6, STONE, "Concrete")
+	for _, sd in ipairs({ { 0, -1, 0 }, { 0, 1, 180 }, { -1, 0, 90 }, { 1, 0, 270 } }) do -- Bronzereliefs an den vier Seiten des Sockels
+		local px, pz = sd[1] * 5.65, sd[2] * 5.65
+		local along = (sd[1] ~= 0)
+		add("SockelRelief", px, yb + 9, pz, along and 0.3 or 7, 4, along and 7 or 0.3, BRONZE, "Metal", { collide = false })
 	end
-	add("EngelZweig", -2.6 * k, ya + 11 * k, 1.2 * k, 0.5, 7 * k, 0.5, GOLD, "Metal", { collide = false })
-	for _, a in ipairs({ { 4.5, 0 }, { -4.5, 0 }, { 0, 4.5 }, { 0, -4.5 } }) do -- Wasserstrahlen am Sockel
+	for _, cx in ipairs({ -7.4, 7.4 }) do -- Urnen auf den Ecken der mittleren Stufe
+		for _, cz in ipairs({ -7.4, 7.4 }) do
+			add("Urne", cx, yb + 7.4, cz, 1.8, 2.4, 1.8, STONE, "Concrete", { collide = false })
+			add("UrneKopf", cx, yb + 9, cz, 2.2, 2.2, 2.2, STONE, "Concrete", { shape = "Ball", collide = false })
+		end
+	end
+	local ys = yb + 12.7 -- Säulenfuß
+	vcyl("SaeuleFuss", 0, ys + 1.5, 0, 3, 9, STONE, "Concrete")
+	vcyl("Saeule", 0, ys + 3 + 32, 0, 64, 7, VERD, "Concrete")
+	for i = 0, 7 do -- Kanneluren: acht dünne Rillenstäbe rund um den Schaft
+		local a = math.rad(i * 45)
+		vcyl("SaeuleKannelur", 3.55 * math.cos(a), ys + 3 + 32, 3.55 * math.sin(a), 58, 0.7, { 128, 156, 146 }, "Concrete", { collide = false })
+	end
+	for _, dy in ipairs({ 4.5, 33, 61.5 }) do vcyl("SaeuleRing", 0, ys + dy, 0, 1.4, 7.8, STONE, "Concrete", { collide = false }) end
+	local yk = ys + 3 + 64
+	vcyl("Kapitell", 0, yk + 3, 0, 6, 8.4, BRONZE, "Metal")
+	for i = 0, 7 do -- Akanthusblätter
+		local a = math.rad(i * 45 + 22.5)
+		add("KapitellBlatt", 5.2 * math.cos(a), yk + 3.4, 5.2 * math.sin(a), 2, 4.4, 2, BRONZE, "Metal", { shape = "Ball", collide = false })
+	end
+	add("Abakus", 0, yk + 7, 0, 11, 2, 11, BRONZE, "Metal")
+	for _, cx in ipairs({ -5.2, 5.2 }) do for _, cz in ipairs({ -5.2, 5.2 }) do add("Volute", cx, yk + 6, cz, 2.2, 2.2, 2.2, BRONZE, "Metal", { shape = "Ball", collide = false }) end end
+	vcyl("Trommel", 0, yk + 11, 0, 6, 6.5, BRONZE, "Metal")
+	vcyl("EngelSockel", 0, yk + 14.4, 0, 0.8, 8, BRONZE, "Metal", { collide = false })
+	-- Engel (Maßeinheit k = 1,9 Studs, damit er aus der Ferne als goldene Figur zu erkennen ist). Vorne ist -x, rechts (aus Sicht der Figur) ist -z.
+	local ya = yk + 14.8
+	local k = 1.9
+	local function G(name, x, y, z, sx, sy, sz, extra) add(name, x * k, ya + y * k, z * k, sx * k, sy * k, sz * k, GOLD, "Metal", extra) end
+	local function ball(name, x, y, z, d) G(name, x, y, z, d, d, d, { shape = "Ball", collide = false }) end
+	local function limb(name, a, b, d) -- Zylinder von Punkt a nach Punkt b (Einheiten k)
+		local dx, dy, dz = b[1] - a[1], b[2] - a[2], b[3] - a[3]
+		local hz = math.sqrt(dx * dx + dz * dz)
+		G(name, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2, (a[3] + b[3]) / 2, math.sqrt(hz * hz + dy * dy), d, d,
+			{ shape = "Cylinder", roll = math.deg(math.atan2(dy, hz)), yaw = Geo.yawOf(dx, dz), collide = false })
+	end
+	local function gcyl(name, y, h, d, x) G(name, x or 0, y, 0, h, d, d, { shape = "Cylinder", roll = 90, collide = false }) end
+	for i = 0, 11 do -- Gewand: zwölf Scheiben, unten weit ausgestellt, zur Taille hin fließend schmaler
+		local u = i / 11
+		gcyl("EngelRock", 0.35 + i * 0.5, 0.75, 3.4 + 2.1 * (1 - u) ^ 1.7)
+	end
+	gcyl("EngelGuertel", 6.15, 0.5, 3.55)
+	gcyl("EngelRumpf", 7.4, 2.3, 2.9)
+	ball("EngelBrust", -0.15, 8.8, 0, 3.3)
+	ball("EngelSchulter", 0, 9.3, -1.55, 1.2)
+	ball("EngelSchulter", 0, 9.3, 1.55, 1.2)
+	gcyl("EngelHals", 10.15, 0.9, 0.9)
+	ball("EngelKopf", -0.05, 11.3, 0, 2.1)
+	ball("EngelHaar", 0.4, 11.35, 0, 2.3)
+	for i = 0, 7 do -- Lorbeerkranz
+		local a = math.rad(i * 45)
+		ball("EngelKranz", -0.05 + 1.1 * math.cos(a), 12.1, 1.1 * math.sin(a), 0.55)
+	end
+	-- Flügel: je fünf Federn in einem Fächer, nach hinten (+x) geneigt
+	local lens = { 7, 6.6, 5.9, 5, 4 }
+	for _, side in ipairs({ -1, 1 }) do
+		ball("EngelFluegelAnsatz", 0.9, 9.4, side * 0.9, 1.5)
+		for i, l in ipairs(lens) do
+			local pd = 8 + (i - 1) * 12
+			local p, r = math.rad(pd), math.rad(-12)
+			local dx, dy, dz = -math.sin(r), math.cos(r) * math.cos(p), side * math.cos(r) * math.sin(p) -- Richtung der Feder (Rx(p) * Rz(r) auf die y-Achse)
+			G("EngelFluegel", 0.9 + dx * l / 2, 9.4 + dy * l / 2, side * 0.9 + dz * l / 2, 0.4, l, 1.25, { pitch = side * pd, roll = -12, collide = false })
+		end
+	end
+	-- rechter Arm erhoben mit Ölzweig
+	limb("EngelArm", { 0, 9.3, -1.55 }, { -0.9, 10.0, -2.9 }, 0.85)
+	limb("EngelArm", { -0.9, 10.0, -2.9 }, { -1.4, 12.0, -3.1 }, 0.75)
+	ball("EngelHand", -1.4, 12.2, -3.1, 0.9)
+	limb("EngelZweig", { -1.4, 12.3, -3.1 }, { -1.9, 14.9, -3.3 }, 0.22)
+	for i = 0, 5 do
+		local t = (i + 1) / 7
+		ball("EngelBlatt", -1.4 - 0.5 * t, 12.3 + 2.6 * t, -3.1 - 0.2 * t + ((i % 2 == 0) and -0.45 or 0.45), 0.6)
+	end
+	-- linker Arm nach vorn, auf der Hand eine kleine Nike
+	limb("EngelArm", { 0, 9.3, 1.55 }, { -0.7, 8.4, 2.4 }, 0.85)
+	limb("EngelArm", { -0.7, 8.4, 2.4 }, { -2.0, 8.9, 2.5 }, 0.75)
+	ball("EngelHand", -2.0, 8.9, 2.5, 0.9)
+	gcyl("EngelNike", 9.7, 1.2, 0.5, -2.1) -- kleine Figur: Körper, Kopf, Flügel
+	for _, sd in ipairs({ -1, 1 }) do G("EngelNikeFluegel", -1.95, 9.9, 2.5 + sd * 0.3, 0.1, 1.2, 0.5, { pitch = sd * 30, collide = false }) end
+	ball("EngelNikeKopf", -2.1, 10.5, 2.5, 0.5)
+	-- Wasserstrahlen am Sockel
+	for _, a in ipairs({ { 4.5, 0 }, { -4.5, 0 }, { 0, 4.5 }, { 0, -4.5 } }) do
 		add("Wasserstrahl", a[1], yb + 4, a[2], 0.9, 8, 0.9, { 240, 248, 255 }, "SmoothPlastic", { collide = false, transparency = 0.5 })
 	end
 	-- Treppe vom Ende der Maximilianstraße (x = Terrasse - 14) zur Terrasse: vier Stufen, Wangenmauern
@@ -2092,12 +2221,20 @@ local function clock(add, x, y, z, R, face)
 	add("UhrGold", x + nx * 1.7, y, z + nz * 1.7, 1.4, 1.4, 1.4, GOLD, "Metal", { shape = "Ball", collide = false })
 end
 
--- Zwiebelhaube aus gestapelten Scheiben (Hals, Bauch, Verjüngung zur Spitze) mit Laterne, kleiner Kappe, Spitze und Kreuz
+-- Zwiebelhaube: 28 dünne, sich überlappende Scheiben (Schritt 1,6 Studs) folgen einer glatten Kurve (Hals, runder Bauch, geschwungene Spitze),
+-- darauf Laterne, kleine Kappe, Spitze und Kreuz. Der Bauch ist die Scheibe "Kuppel", alle anderen heißen "KuppelRing".
 local function onion(add, x, y, z, color)
 	local GOLD = { 214, 176, 70 }
-	local prof = { { 0, 38 }, { 3, 46 }, { 7, 54 }, { 11, 58 }, { 15, 57 }, { 19, 53 }, { 23, 46 }, { 27, 37 }, { 31, 27 }, { 35, 18 }, { 39, 11 }, { 43, 6 } }
-	for i, pr in ipairs(prof) do
-		add(i == 4 and "Kuppel" or "KuppelRing", x, y + pr[1] + 2, z, 4.2, pr[2], pr[2], color, "Metal", { shape = "Cylinder", roll = 90, collide = true })
+	local H, N = 43, 27
+	local function radius(h)
+		if h <= 11 then return 19 + 10 * math.sin(math.pi / 2 * h / 11) end
+		local u = (h - 11) / (H - 11)
+		return 3 + 26 * math.cos(math.pi / 2 * u) ^ 2.2
+	end
+	for i = 0, N do
+		local h = H * i / N
+		local d = 2 * radius(h)
+		add(i == 7 and "Kuppel" or "KuppelRing", x, y + 1 + h, z, H / N + 0.5, d, d, color, "Metal", { shape = "Cylinder", roll = 90, collide = true })
 	end
 	add("Laterne", x, y + 49, z, 10, 8, 8, color, "Metal", { shape = "Cylinder", roll = 90, collide = true })
 	add("Laternenkappe", x, y + 56, z, 8, 8, 8, color, "Metal", { shape = "Ball", collide = false })
@@ -2251,7 +2388,7 @@ end
 
 function Landmarks.plan(cfg)
 	local parts = {}
-	for _, list in ipairs({ Landmarks.siegestor(cfg), Landmarks.friedensengel(cfg), Landmarks.frauenkirche(cfg), Landmarks.chinesischerTurm(cfg) }) do
+	for _, list in ipairs({ Landmarks.siegestorInsel(cfg), Landmarks.siegestor(cfg), Landmarks.friedensengel(cfg), Landmarks.frauenkirche(cfg), Landmarks.chinesischerTurm(cfg) }) do
 		for _, p in ipairs(list) do parts[#parts + 1] = p end
 	end
 	return { parts = parts }
@@ -2375,7 +2512,7 @@ end)()
 
 local TerrainPlanner = (function()
 -- TerrainPlanner.lua
--- Liste von Terrain-Operationen (Grundfläche, Parks, Hügel, Terrasse, Isar, Bach, Tunnelgraben).
+-- Liste von Terrain-Operationen (Grundfläche, Parks, Hügel, Terrasse, Isar, Bach).
 -- Reine Daten, die Builder.lua mit Terrain:FillBlock / FillCylinder ausführt. Reihenfolge ist wichtig.
 -- Alle Blöcke sind achsparallel (keine Drehung): so hängt das Ergebnis nicht davon ab, wie Roblox gedrehte Blöcke füllt.
 -- Op: { op = "block" | "cylinder", material, pos = {x,y,z}, size = {x,y,z} | height, radius }
@@ -2463,10 +2600,7 @@ function TerrainPlanner.plan(cfg)
 	end
 	local t = cfg.terrace
 	block(ops, "Grass", (t.x0 + t.x1) / 2, G + t.height / 2, (t.z0 + t.z1) / 2, t.x1 - t.x0, t.height, t.z1 - t.z0)
-	-- 4. Tunnelgraben der Siegestor-Unterführung (von -17 bis über die Oberkante)
-	local tn = cfg.tunnel
-	block(ops, "Air", 0, -5.5, (tn.z0 + tn.z1) / 2, tn.half * 2, 23, tn.z1 - tn.z0)
-	-- 5. Isar und Bach
+	-- 4. Isar und Bach
 	cfg.water.isar.name, cfg.water.bach.name = "isar", "bach"
 	river(ops, cfg.water.isar)
 	river(ops, cfg.water.bach)

@@ -18,7 +18,7 @@ local function new(parts, cx, cz)
 	end
 end
 
--- Siegestor: Breite 64 (quer zur Achse), Tiefe 12, Höhe bis Attika 58, Statue darüber. Mitte = Ursprung, steht auf dem Tunneldeckel.
+-- Siegestor: Breite 64 (quer zur Achse), Tiefe 12, Höhe bis Attika 58, Statue darüber. Mitte = Ursprung, steht auf der Mittelinsel des Kreisverkehrs (siehe siegestorInsel).
 -- Öffnungen: Mittelbogen 16 breit (Kämpfer 20, Scheitel 28), Seitenbögen 10 breit (Kämpfer 14, Scheitel 19).
 function Landmarks.siegestor(cfg)
 	local parts = {}
@@ -75,42 +75,136 @@ function Landmarks.siegestor(cfg)
 	return parts
 end
 
--- Friedensengel: Becken mit Wasser, gestufter Sockel, Säule, Kapitell, goldener Engel mit Flügeln und Palmzweig.
+-- Mittelinsel des Kreisverkehrs um das Siegestor: Rasenscheibe, Kranz aus Randsteinen, Natursteinplatte unter dem Tor.
+function Landmarks.siegestorInsel(cfg)
+	local parts = {}
+	local L = cfg.landmarks.siegestor
+	local add = new(parts, L.x, L.z)
+	local R = L.islandR
+	add("InselRasen", 0, 0.35, 0, 1.5, 2 * R, 2 * R, { 96, 156, 72 }, "Grass", { shape = "Cylinder", roll = 90, collide = true })
+	local n = 44
+	for i = 1, n do -- Randsteine auf dem Kreis (Radius R + 1,2), Oberkante 1,5
+		local a = 2 * math.pi * (i - 0.5) / n
+		local rr = R + 1.2
+		add("InselRandstein", rr * math.cos(a), 0.65, rr * math.sin(a), 2 * math.pi * rr / n + 0.25, 1.7, 2.4, { 190, 186, 176 }, "Concrete",
+			{ yaw = math.deg(math.atan2(-math.cos(a), -math.sin(a))) % 360, collide = true })
+	end
+	add("InselPlatte", 0, L.baseY - 0.2, 0, 80, 0.4, 30, { 206, 200, 186 }, "Concrete", { collide = true })
+	return parts
+end
+
+-- Friedensengel: rundes Becken mit Wasser und Strahlen, gestufter Sockel mit Reliefs und Urnen, kannelierte Säule, korinthisches Kapitell
+-- und der goldene Engel: wallendes Gewand, Flügel aus je fünf Federn, erhobener rechter Arm mit Ölzweig, linke Hand mit kleiner Nike.
+-- Der Engel blickt nach Westen (zur Maximilianstraße).
 function Landmarks.friedensengel(cfg)
 	local parts = {}
 	local L = cfg.landmarks.friedensengel
 	local add = new(parts, L.x, L.z)
 	local y0 = L.baseY
 	local STONE, VERD, BRONZE, GOLD, WATER = { 206, 200, 186 }, { 150, 176, 166 }, { 52, 62, 58 }, { 236, 184, 44 }, { 120, 170, 210 }
-	add("Rondell", 0, y0 + 0.45, 0, 60, 0.9, 60, STONE, "Concrete") -- Platte, Oberkante y0 + 0,9 (4,6)
+	local function vcyl(name, x, y, z, h, d, color, mat, extra)
+		extra = extra or {}
+		add(name, x, y, z, h, d, d, color, mat, { shape = "Cylinder", roll = 90, collide = extra.collide ~= false, transparency = extra.transparency })
+	end
+	vcyl("Rondell", 0, y0 + 0.45, 0, 0.9, 62, STONE, "Concrete")
 	local yb = y0 + 0.9
-	for _, e in ipairs({ { 0, -19, 38, 2 }, { 0, 19, 38, 2 } }) do -- Beckenrand (Nord/Süd)
-		add("Beckenrand", e[1], yb + 1, e[2], e[3], e[4], 2, STONE, "Concrete")
+	-- Beckenrand: 24 Steinblöcke auf einem Kreis (Radius 18), tangential gedreht
+	for i = 0, 23 do
+		local a = math.rad(i * 15)
+		local tx, tz = -math.sin(a), math.cos(a)
+		add("Beckenrand", 18 * math.cos(a), yb + 1, 18 * math.sin(a), 5.2, 2, 2, STONE, "Concrete", { yaw = math.deg(math.atan2(-tz, tx)) % 360 })
 	end
-	for _, e in ipairs({ { -19, 0 }, { 19, 0 } }) do -- Beckenrand (West/Ost)
-		add("Beckenrand", e[1], yb + 1, e[2], 2, 2, 36, STONE, "Concrete")
-	end
-	add("Wasser", 0, yb + 0.9, 0, 36, 0.4, 36, WATER, "SmoothPlastic", { collide = false, transparency = 0.45 })
-	add("SockelStufe", 0, yb + 1.5, 0, 22, 3, 22, STONE, "Concrete")
-	add("SockelStufe", 0, yb + 4.5, 0, 16, 3, 16, STONE, "Concrete")
+	vcyl("Wasser", 0, yb + 0.9, 0, 0.4, 35.6, WATER, "SmoothPlastic", { collide = false, transparency = 0.45 })
+	vcyl("SockelStufe", 0, yb + 1.5, 0, 3, 23, STONE, "Concrete")
+	vcyl("SockelStufe", 0, yb + 4.5, 0, 3, 17, STONE, "Concrete")
 	add("SockelStufe", 0, yb + 9, 0, 11, 6, 11, STONE, "Concrete")
-	local ys = yb + 12 -- Säulenfuß
-	add("SaeuleFuss", 0, ys + 1.5, 0, 3, 9, 9, STONE, "Concrete", { shape = "Cylinder", roll = 90 })
-	add("Saeule", 0, ys + 3 + 32, 0, 64, 7, 7, VERD, "Concrete", { shape = "Cylinder", roll = 90 })
-	local yk = ys + 3 + 64
-	add("Kapitell", 0, yk + 3, 0, 6, 11, 11, BRONZE, "Metal", { shape = "Cylinder", roll = 90 })
-	add("Abakus", 0, yk + 7, 0, 11, 2, 11, BRONZE, "Metal")
-	add("Trommel", 0, yk + 11, 0, 6, 6.5, 6.5, BRONZE, "Metal", { shape = "Cylinder", roll = 90 })
-	local ya = yk + 14
-	local k = 1.9 -- Engel größer als maßstäblich, damit er aus der Ferne als goldener Punkt auf der Säule zu erkennen ist
-	add("EngelRock", 0, ya + 3 * k, 0, 4.2 * k, 6 * k, 4.2 * k, GOLD, "Metal")
-	add("EngelRumpf", 0, ya + 8 * k, 0, 3 * k, 5 * k, 3 * k, GOLD, "Metal")
-	add("EngelKopf", 0, ya + 11.4 * k, 0, 2 * k, 2 * k, 2 * k, GOLD, "Metal")
-	for _, side in ipairs({ -1, 1 }) do -- Flügel in V-Form quer zur Blickrichtung (nach Westen)
-		add("EngelFluegel", 0, ya + 11 * k, side * 3.4 * k, 0.6, 8 * k, 3.6 * k, GOLD, "Metal", { pitch = side * 35, collide = false })
+	add("SockelGesims", 0, yb + 12.3, 0, 12.6, 0.8, 12.6, STONE, "Concrete")
+	for _, sd in ipairs({ { 0, -1, 0 }, { 0, 1, 180 }, { -1, 0, 90 }, { 1, 0, 270 } }) do -- Bronzereliefs an den vier Seiten des Sockels
+		local px, pz = sd[1] * 5.65, sd[2] * 5.65
+		local along = (sd[1] ~= 0)
+		add("SockelRelief", px, yb + 9, pz, along and 0.3 or 7, 4, along and 7 or 0.3, BRONZE, "Metal", { collide = false })
 	end
-	add("EngelZweig", -2.6 * k, ya + 11 * k, 1.2 * k, 0.5, 7 * k, 0.5, GOLD, "Metal", { collide = false })
-	for _, a in ipairs({ { 4.5, 0 }, { -4.5, 0 }, { 0, 4.5 }, { 0, -4.5 } }) do -- Wasserstrahlen am Sockel
+	for _, cx in ipairs({ -7.4, 7.4 }) do -- Urnen auf den Ecken der mittleren Stufe
+		for _, cz in ipairs({ -7.4, 7.4 }) do
+			add("Urne", cx, yb + 7.4, cz, 1.8, 2.4, 1.8, STONE, "Concrete", { collide = false })
+			add("UrneKopf", cx, yb + 9, cz, 2.2, 2.2, 2.2, STONE, "Concrete", { shape = "Ball", collide = false })
+		end
+	end
+	local ys = yb + 12.7 -- Säulenfuß
+	vcyl("SaeuleFuss", 0, ys + 1.5, 0, 3, 9, STONE, "Concrete")
+	vcyl("Saeule", 0, ys + 3 + 32, 0, 64, 7, VERD, "Concrete")
+	for i = 0, 7 do -- Kanneluren: acht dünne Rillenstäbe rund um den Schaft
+		local a = math.rad(i * 45)
+		vcyl("SaeuleKannelur", 3.55 * math.cos(a), ys + 3 + 32, 3.55 * math.sin(a), 58, 0.7, { 128, 156, 146 }, "Concrete", { collide = false })
+	end
+	for _, dy in ipairs({ 4.5, 33, 61.5 }) do vcyl("SaeuleRing", 0, ys + dy, 0, 1.4, 7.8, STONE, "Concrete", { collide = false }) end
+	local yk = ys + 3 + 64
+	vcyl("Kapitell", 0, yk + 3, 0, 6, 8.4, BRONZE, "Metal")
+	for i = 0, 7 do -- Akanthusblätter
+		local a = math.rad(i * 45 + 22.5)
+		add("KapitellBlatt", 5.2 * math.cos(a), yk + 3.4, 5.2 * math.sin(a), 2, 4.4, 2, BRONZE, "Metal", { shape = "Ball", collide = false })
+	end
+	add("Abakus", 0, yk + 7, 0, 11, 2, 11, BRONZE, "Metal")
+	for _, cx in ipairs({ -5.2, 5.2 }) do for _, cz in ipairs({ -5.2, 5.2 }) do add("Volute", cx, yk + 6, cz, 2.2, 2.2, 2.2, BRONZE, "Metal", { shape = "Ball", collide = false }) end end
+	vcyl("Trommel", 0, yk + 11, 0, 6, 6.5, BRONZE, "Metal")
+	vcyl("EngelSockel", 0, yk + 14.4, 0, 0.8, 8, BRONZE, "Metal", { collide = false })
+	-- Engel (Maßeinheit k = 1,9 Studs, damit er aus der Ferne als goldene Figur zu erkennen ist). Vorne ist -x, rechts (aus Sicht der Figur) ist -z.
+	local ya = yk + 14.8
+	local k = 1.9
+	local function G(name, x, y, z, sx, sy, sz, extra) add(name, x * k, ya + y * k, z * k, sx * k, sy * k, sz * k, GOLD, "Metal", extra) end
+	local function ball(name, x, y, z, d) G(name, x, y, z, d, d, d, { shape = "Ball", collide = false }) end
+	local function limb(name, a, b, d) -- Zylinder von Punkt a nach Punkt b (Einheiten k)
+		local dx, dy, dz = b[1] - a[1], b[2] - a[2], b[3] - a[3]
+		local hz = math.sqrt(dx * dx + dz * dz)
+		G(name, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2, (a[3] + b[3]) / 2, math.sqrt(hz * hz + dy * dy), d, d,
+			{ shape = "Cylinder", roll = math.deg(math.atan2(dy, hz)), yaw = Geo.yawOf(dx, dz), collide = false })
+	end
+	local function gcyl(name, y, h, d, x) G(name, x or 0, y, 0, h, d, d, { shape = "Cylinder", roll = 90, collide = false }) end
+	for i = 0, 11 do -- Gewand: zwölf Scheiben, unten weit ausgestellt, zur Taille hin fließend schmaler
+		local u = i / 11
+		gcyl("EngelRock", 0.35 + i * 0.5, 0.75, 3.4 + 2.1 * (1 - u) ^ 1.7)
+	end
+	gcyl("EngelGuertel", 6.15, 0.5, 3.55)
+	gcyl("EngelRumpf", 7.4, 2.3, 2.9)
+	ball("EngelBrust", -0.15, 8.8, 0, 3.3)
+	ball("EngelSchulter", 0, 9.3, -1.55, 1.2)
+	ball("EngelSchulter", 0, 9.3, 1.55, 1.2)
+	gcyl("EngelHals", 10.15, 0.9, 0.9)
+	ball("EngelKopf", -0.05, 11.3, 0, 2.1)
+	ball("EngelHaar", 0.4, 11.35, 0, 2.3)
+	for i = 0, 7 do -- Lorbeerkranz
+		local a = math.rad(i * 45)
+		ball("EngelKranz", -0.05 + 1.1 * math.cos(a), 12.1, 1.1 * math.sin(a), 0.55)
+	end
+	-- Flügel: je fünf Federn in einem Fächer, nach hinten (+x) geneigt
+	local lens = { 7, 6.6, 5.9, 5, 4 }
+	for _, side in ipairs({ -1, 1 }) do
+		ball("EngelFluegelAnsatz", 0.9, 9.4, side * 0.9, 1.5)
+		for i, l in ipairs(lens) do
+			local pd = 8 + (i - 1) * 12
+			local p, r = math.rad(pd), math.rad(-12)
+			local dx, dy, dz = -math.sin(r), math.cos(r) * math.cos(p), side * math.cos(r) * math.sin(p) -- Richtung der Feder (Rx(p) * Rz(r) auf die y-Achse)
+			G("EngelFluegel", 0.9 + dx * l / 2, 9.4 + dy * l / 2, side * 0.9 + dz * l / 2, 0.4, l, 1.25, { pitch = side * pd, roll = -12, collide = false })
+		end
+	end
+	-- rechter Arm erhoben mit Ölzweig
+	limb("EngelArm", { 0, 9.3, -1.55 }, { -0.9, 10.0, -2.9 }, 0.85)
+	limb("EngelArm", { -0.9, 10.0, -2.9 }, { -1.4, 12.0, -3.1 }, 0.75)
+	ball("EngelHand", -1.4, 12.2, -3.1, 0.9)
+	limb("EngelZweig", { -1.4, 12.3, -3.1 }, { -1.9, 14.9, -3.3 }, 0.22)
+	for i = 0, 5 do
+		local t = (i + 1) / 7
+		ball("EngelBlatt", -1.4 - 0.5 * t, 12.3 + 2.6 * t, -3.1 - 0.2 * t + ((i % 2 == 0) and -0.45 or 0.45), 0.6)
+	end
+	-- linker Arm nach vorn, auf der Hand eine kleine Nike
+	limb("EngelArm", { 0, 9.3, 1.55 }, { -0.7, 8.4, 2.4 }, 0.85)
+	limb("EngelArm", { -0.7, 8.4, 2.4 }, { -2.0, 8.9, 2.5 }, 0.75)
+	ball("EngelHand", -2.0, 8.9, 2.5, 0.9)
+	gcyl("EngelNike", 9.7, 1.2, 0.5, -2.1) -- kleine Figur: Körper, Kopf, Flügel
+	for _, sd in ipairs({ -1, 1 }) do G("EngelNikeFluegel", -1.95, 9.9, 2.5 + sd * 0.3, 0.1, 1.2, 0.5, { pitch = sd * 30, collide = false }) end
+	ball("EngelNikeKopf", -2.1, 10.5, 2.5, 0.5)
+	-- Wasserstrahlen am Sockel
+	for _, a in ipairs({ { 4.5, 0 }, { -4.5, 0 }, { 0, 4.5 }, { 0, -4.5 } }) do
 		add("Wasserstrahl", a[1], yb + 4, a[2], 0.9, 8, 0.9, { 240, 248, 255 }, "SmoothPlastic", { collide = false, transparency = 0.5 })
 	end
 	-- Treppe vom Ende der Maximilianstraße (x = Terrasse - 14) zur Terrasse: vier Stufen, Wangenmauern
@@ -176,12 +270,20 @@ local function clock(add, x, y, z, R, face)
 	add("UhrGold", x + nx * 1.7, y, z + nz * 1.7, 1.4, 1.4, 1.4, GOLD, "Metal", { shape = "Ball", collide = false })
 end
 
--- Zwiebelhaube aus gestapelten Scheiben (Hals, Bauch, Verjüngung zur Spitze) mit Laterne, kleiner Kappe, Spitze und Kreuz
+-- Zwiebelhaube: 28 dünne, sich überlappende Scheiben (Schritt 1,6 Studs) folgen einer glatten Kurve (Hals, runder Bauch, geschwungene Spitze),
+-- darauf Laterne, kleine Kappe, Spitze und Kreuz. Der Bauch ist die Scheibe "Kuppel", alle anderen heißen "KuppelRing".
 local function onion(add, x, y, z, color)
 	local GOLD = { 214, 176, 70 }
-	local prof = { { 0, 38 }, { 3, 46 }, { 7, 54 }, { 11, 58 }, { 15, 57 }, { 19, 53 }, { 23, 46 }, { 27, 37 }, { 31, 27 }, { 35, 18 }, { 39, 11 }, { 43, 6 } }
-	for i, pr in ipairs(prof) do
-		add(i == 4 and "Kuppel" or "KuppelRing", x, y + pr[1] + 2, z, 4.2, pr[2], pr[2], color, "Metal", { shape = "Cylinder", roll = 90, collide = true })
+	local H, N = 43, 27
+	local function radius(h)
+		if h <= 11 then return 19 + 10 * math.sin(math.pi / 2 * h / 11) end
+		local u = (h - 11) / (H - 11)
+		return 3 + 26 * math.cos(math.pi / 2 * u) ^ 2.2
+	end
+	for i = 0, N do
+		local h = H * i / N
+		local d = 2 * radius(h)
+		add(i == 7 and "Kuppel" or "KuppelRing", x, y + 1 + h, z, H / N + 0.5, d, d, color, "Metal", { shape = "Cylinder", roll = 90, collide = true })
 	end
 	add("Laterne", x, y + 49, z, 10, 8, 8, color, "Metal", { shape = "Cylinder", roll = 90, collide = true })
 	add("Laternenkappe", x, y + 56, z, 8, 8, 8, color, "Metal", { shape = "Ball", collide = false })
@@ -335,7 +437,7 @@ end
 
 function Landmarks.plan(cfg)
 	local parts = {}
-	for _, list in ipairs({ Landmarks.siegestor(cfg), Landmarks.friedensengel(cfg), Landmarks.frauenkirche(cfg), Landmarks.chinesischerTurm(cfg) }) do
+	for _, list in ipairs({ Landmarks.siegestorInsel(cfg), Landmarks.siegestor(cfg), Landmarks.friedensengel(cfg), Landmarks.frauenkirche(cfg), Landmarks.chinesischerTurm(cfg) }) do
 		for _, p in ipairs(list) do parts[#parts + 1] = p end
 	end
 	return { parts = parts }

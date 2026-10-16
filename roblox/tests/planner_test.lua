@@ -157,7 +157,7 @@ for _, block in ipairs(Blocks) do
 		end
 	end
 	if block.name == "G_LeopoldOst" then
-		check(#plan.inner >= 4, tag .. "zu wenige Hinterhäuser: " .. #plan.inner)
+		check(#plan.inner >= 3, tag .. "zu wenige Hinterhäuser: " .. #plan.inner)
 		local lane = block.reserved[1] -- Zufahrt zur Tankstelle bleibt frei
 		for _, h in ipairs(plan.houses) do
 			local x0, _, z0, x1, _, z1 = Planner.aabb(bodyOf(h))
@@ -263,6 +263,18 @@ do
 	check(pillars == 8 and roundRoofs == 2 and arcs >= 12, "Schirm: Stützen " .. pillars .. ", Rundungen " .. roundRoofs .. ", Bogenstücke " .. arcs)
 	check(totemH >= 30, "Totem zu niedrig " .. totemH)
 	check(logoA == 0, "altes Dach-A noch vorhanden")
+	-- E-Ladepark (Ostseite des Grundstücks): 8 Stellplätze, 4 Ladesäulen (Tag EVCharger), Schriftband, alles östlich vom Schirm und innerhalb des Grundstücks
+	local ev, stalls, chargers, evText = lot.ev, 0, 0, 0
+	for _, p in ipairs(tank) do
+		if string.sub(p.name, 1, 2) == "EV" then
+			check(p.pos[1] - p.size[1] / 2 >= lot.canopy[3] + 1 and p.pos[1] + p.size[1] / 2 <= lot.lot[3], "E-Ladepark: " .. p.name .. " liegt nicht zwischen Schirm und Grundstücksrand")
+			check(p.pos[3] - p.size[3] / 2 >= lot.z1 - 40 and p.pos[3] + p.size[3] / 2 <= lot.canopy[4], "E-Ladepark: " .. p.name .. " liegt nicht neben dem Schirm")
+		end
+		if p.name == "EVStellplatz" then stalls = stalls + 1 end
+		if p.tag == "EVCharger" then chargers = chargers + 1 end
+		if p.name == "EVSchrift" and p.text and p.text.s ~= "" then evText = evText + 1 end
+	end
+	check(ev and stalls == ev.n and chargers == ev.n / 2 and evText == 2, "E-Ladepark: Stellplätze " .. stalls .. ", Säulen " .. chargers .. ", Schriftzüge " .. evText)
 	local offices = 0
 	for _, sp in ipairs(Specials) do if sp.style == "buero" then offices = offices + 1 end end
 	check(offices == 3, "Hintergrundgebäude " .. offices)

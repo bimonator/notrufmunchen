@@ -15,7 +15,7 @@ Baut die Karte aus `docs/MAP_PLAN.md` und `docs/phase1_bauplan.html` per Code: T
 [boden] Terrain-Oberkante gemessen: -2.0, alle weiteren Teile werden daran ausgerichtet
 [wasser] ok (... Wasser-Zellen am Messpunkt)
 [roads] 1475 Teile, 157 Parkbuchten
-[lights] 270 Laternen, 13 Ampelmasten, 2 Fußgängerampeln, 1529 Teile
+[lights] 273 Laternen, 13 Ampelmasten, 3016 Teile
 [landmarks] ~680 Teile (Siegestor, Friedensengel, Frauenkirche, Chinesischer Turm)
 [gardens] 1050 Teile, 143 Bäume, 103 Uferweg-Platten, 50 Findlinge
 [houses] 154 Häuser, 12928 Teile
@@ -41,10 +41,10 @@ Die Schritte laufen in dieser Reihenfolge und sind unabhängig voneinander ausf�
 | Datei | Inhalt | Geprüft |
 |---|---|---|
 | `MapBuilder/Geo.lua` | 2D-Mathematik (Strecken, Schnitte) | ja |
-| `MapBuilder/Config.lua` | Alle Maße aus dem Plan als Daten (Straßen, Wasser, Tunnel, Brücken, Parks, Wand) | ja (wird getestet) |
+| `MapBuilder/Config.lua` | Alle Maße aus dem Plan als Daten (Straßen, Kreisverkehr am Siegestor, Wasser, Brücken, Parks, Wand) | ja (wird getestet) |
 | `MapBuilder/Planner.lua`, `Blocks.lua`, `Specials.lua` | Reihenhäuser (7 Blöcke), Sonderbauten als Platzhalter, Mapgrenzen-Gebäude | ja |
 | `MapBuilder/RoadsPlanner.lua` | Straßen, Gehwege, Markierungen, Parkbuchten, Brücken (3 gewölbt), Unterführung | ja |
-| `MapBuilder/TerrainPlanner.lua` | Terrain-Operationen (Boden, Parks, Hügel, Terrasse, Isar, Bach, Tunnelgraben) | ja (nur die Liste) |
+| `MapBuilder/TerrainPlanner.lua` | Terrain-Operationen (Boden, Parks, Hügel, Terrasse, Isar, Bach) | ja (nur die Liste) |
 | `MapBuilder/WallPlanner.lua` | Mapgrenze mit Toren, Querriegel, Feldherrnhalle | ja |
 | `MapBuilder/Builder.lua`, `BuildAll.lua` | Erzeugt daraus Roblox-Objekte | **nur gegen eine Attrappe** |
 | `MapBuilder_Script.lua`, `MapBuilder_Plugin.lua` | Alles in einer Datei, erzeugt mit `python3 make_bundles.py` | wie Builder |
@@ -68,16 +68,16 @@ Nach jeder Änderung `python3 make_bundles.py` ausführen und das Plugin bzw. Sc
 
 ## Was getestet wurde (Cloud-Session, kein Roblox)
 
-- `python3 tests/run_with_lupa.py` (Lua 5.1): Häuser (Maße, Überlappung, Eckhäuser, Abwechslung bei Farben, Geschossen, Dachformen, Breiten, Sonderflächen frei), Sonderbauten (Grundfläche stimmt, keine Überlappung), Straßen (157 Parkbuchten wie im Plan, kein Gehweg in einer Kreuzung, jede Straße asphaltiert, Tunnel frei, Rampenneigung 7,1° und lichte Höhe ≥ 13,5, Brücken: Scheitelhöhe, Enden auf Straßenniveau, zwei Pfeiler im Fluss, keine flache Straße darunter), Terrain (Kacheln decken die Karte genau ab, Wasser nur zwischen Bett und Wasserlinie), Wand (innen bleibt der Ring frei, Tore frei, Höhen 74–110).
+- `python3 tests/run_with_lupa.py` (Lua 5.1): Häuser (Maße, Überlappung, Eckhäuser, Abwechslung bei Farben, Geschossen, Dachformen, Breiten, Sonderflächen frei), Sonderbauten (Grundfläche stimmt, keine Überlappung), Straßen (157 Parkbuchten wie im Plan, kein Gehweg in einer Kreuzung, jede Straße asphaltiert, Kreisverkehr (Zu- und Abfahrten münden im Ring, keine Häuser im Ring), Brücken: Scheitelhöhe, Enden auf Straßenniveau, zwei Pfeiler im Fluss, keine flache Straße darunter), Terrain (Kacheln decken die Karte genau ab, Wasser nur zwischen Bett und Wasserlinie), Wand (innen bleibt der Ring frei, Tore frei, Höhen 74–110).
 - `python3 tests/bundle_smoke_test.py`: `Builder` und `BuildAll` laufen gegen eine selbst gebaute Roblox-Attrappe: 257 Models, 18 211 Teile, 1171 Terrain-Aufrufe, zweiter Lauf ersetzt statt zu verdoppeln.
 - Eine Draufsicht der berechneten Teile (aus den Plänen gezeichnet) stimmt mit der Karte im Bauplan überein.
-- Die Tests wurden gezielt mit eingebauten Fehlern geprüft (Gehweg-Schnitt aus, Brücken-Schnitt aus, Tunnel nicht ausgenommen, falscher Drehwinkel): sie schlagen dann an.
+- Die Tests wurden gezielt mit eingebauten Fehlern geprüft (Gehweg-Schnitt aus, Brücken-Schnitt aus, Kreisverkehr-Schnitt aus, falscher Drehwinkel): sie schlagen dann an.
 
 ## Was NICHT geprüft werden konnte (bitte im Studio ansehen)
 
 - Ob die echte Roblox-API sich wie die Attrappe verhält (`Terrain:FillBlock` mit gedrehtem CFrame, `FillCylinder`, `Terrain:Clear`, `CollectionService`).
 - Ob die Isar im Terrain sauber aussieht. Sie ist aus gestapelten Blöcken gebaut (Stufen von 4 Studs). Falls sie treppig wirkt, im Terrain-Editor mit **Smooth** glätten.
-- Das Aussehen: Höhenlage von Gehweg, Straße und Brücken (Z-Fighting möglich), Wirkung der Mapgrenze, Rampe und Tunnel.
+- Das Aussehen: Höhenlage von Gehweg, Straße und Brücken (Z-Fighting möglich), Wirkung der Mapgrenze und des Kreisverkehrs am Siegestor.
 - Die Leistung: ca. 18 000 Teile (Häuser 8 100, Mapgrenze 8 700, Straßen 1 300). Wenn es ruckelt, zuerst die Mapgrenze vereinfachen.
 
 ## Bewusst (noch) nicht enthalten
@@ -94,7 +94,7 @@ Das Plugin legt beim Bauen ein Script `AmpelSteuerung` in ServerScriptService an
 
 - **Kreuzungen** (Achse × Ring Nord, H1, Odeonsplatz): Achse 30 s grün, 3 s gelb, 2 s alle rot, dann Querstraße 30 s grün usw. Jede Kreuzung startet versetzt. Zeiten oben in `Ampel.lua` (`Ampel.config`), im Script `AmpelSteuerung` ganz oben im Block `Ampel.config`.
 - **Feuerwache** (Gruppen `Wache_V1`, `Wache_V2`): grün für den Verkehr. `workspace:SetAttribute("WacheAlarm", true)` schaltet gelb, dann rot; `false` schaltet wieder grün. Test: im Run-Modus in der Command Bar `workspace:SetAttribute("WacheAlarm", true)`.
-- **Fußgängerampeln** am Siegestor: 12 s grün, 28 s rot.
+- **Fußgängerampeln:** am Siegestor entfallen (Kreisverkehr statt Tunnel); die Steuerung bleibt für spätere Übergänge (`C.pedSignals`).
 
 Das Test-Script `MapBuilder_Script.lua` startet die Steuerung direkt nach dem Bauen.
 
@@ -103,13 +103,21 @@ Das Test-Script `MapBuilder_Script.lua` startet die Steuerung direkt nach dem Ba
 Nach Fotos: Schirm mit abgerundeten Nordecken und rotem Band mit Schriftzug, 8 weiße Stützen, zwei Zapfsäulen-Inseln, Rasenstreifen mit Hecke und Büschen zwischen Gehweg und Station (nicht an den Einfahrten), EINFAHRT/AUSFAHRT-Schilder, quadratische Logoschilder und das Preis-Totem mit 5 Sorten.
 Die Preiszeilen tragen den Tag `FuelPrice` mit den Attributen `Fuel` und `Price` (nur Anzeige, ein Skript kann sie später ändern). Dahinter stehen drei Bürogebäude (Spezialbauten `Tankstellen-Buero-*`) mit Glasfassade, Geschossbändern und Stahlpfeilern.
 
+## Kreisverkehr am Siegestor
+
+Das Siegestor steht auf einer runden Mittelinsel (Radius 52, Bordstein). Rundherum läuft ein 24 Studs breiter Ring (Mittellinie Radius 68, `SiegestorKreisel`). Die Leopoldstraße (Achse) läuft oberirdisch in den Ring, ebenso H2 und die Diagonale; Häuser am Rand wurden dafür entfernt. Ein Tunnel und Rampen gibt es nicht mehr.
+
+## E-Ladepark (Allguth)
+
+Auf der freien Ostseite des Grundstücks (`Config.tankstelle.ev`): 8 Stellplätze mit grünen Bodenfeldern, Radstoppern, 4 Ladesäulen (Display „EV“, zwei Kabel) und ein Solar-Carport mit Schriftband „E-LADESTATION“. Die Säulen tragen den Tag `EVCharger` (Attribute `Station`, `kW`), ein Ladeskript kann später daran anknüpfen. Es ist nur die Optik, ohne Ladelogik.
+
 ## Hinweise zu Terrain-Einstellungen
 
 Der Terrain-Schritt setzt `Terrain.Decoration = false` (keine Gras-Büschel, die sonst durch Wege und Straßen ragen), `WaterTransparency = 0.45` und eine Wasserfarbe, damit die Isar von oben als Wasser erscheint. Das Flussbett besteht aus Sand statt Asphalt-grau.
 
 ## Offen / Backlog
 
-- **Siegestor und Friedensengel:** mehr Detail (Reliefs, Kapitell, Engel mit Gewand, Quadriga, Wasserspiele), bewusst später.
+- **Siegestor:** mehr Detail (Reliefs, Quadriga). Der Friedensengel hat jetzt Gewand, Flügel, Ölzweig, Nike, Kanneluren und Reliefs; weitere Verfeinerung nach Foto möglich.
 - **Tore der Feuerwache** (`FireGate`) und **Schranken der Polizei** (`Schranke`, Attribut `Offen`) sind Modelle ohne Skript; das Öffnen und Schließen kommt mit den Einsatz-Skripten. Fahrzeug-Spawnflächen tragen den Tag `VehicleSpawn` (Attribut `Team`).
 - **Eisbachwelle** ist nur das Bild einer stehenden Welle (Tags `Eisbachwelle`, `SurfZone`); das Surfen (Strömung, Brett) kommt als Skript.
 - Café (wartet auf Foto), Straßenschilder, Straßennamen, Frauenkirche mit mehr Detail (Fensterspitzbögen, Dachgauben, Uhrzeiger).

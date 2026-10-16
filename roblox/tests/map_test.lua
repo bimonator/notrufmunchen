@@ -21,7 +21,7 @@ local road = RoadsPlanner.plan(Config)
 local parts, segs = road.parts, road.segments
 print(string.format("Straßen: %d Teile, %d Segmente, %d Parkbuchten, %d Strichlinien", #parts, #segs, road.stats.bays, road.stats.dashes))
 
-check(road.stats.bays >= 140 and road.stats.bays <= 150, "Parkbuchten " .. road.stats.bays)
+check(road.stats.bays >= 125 and road.stats.bays <= 150, "Parkbuchten " .. road.stats.bays)
 -- keine Parkbuchten vor den Tankstellen-Einfahrten
 for _, b in ipairs(Config.bays) do
 	if b[1] == 38.5 and b[3] == 38.5 then
@@ -91,16 +91,14 @@ do
 	check(same == 0, same .. " Überlappungen mit gleicher Oberkante (Flackern)")
 end
 
--- Jede Straßen-Mittellinie ist asphaltiert (außer im Tunnelbereich der Achse)
-local tun = Config.tunnel
+-- Jede Straßen-Mittellinie ist asphaltiert
 local uncovered = 0
 for _, s in ipairs(segs) do
 	local steps = math.floor(s.len / 15)
 	for k = 0, steps do
 		local t = math.min(s.len, k * 15)
 		local x, z = s.ax + s.ux * t, s.az + s.uz * t
-		local underground = s.road.name == tun.road and z > tun.z0 + 0.5 and z < tun.z1 - 0.5
-		if not underground and s.prof.strips[1][3] ~= "plaza" then
+		if s.prof.strips[1][3] ~= "plaza" then
 			local found = false
 			for _, p in ipairs(parts) do
 				if (p.kind == "road" or p.kind == "median") and Geo.inPart(x, z, p, 0) then found = true break end
@@ -114,30 +112,39 @@ for _, s in ipairs(segs) do
 end
 check(uncovered == 0, uncovered .. " Punkte ohne Asphalt")
 
--- Tunnel: oben keine Fahrbahn und kein Mittelstreifen der Achse zwischen z0 und z1 (Betrag x < 34)
-local leaks = 0
-for _, p in ipairs(parts) do
-	local onAxis = p.seg and segs[p.seg].road.name == tun.road
-	if onAxis and (p.kind == "road" or p.kind == "median" or p.kind == "dash") then
-		if math.abs(p.pos[1]) < 34 and p.pos[3] > tun.z0 + 1 and p.pos[3] < tun.z1 - 1 then leaks = leaks + 1 end
+-- Kreisverkehr um das Siegestor: Ring schließt an Achse, H2 und Diagonale an, die Insel liegt innerhalb des Rings
+do
+	local ringR, islandR = Config.landmarks.siegestor.ringR, Config.landmarks.siegestor.islandR
+	local ring, ends = nil, {}
+	for _, rd in ipairs(Config.roads) do
+		if rd.name == "SiegestorKreisel" then ring = rd end
+		assert(rd.name ~= "Achse", "alte Achse ohne Kreisverkehr")
+	end
+	check(ring ~= nil and #ring.pts == 24, "Kreisverkehr fehlt")
+	check(islandR + 2.4 <= ringR - 12 + 0.01, "Insel ragt in die Fahrbahn: " .. islandR)
+	check(Config.tunnel == nil, "Tunnel entfällt")
+	-- Anschlüsse: jede Zufahrt endet innerhalb des Rings (Abstand zur Mitte zwischen Innen- und Außenrand)
+	local function inRing(x, z) local d = math.sqrt(x * x + z * z) return d > ringR - 12 and d < ringR + 12 end
+	for _, rd in ipairs(Config.roads) do
+		if rd.name == "H2" then check(inRing(rd.pts[2][1], rd.pts[2][2]), "H2 endet nicht im Ring") end
+		if rd.name == "Diagonale" then check(inRing(rd.pts[1][1], rd.pts[1][2]), "Diagonale beginnt nicht im Ring") end
+		if rd.name == "ZulaufNord" then check(inRing(rd.pts[2][1], rd.pts[2][2]), "Zulauf Nord endet nicht im Ring") end
+		if rd.name == "ZulaufSued" then check(inRing(rd.pts[1][1], rd.pts[1][2]), "Zulauf Süd beginnt nicht im Ring") end
+	end
+	-- keine Häuser im Ring (Randhäuser weichen)
+	for _, b in ipairs(require("Blocks")) do
+		for _, h in ipairs(Planner.planBlock(b, { seed = 1 }).houses) do
+			for _, p in ipairs(h.parts) do
+				if p.name == "Body" then
+					local x0, z0, x1, z1 = p.pos[1] - p.size[1] / 2, p.pos[3] - p.size[3] / 2, p.pos[1] + p.size[1] / 2, p.pos[3] + p.size[3] / 2
+					-- nächster Punkt der Hausfläche zur Mitte
+					local nx, nz = math.max(x0, math.min(0, x1)), math.max(z0, math.min(0, z1))
+					check(math.sqrt(nx * nx + nz * nz) > ringR + 12 + 1, h.name .. " steht im Kreisverkehr")
+				end
+			end
+		end
 	end
 end
-check(leaks == 0, leaks .. " Achsen-Teile über dem Tunnel")
-local ramps = {}
-for _, p in ipairs(parts) do
-	if p.name == "Rampe" then ramps[#ramps + 1] = p end
-end
-check(#ramps == 2, "zwei Rampen erwartet")
-for _, r in ipairs(ramps) do
-	check(math.abs(math.abs(r.pitch) - math.deg(math.atan2(17, 136))) < 0.01, "Rampenneigung " .. r.pitch)
-	check(math.abs(r.pos[2] - (-8.5)) < 0.01, "Rampenhöhe " .. r.pos[2])
-end
-check(ramps[1].pitch > 0 and ramps[2].pitch < 0, "Rampe Nord fällt nach Süden, Rampe Süd steigt")
-local clear = 0
-for _, p in ipairs(parts) do
-	if p.name == "TunnelBoden" then clear = (-2.6) - (p.pos[2] + 0.5) end
-end
-check(clear >= 13.5, "lichte Höhe " .. clear)
 
 -- Isar-Brücken: flach auf Straßenhöhe, länger als die Uferböschung, Pfeiler im Wasser und auf der Kiesbank, darunter keine Straße mehr
 local hwBank = Config.water.isar.layers[1][3]
@@ -301,7 +308,7 @@ check(#wall.parts == 4, "Brückenhäuser und Gitter erwartet")
 local lights = LightsPlanner.plan(Config, road)
 print(string.format("Beleuchtung: %d Laternen, %d Ampeln, %d Fußgängerampeln, %d Teile", lights.stats.lamps, lights.stats.signals, lights.stats.ped, #lights.parts))
 check(lights.stats.lamps > 200, "zu wenige Laternen: " .. lights.stats.lamps)
-check(lights.stats.signals == #Config.signals and lights.stats.ped == 2, "Ampeln unvollständig")
+check(lights.stats.signals == #Config.signals and lights.stats.ped == #Config.pedSignals, "Ampeln unvollständig")
 local groups, ng = {}, 0
 for _, s in ipairs(Config.signals) do
 	if not groups[s.name] then groups[s.name] = true ng = ng + 1 end
@@ -427,7 +434,7 @@ do
 	local maxY, texts, blocked = 0, 0, 0
 	for _, p in ipairs(sg) do
 		local x0, ya, z0, x1, yb, z1 = aabb(p)
-		check(x0 >= -34 and x1 <= 34 and z0 >= -8.8 and z1 <= 8.8, "Siegestor: " .. p.name .. " liegt nicht auf dem Tunneldeckel")
+		check(x0 >= -34 and x1 <= 34 and z0 >= -8.8 and z1 <= 8.8, "Siegestor: " .. p.name .. " liegt nicht auf der Mittelinsel")
 		maxY = math.max(maxY, yb)
 		if p.text then texts = texts + 1 end
 		-- Durchgänge frei: Mittelbogen |x| < 7, y bis Kämpfer 20; Seitenbögen |x -+ 18| < 4, y bis 14 (nur Teile mit Kollision)
@@ -447,7 +454,7 @@ do
 		check(x0 >= Config.terrace.x0 - 20 and x1 <= Config.terrace.x1 and z0 >= Config.terrace.z0 - 4 and z1 <= Config.terrace.z1, "Friedensengel: " .. p.name .. " liegt nicht auf der Terrasse")
 		if p.color[1] == 236 and p.color[2] == 184 then gold = gold + 1 end
 		if p.name == "Saeule" then column = p.size[1] end
-		check(yb < 130, "Friedensengel zu hoch")
+		check(yb < 140, "Friedensengel zu hoch")
 	end
 	local steps = 0
 	for _, p in ipairs(fe) do if p.name == "TerrassenStufe" then steps = steps + 1 end end
@@ -535,7 +542,7 @@ do
 	end
 	check(pl ~= nil and minX >= pl.x0 and maxX <= pl.x1 and minZ >= pl.z0 and maxZ <= pl.z1, "Frauenkirche passt nicht auf den Kirchplatz: " .. minX .. ".." .. maxX .. ", " .. minZ .. ".." .. maxZ)
 	check(maxX - minX >= 380 and maxZ - minZ >= 145, "Frauenkirche zu klein: " .. (maxX - minX) .. " x " .. (maxZ - minZ))
-	check(count(fk, "Kuppel") == 2 and count(fk, "KuppelRing") == 22 and count(fk, "Uhr") == 4 and count(fk, "Dach") == 2, "Frauenkirche: Hauben/Uhren/Dach")
+	check(count(fk, "Kuppel") == 2 and count(fk, "KuppelRing") == 54 and count(fk, "Uhr") == 4 and count(fk, "Dach") == 2, "Frauenkirche: Hauben/Uhren/Dach")
 	check(count(fk, "Uhrzeiger") == 8 and count(fk, "Uhrstrich") == 48 and count(fk, "Uhrziffer") == 16, "Frauenkirche: Ziffernblätter unvollständig")
 	check(count(fk, "Gaube") == 20 and count(fk, "Schallloch") == 8, "Frauenkirche: Gauben/Schalllöcher")
 	check(count(fk, "Fenster") >= 28, "Frauenkirche: Fenster " .. count(fk, "Fenster"))

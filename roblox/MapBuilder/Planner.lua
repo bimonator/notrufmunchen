@@ -982,6 +982,42 @@ local function lotDecor(h, spec)
 	end
 end
 
+-- E-Ladepark an der freien Ostseite des Tankstellen-Grundstücks (simuliert, ohne Ladelogik): n Stellplätze (Tiefe x1-x0, Breite w) mit grünen
+-- Bodenfeldern, weißen Linien und Radstoppern; je zwei Stellplätze teilen sich eine Ladesäule am hinteren Rand (Display "EV", zwei Ladekabel),
+-- darüber ein Solar-Carport mit Schriftband "E-LADESTATION". Die Säulen tragen den Tag "EVCharger" (Attribute Station, kW) für ein späteres Ladeskript.
+local function evPark(h, spec)
+	local e = spec.ev
+	local x0, x1, z0, n, w = e.x0, e.x1, e.z0, e.n, e.w
+	local z1, zm, cx = z0 + n * w, z0 + n * w / 2, (x0 + x1) / 2
+	local GREEN, WHITE, DARK, CONC = { 40, 168, 110 }, { 244, 244, 246 }, { 24, 28, 34 }, { 190, 188, 182 }
+	for i = 0, n - 1 do
+		local zc = z0 + (i + 0.5) * w
+		W3(h, "EVStellplatz", "decor", cx, 1.03, zc, x1 - x0, 0.06, w - 0.5, { 56, 140, 104 }, "SmoothPlastic")
+		W3(h, "EVRadstopper", "decor", x1 - 1.6, 1.4, zc, 0.8, 0.8, 5, CONC, "Concrete", { collide = true })
+	end
+	for i = 0, n do W3(h, "EVLinie", "dash", cx, 1.08, z0 + i * w, x1 - x0, 0.1, 0.3, WHITE, "SmoothPlastic") end
+	for j = 0, n / 2 - 1 do -- Ladesäule zwischen zwei Stellplätzen
+		local zc, px = z0 + (2 * j + 1) * w, x1 - 3.6
+		W3(h, "EVSockel", "decor", px, 1.3, zc, 3.4, 0.6, 3.4, CONC, "Concrete", { collide = true })
+		W3(h, "EVSaeule", "trim", px, 4.2, zc, 1.8, 6, 2.4, WHITE, "SmoothPlastic", { collide = true, tag = "EVCharger", attrs = { Station = j + 1, kW = 50 } })
+		W3(h, "EVKopf", "trim", px, 7.6, zc, 2.0, 1.4, 2.6, GREEN, "SmoothPlastic")
+		W3(h, "EVDisplay", "text", px - 1.0, 5.8, zc, 2.0, 1.4, 0.2, DARK, "SmoothPlastic", { yaw = 90, text = { s = "EV", color = { 90, 235, 150 } } })
+		for _, sd in ipairs({ -1, 1 }) do
+			W3(h, "EVHalter", "trim", px - 0.2, 5.0, zc + sd * 1.4, 0.9, 1.2, 0.7, DARK, "SmoothPlastic")
+			W3(h, "EVKabel", "trim", px - 1.0, 3.2, zc + sd * 1.4, 3.2, 0.35, 0.35, DARK, "SmoothPlastic", { shape = "Cylinder", roll = 90 })
+			W3(h, "EVStecker", "trim", px - 1.0, 1.7, zc + sd * 1.4, 0.6, 0.9, 0.6, GREEN, "SmoothPlastic")
+		end
+	end
+	-- Carport: Pfosten an den Stellplatzgrenzen (hinten), dunkles Solardach, weiße Blende mit Schriftzügen, grüne Leuchten
+	for i = 0, n, 2 do W3(h, "EVPfosten", "trim", x1 - 0.8, 5.5, z0 + i * w, 1.2, 9, 1.2, WHITE, "SmoothPlastic", { collide = true }) end
+	W3(h, "EVDach", "trim", cx - 0.25, 10.2, zm, x1 - x0 + 1.5, 0.8, n * w + 2, { 28, 44, 84 }, "SmoothPlastic")
+	W3(h, "EVBlende", "trim", x0 - 1, 10.2, zm, 0.6, 1.6, n * w + 2, WHITE, "SmoothPlastic")
+	W3(h, "EVBlende", "trim", cx - 0.25, 10.2, z1 + 1, x1 - x0 + 1.5, 1.6, 0.6, WHITE, "SmoothPlastic")
+	W3(h, "EVSchrift", "text", x0 - 1.4, 10.2, zm, 26, 1.2, 0.2, { 40, 168, 110 }, "SmoothPlastic", { yaw = 90, text = { s = "E-LADESTATION", color = { 40, 168, 110 } } })
+	W3(h, "EVSchrift", "text", cx - 0.25, 10.2, z1 + 1.4, 12, 1.2, 0.2, { 40, 168, 110 }, "SmoothPlastic", { yaw = 180, text = { s = "E-LADEN", color = { 40, 168, 110 } } })
+	for i = 0, n - 1 do W3(h, "EVLicht", "trim", cx, 9.6, z0 + (i + 0.5) * w, 0.2, 1.6, 1.6, { 120, 255, 190 }, "Neon", { shape = "Cylinder", roll = 90 }) end
+end
+
 -- Sonderbau (Bank, Wache, Krankenhaus ...) als Platzhalter-Gebäude auf einer Rechteckfläche.
 -- spec = { name, x0, z0, x1, z1, facing = "N"|"S"|"E"|"W" (Seite zur Straße), floors, color, canopy = { x0, z0, x1, z1 } }
 function Planner.planSpecial(spec, opts)
@@ -1017,6 +1053,7 @@ function Planner.planSpecial(spec, opts)
 			W3(h, "Auffahrt", "trim", (43.4 + l[1] + 0.4) / 2, 0.91, (g[1] + g[2]) / 2, l[1] + 0.4 - 43.4, 0.3, g[2] - g[1], { 78, 80, 86 }, "Asphalt", { collide = true })
 		end
 		lotDecor(h, spec)
+		if spec.ev then evPark(h, spec) end
 	end
 	if spec.compound then COMPOUNDS[spec.compound](h, spec, o) end
 	return { houses = { h } }

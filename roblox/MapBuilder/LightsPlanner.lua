@@ -16,7 +16,7 @@ local function part(parts, name, kind, x, y, z, sx, sy, sz, yaw, color, material
 	extra = extra or {}
 	parts[#parts + 1] = {
 		name = name, kind = kind, size = { sx, sy, sz }, pos = { Geo.round3(x), Geo.round3(y), Geo.round3(z) }, yaw = Geo.round3(yaw), pitch = extra.pitch or 0,
-		color = color, material = material, collide = extra.collide == true, tag = extra.tag, attrs = extra.attrs,
+		color = color, material = material, collide = extra.collide == true, tag = extra.tag, attrs = extra.attrs, shape = extra.shape, roll = extra.roll,
 	}
 end
 
@@ -34,28 +34,45 @@ local function onWalk(walks, x, z)
 	return false
 end
 
--- Laterne: schlanker Stahlmast, ansteigender Ausleger und flacher Kopf mit Leuchtplatte (Neon, Tag "StreetLamp") über der Fahrbahn
+-- Laterne (abgerundet): runder Fuß, zweistufiger konischer Zylindermast, Bogenarm aus vier Zylinderstücken (Viertelkreis, Radius 5),
+-- walzenförmiger Kopf mit Leuchtlinse unten (Neon, Tag "StreetLamp") über der Fahrbahn
 local function lamp(parts, x, z, tx, tz, h)
-	local yawZ = Geo.yawOf(tx, tz) + 90 -- lokale z-Achse der Teile läuft zur Straße
+	local yawT = Geo.yawOf(tx, tz)
 	local top = WALK_TOP + h
-	part(parts, "LaternenFuss", "lamp", x, WALK_TOP + 1.2, z, 1.3, 2.4, 1.3, 0, STEEL, "Metal", { collide = true })
-	part(parts, "LaternenMast", "lamp", x, WALK_TOP + h / 2, z, 0.6, h, 0.6, 0, STEEL, "Metal", { collide = true })
-	part(parts, "LaternenArm", "lamp", x + tx * 1.6, top + 0.5, z + tz * 1.6, 0.5, 0.5, 3.6, yawZ, STEEL, "Metal", { pitch = -20 })
-	part(parts, "LaternenKopf", "lamp", x + tx * 5.2, top + 1.4, z + tz * 5.2, 1.7, 0.8, 4.6, yawZ, STEEL, "Metal")
-	part(parts, "LaternenLicht", "lamp", x + tx * 5.2, top + 0.92, z + tz * 5.2, 1.3, 0.2, 3.8, yawZ, WARM, "Neon", { tag = "StreetLamp", attrs = { Lit = true } })
+	local CYL = { shape = "Cylinder", roll = 90 }
+	local function cyl(name, px, py, pz, len, dia, collide) part(parts, name, "lamp", px, py, pz, len, dia, dia, 0, STEEL, "Metal", { collide = collide, shape = "Cylinder", roll = 90 }) end
+	cyl("LaternenFuss", x, WALK_TOP + 1.2, z, 2.4, 2.0, true)
+	local lowH = h * 0.55
+	cyl("LaternenMast", x, WALK_TOP + lowH / 2, z, lowH, 1.0, true)
+	cyl("LaternenMastOben", x, WALK_TOP + lowH + (h - lowH) / 2, z, h - lowH, 0.65, true)
+	local r, n = 5, 4
+	for k = 1, n do
+		local a0, a1 = (k - 1) / n * math.pi / 2, k / n * math.pi / 2
+		local px0, py0, px1, py1 = r * (1 - math.cos(a0)), r * math.sin(a0), r * (1 - math.cos(a1)), r * math.sin(a1)
+		local len = math.sqrt((px1 - px0) ^ 2 + (py1 - py0) ^ 2) + 0.25
+		part(parts, "LaternenArm", "lamp", x + tx * (px0 + px1) / 2, top + (py0 + py1) / 2, z + tz * (px0 + px1) / 2, len, 0.5, 0.5, yawT, STEEL, "Metal",
+			{ shape = "Cylinder", roll = math.deg(math.atan2(py1 - py0, px1 - px0)) })
+	end
+	part(parts, "LaternenArm", "lamp", x + tx * (r + 1.2), top + r, z + tz * (r + 1.2), 2.6, 0.5, 0.5, yawT, STEEL, "Metal", { shape = "Cylinder" })
+	part(parts, "LaternenKopf", "lamp", x + tx * (r + 4.8), top + r, z + tz * (r + 4.8), 5.2, 1.7, 1.7, yawT, STEEL, "Metal", { shape = "Cylinder" })
+	part(parts, "LaternenLicht", "lamp", x + tx * (r + 4.8), top + r - 0.8, z + tz * (r + 4.8), 0.25, 1.9, 1.9, 0, WARM, "Neon", { shape = "Cylinder", roll = 90, tag = "StreetLamp", attrs = { Lit = true } })
 end
 
--- Signalkopf mit n Lampen (3: rot/gelb/grün, 2: rot/grün), Mitte (x, y, z), Front zeigt in Richtung (fx, fz); heller Rahmen dahinter
+-- Signalkopf mit n Lampen (3: rot/gelb/grün, 2: rot/grün), Mitte (x, y, z), Front zeigt in Richtung (fx, fz): heller Rahmen, schlankes Gehäuse,
+-- je Lampe ein rundes Blendenrohr (Zylinder) mit runder Linse davor
 local function head(parts, s, x, y, z, lamps, tag)
 	local yaw = Geo.yawOf(s.fx, s.fz)
 	local n = #lamps
-	local hgt = 1.3 * n + 0.7
-	part(parts, "AmpelRahmen", "signal", x - s.fx * 0.5, y, z - s.fz * 0.5, 0.15, hgt + 0.9, 2.1, yaw, PLATE, "SmoothPlastic")
-	part(parts, "AmpelKopf", "signal", x, y, z, 0.9, hgt, 1.5, yaw, HOUSING, "Metal")
+	local sp = 1.7
+	local hgt = sp * n + 0.6
+	part(parts, "AmpelRahmen", "signal", x - s.fx * 0.55, y, z - s.fz * 0.55, 0.15, hgt + 0.9, 2.3, yaw, PLATE, "SmoothPlastic")
+	part(parts, "AmpelKopf", "signal", x - s.fx * 0.1, y, z - s.fz * 0.1, 0.7, hgt, 1.2, yaw, HOUSING, "Metal")
 	for i, l in ipairs(lamps) do
+		local yy = y + hgt / 2 - 0.3 - sp * (i - 0.5)
+		part(parts, "AmpelBlende", "signal", x + s.fx * 0.45, yy, z + s.fz * 0.45, 0.9, 1.5, 1.5, yaw, HOUSING, "Metal", { shape = "Cylinder" })
 		local lit = i == 1 -- Standard: rot an, bis Ampel.lua schaltet
-		part(parts, "AmpelLampe", "signal", x + s.fx * 0.55, y + hgt / 2 - 0.35 - 1.3 * (i - 0.5) + 0.3, z + s.fz * 0.55, 0.3, 0.95, 0.95, yaw,
-			lit and l.on or l.dim, lit and "Neon" or "SmoothPlastic", { tag = tag, attrs = { Lamp = l.name, Group = s.name, Axis = (s.fz ~= 0) and "NS" or "EW", Lit = lit } })
+		part(parts, "AmpelLampe", "signal", x + s.fx * 0.95, yy, z + s.fz * 0.95, 0.3, 1.25, 1.25, yaw,
+			lit and l.on or l.dim, lit and "Neon" or "SmoothPlastic", { shape = "Cylinder", tag = tag, attrs = { Lamp = l.name, Group = s.name, Axis = (s.fz ~= 0) and "NS" or "EW", Lit = lit } })
 	end
 end
 
@@ -93,15 +110,18 @@ function LightsPlanner.plan(cfg, roadPlan)
 	local lamps2 = { { name = "Red", on = RED, dim = DIM.Red }, { name = "Green", on = GREEN, dim = DIM.Green } }
 	local ARM = 14
 	for _, s in ipairs(cfg.signals) do
-		part(parts, "AmpelMast", "signal", s.x, WALK_TOP + 12, s.z, 0.9, 24, 0.9, 0, STEEL, "Metal", { collide = true })
-		part(parts, "AmpelArm", "signal", s.x + s.ax * ARM / 2, WALK_TOP + 21, s.z + s.az * ARM / 2, ARM, 0.5, 0.5, Geo.yawOf(s.ax, s.az), STEEL, "Metal")
-		part(parts, "AmpelHalter", "signal", s.x + s.ax * (ARM - 1.5), WALK_TOP + 20, s.z + s.az * (ARM - 1.5), 0.3, 2, 0.3, 0, STEEL, "Metal")
+		part(parts, "AmpelMast", "signal", s.x, WALK_TOP + 7.5, s.z, 15, 1.1, 1.1, 0, STEEL, "Metal", { collide = true, shape = "Cylinder", roll = 90 })
+		part(parts, "AmpelMastOben", "signal", s.x, WALK_TOP + 19.5, s.z, 9, 0.8, 0.8, 0, STEEL, "Metal", { collide = true, shape = "Cylinder", roll = 90 })
+		part(parts, "AmpelKappe", "signal", s.x, WALK_TOP + 24.2, s.z, 1.2, 1.2, 1.2, 0, STEEL, "Metal", { shape = "Ball" })
+		part(parts, "AmpelGelenk", "signal", s.x, WALK_TOP + 21, s.z, 1.6, 1.6, 1.6, 0, STEEL, "Metal", { shape = "Ball" })
+		part(parts, "AmpelArm", "signal", s.x + s.ax * ARM / 2, WALK_TOP + 21, s.z + s.az * ARM / 2, ARM, 0.6, 0.6, Geo.yawOf(s.ax, s.az), STEEL, "Metal", { shape = "Cylinder" })
+		part(parts, "AmpelHalter", "signal", s.x + s.ax * (ARM - 1.5), WALK_TOP + 20, s.z + s.az * (ARM - 1.5), 2, 0.35, 0.35, 0, STEEL, "Metal", { shape = "Cylinder", roll = 90 })
 		head(parts, s, s.x + s.ax * (ARM - 1.5) + s.fx * 0.4, WALK_TOP + 17.4, s.z + s.az * (ARM - 1.5) + s.fz * 0.4, lamps3, "TrafficLight")
 		head(parts, s, s.x + s.fx * 1.0, WALK_TOP + 9, s.z + s.fz * 1.0, lamps3, "TrafficLight")
 		stats.signals = stats.signals + 1
 	end
 	for _, s in ipairs(cfg.pedSignals) do
-		part(parts, "FussgaengerMast", "signal", s.x, WALK_TOP + 5, s.z, 0.7, 10, 0.7, 0, STEEL, "Metal", { collide = true })
+		part(parts, "FussgaengerMast", "signal", s.x, WALK_TOP + 5, s.z, 10, 0.8, 0.8, 0, STEEL, "Metal", { collide = true, shape = "Cylinder", roll = 90 })
 		head(parts, s, s.x + s.fx * 0.9, WALK_TOP + 7.8, s.z + s.fz * 0.9, lamps2, "PedLight")
 		stats.ped = stats.ped + 1
 	end

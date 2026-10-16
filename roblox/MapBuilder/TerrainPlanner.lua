@@ -1,5 +1,5 @@
 -- TerrainPlanner.lua
--- Liste von Terrain-Operationen (Grundfläche, Parks, Hügel, Terrasse, Isar, Bach, Tunnelgraben).
+-- Liste von Terrain-Operationen (Grundfläche, Parks, Hügel, Terrasse, Isar, Bach).
 -- Reine Daten, die Builder.lua mit Terrain:FillBlock / FillCylinder ausführt. Reihenfolge ist wichtig.
 -- Alle Blöcke sind achsparallel (keine Drehung): so hängt das Ergebnis nicht davon ab, wie Roblox gedrehte Blöcke füllt.
 -- Op: { op = "block" | "cylinder", material, pos = {x,y,z}, size = {x,y,z} | height, radius }
@@ -87,10 +87,7 @@ function TerrainPlanner.plan(cfg)
 	end
 	local t = cfg.terrace
 	block(ops, "Grass", (t.x0 + t.x1) / 2, G + t.height / 2, (t.z0 + t.z1) / 2, t.x1 - t.x0, t.height, t.z1 - t.z0)
-	-- 4. Tunnelgraben der Siegestor-Unterführung (von -17 bis über die Oberkante)
-	local tn = cfg.tunnel
-	block(ops, "Air", 0, -5.5, (tn.z0 + tn.z1) / 2, tn.half * 2, 23, tn.z1 - tn.z0)
-	-- 5. Isar und Bach
+	-- 4. Isar und Bach
 	cfg.water.isar.name, cfg.water.bach.name = "isar", "bach"
 	river(ops, cfg.water.isar)
 	river(ops, cfg.water.bach)

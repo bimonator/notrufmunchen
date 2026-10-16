@@ -1,5 +1,5 @@
 -- RoadsPlanner.lua
--- Straßen, Gehwege, Markierungen, Parkbuchten, Plätze, Brücken und die Siegestor-Unterführung als Teileliste.
+-- Straßen, Gehwege, Markierungen, Parkbuchten, Plätze, Brücken als Teileliste.
 -- Reine Geometrie (keine Roblox-Funktionen). Teile haben dieselben Felder wie die Häuser aus Planner.lua, dazu optional pitch.
 
 local Geo = require(script and script.Parent.Geo or "Geo")
@@ -115,7 +115,6 @@ end
 function RoadsPlanner.plan(cfg)
 	local parts = {}
 	local segs = buildSegments(cfg)
-	local tun = cfg.tunnel
 	local stats = { bays = 0, dashes = 0 }
 	local level = roadLevels(segs)
 
@@ -124,13 +123,6 @@ function RoadsPlanner.plan(cfg)
 		local p0x, p0z = seg.ax - seg.ux * seg.extA, seg.az - seg.uz * seg.extA
 		local L = seg.len + seg.extA + seg.extB
 		local nx, nz = -seg.uz, seg.ux
-		-- Tunnelbereich als Abschnitt entlang dieser Straße (nur die Achse läuft in z-Richtung)
-		local tunnelCut
-		if seg.road.name == tun.road then
-			local t0, t1 = (tun.z0 - p0z) * seg.uz, (tun.z1 - p0z) * seg.uz
-			if t0 > t1 then t0, t1 = t1, t0 end
-			tunnelCut = { t0, t1 }
-		end
 		local bridgeCuts = {}
 		for _, b in ipairs(cfg.isarBridges) do
 			local br = math.rad(b.yaw)
@@ -147,7 +139,6 @@ function RoadsPlanner.plan(cfg)
 			local cuts = {}
 			local lift = (kind == "road") and LEVEL_STEP * level[seg.id] or (kind == "plaza" and PLAZA_LIFT or 0)
 			if kind == "walk" then cuts = crossCuts(segs, seg, sx, sz, L, 0.05) end
-			if st[4] and tunnelCut then cuts[#cuts + 1] = tunnelCut end
 			for _, bc in ipairs(bridgeCuts) do cuts[#cuts + 1] = bc end
 			for _, sp in ipairs(Geo.subtract({ { 0, L } }, cuts)) do
 				local len = sp[2] - sp[1]
@@ -163,7 +154,6 @@ function RoadsPlanner.plan(cfg)
 		for _, d in ipairs(seg.prof.dashes) do
 			local sx, sz = p0x + nx * d, p0z + nz * d
 			local cuts = crossCuts(segs, seg, sx, sz, L, 0.5)
-			if seg.prof.dashesUnderground and tunnelCut then cuts[#cuts + 1] = tunnelCut end
 			for _, bc in ipairs(bridgeCuts) do cuts[#cuts + 1] = bc end
 			for _, sp in ipairs(Geo.subtract({ { 0, L } }, cuts)) do
 				local t = sp[1] + 1
@@ -319,22 +309,6 @@ function RoadsPlanner.plan(cfg)
 		end
 	end
 
-	-- Unterführung: Rampen (geneigt), Boden, Decke unter der Querstraße, Seitenwände des Tunnelkastens
-	local w = tun.half * 2
-	local drop = tun.surfaceTop - tun.floorTop
-	for _, ramp in ipairs({ { tun.rampN, 1 }, { tun.rampS, -1 } }) do
-		local z0, z1 = ramp[1][1], ramp[1][2]
-		local dz = z1 - z0
-		local L = math.sqrt(dz * dz + drop * drop)
-		local ang = math.deg(math.atan2(drop, dz)) -- positiv = fällt nach Süden
-		part(parts, "Rampe", "tunnel", 0, (tun.surfaceTop + tun.floorTop) / 2 - 0.5, (z0 + z1) / 2, w, 1, L, 0, COLOR.road, "Asphalt", { pitch = ramp[2] * ang })
-	end
-	local bz0, bz1 = tun.box[1], tun.box[2]
-	part(parts, "TunnelBoden", "tunnel", 0, tun.floorTop - 0.5, (bz0 + bz1) / 2, w, 1, bz1 - bz0, 0, COLOR.road, "Asphalt", {})
-	part(parts, "TunnelDecke", "tunnel", 0, -1.1, (bz0 + bz1) / 2, w, 3, bz1 - bz0, 0, COLOR.tunnel, "Concrete", {})
-	for _, side in ipairs({ -1, 1 }) do
-		part(parts, "TunnelWand", "tunnel", side * (tun.half + 1), tun.floorTop - 1 + 8.75, (bz0 + bz1) / 2, 2, 17.5, bz1 - bz0, 0, COLOR.tunnel, "Concrete", {})
-	end
 	stats.stalls = stats.bays
 	return { parts = parts, stats = stats, segments = segs }
 end
