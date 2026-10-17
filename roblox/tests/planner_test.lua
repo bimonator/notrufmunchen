@@ -762,3 +762,71 @@ if failures > 0 then
 	error("Tests fehlgeschlagen")
 end
 print("Alle Tests bestanden")
+
+-- ===== Werkstatt südlich der Tankstelle =====
+do
+	local Config = require("Config")
+	local RoadsPlanner = require("RoadsPlanner")
+	local Werkstatt = require("Werkstatt")
+	local Specials = require("Specials")
+	local Blocks = require("Blocks")
+	local W = Config.werkstatt
+	local plan = Werkstatt.plan(Config)
+	local segs = RoadsPlanner.segments(Config)
+	local texts, outside = {}, 0
+	for _, p in ipairs(plan.parts) do
+		local hx, hz = p.size[1] / 2, p.size[3] / 2
+		if p.pos[1] - hx < W.x0 - 0.5 or p.pos[1] + hx > W.x1 + 0.5 or p.pos[3] - hz < W.z0 - 0.5 or p.pos[3] + hz > W.z1 + 0.5 then outside = outside + 1 print("außerhalb: " .. p.name .. " " .. p.pos[1] .. "," .. p.pos[3]) end
+		if p.text then texts[p.text.s] = (texts[p.text.s] or 0) + 1 end
+	end
+	check(outside == 0, "Werkstatt: " .. outside .. " Teile außerhalb des Grundstücks")
+	for _, c in ipairs({ { W.x0, W.z0 }, { W.x1, W.z0 }, { W.x0, W.z1 }, { W.x1, W.z1 } }) do
+		for _, sg in ipairs(segs) do
+			local rc = sg.rect
+			local dx, dz = c[1] - rc.ax, c[2] - rc.az
+			local a, b = dx * rc.ux + dz * rc.uz, dx * rc.nx + dz * rc.nz
+			check(not (a > rc.s0 and a < rc.s1 and math.abs(b) < rc.w + 1), string.format("Werkstatt: Ecke (%d,%d) liegt in einer Straße", c[1], c[2]))
+		end
+	end
+	for _, sp in ipairs(Specials) do check(not (sp.x0 < W.x1 and sp.x1 > W.x0 and sp.z0 < W.z1 and sp.z1 > W.z0), sp.name .. " überlappt die Werkstatt") end
+	for _, h in ipairs(Config.hochhaeuser) do if h.w then check(not (h.x - h.w / 2 < W.x1 and h.x + h.w / 2 > W.x0 and h.z - h.d / 2 < W.z1 and h.z + h.d / 2 > W.z0), h.name .. " überlappt die Werkstatt") end end
+	check(texts["Service-Center"] == 1 and texts["Tor 1"] == 1 and texts["Tor 2"] == 1 and texts["Tor 3"] == 1 and (texts["ADAN"] or 0) >= 3 and (texts["Werkstatt"] or 0) >= 3, "Werkstatt: Schilder unvollständig")
+	check(plan.stats.gates == 3 and #plan.parts > 60 and #plan.parts < 250, "Werkstatt: Teile " .. #plan.parts)
+	print(string.format("Werkstatt: %d Teile (%d Tore, %d Leuchten)", #plan.parts, plan.stats.gates, plan.stats.lamps))
+end
+
+
+-- ===== Anlagen (Allee, Klinikpark, Ufer-Parks) =====
+do
+	local Config = require("Config")
+	local RoadsPlanner = require("RoadsPlanner")
+	local Anlagen = require("Anlagen")
+	local Specials = require("Specials")
+	local segs = RoadsPlanner.segments(Config)
+	local plan = Anlagen.plan(Config)
+	local ops = Anlagen.terrain(Config)
+	local function inRoad(x, z, m)
+		for _, sg in ipairs(segs) do
+			local rc = sg.rect
+			local dx, dz = x - rc.ax, z - rc.az
+			local a, b = dx * rc.ux + dz * rc.uz, dx * rc.nx + dz * rc.nz
+			if a > rc.s0 - m and a < rc.s1 + m and math.abs(b) < rc.w + m then return true end
+		end
+		return false
+	end
+	-- jeder Eckpunkt jeder Anlage liegt außerhalb von Straßen und Sonderbauten
+	for _, s in ipairs(Config.anlagen) do
+		for _, p in ipairs(s.poly) do
+			check(not inRoad(p[1], p[2], 0), string.format("Anlage %s: Eckpunkt (%d,%d) liegt in einer Straße", s.name, p[1], p[2]))
+			for _, sp in ipairs(Specials) do check(not (p[1] > sp.x0 and p[1] < sp.x1 and p[2] > sp.z0 and p[2] < sp.z1), string.format("Anlage %s: Eckpunkt in %s", s.name, sp.name)) end
+		end
+	end
+	local nTrees = 0
+	for _, p in ipairs(plan.parts) do
+		check(not inRoad(p.pos[1], p.pos[3], 0), string.format("Anlagen: %s bei (%.0f,%.0f) liegt in einer Straße", p.name, p.pos[1], p.pos[3]))
+		if p.name == "AnlageStamm" then nTrees = nTrees + 1 end
+	end
+	check(plan.stats.areas == #Config.anlagen and nTrees > 120 and plan.stats.benches >= 30 and plan.stats.lamps >= 10 and #ops > 100, string.format("Anlagen: Bäume %d, Bänke %d, Leuchten %d, Rasenblöcke %d", nTrees, plan.stats.benches, plan.stats.lamps, #ops))
+	check(#plan.parts > 700 and #plan.parts < 6000, "Anlagen: Teile " .. #plan.parts)
+	print(string.format("Anlagen: %d Teile (%d Bäume, %d Bänke, %d Leuchten, %d Büsche, %d Findlinge, %d Rasenblöcke)", #plan.parts, nTrees, plan.stats.benches, plan.stats.lamps, plan.stats.bushes, plan.stats.rocks, #ops))
+end

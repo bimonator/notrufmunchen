@@ -103,13 +103,15 @@ C.busstops = {
 
 -- Parkbuchten: Mittellinie des Parkstreifens, Buchtlänge 16, Breite 9. { x0, z0, x1, z1 }
 C.bay = { length = 16, width = 9 }
--- Allguth-Tankstelle: Grundstück und Ein-/Ausfahrten (z-Bereiche an der Straße, Einfahrt südlich, Ausfahrt nördlich davon).
+-- Allguth-Tankstelle (southOpen = x-Bereich, in dem die Südkante offen ist: Durchfahrt zum Werkstatt-Hof): Grundstück und Ein-/Ausfahrten (z-Bereiche an der Straße, Einfahrt südlich, Ausfahrt nördlich davon).
 -- Vor den Einfahrten gibt es keine Parkbuchten und die Laternen stehen nicht im Weg (siehe driveways).
-C.tankstelle = { lot = { 57, -336, 180, -150 }, gaps = { { -262, -218 }, { -196, -152 } }, parking = { x0 = 96, zBack = -152, depth = 16, w = 8, kinds = { "H", "E", "E", "E", "N", "N", "N", "N", "N", "N" } } } -- parking: Stellplatzreihe im Südteil (H Behinderte, E Ladeplatz, N normal)
+C.tankstelle = { lot = { 57, -336, 180, -150 }, gaps = { { -262, -218 }, { -196, -152 } }, southOpen = { 88, 180 }, parking = { x0 = 80, zBack = -152, depth = 16, w = 8, kinds = { "H", "E", "E", "E", "N", "N", "N", "N", "N", "N" } } } -- parking: Stellplatzreihe im Südteil (H Behinderte, E Ladeplatz, N normal)
 -- Autohaus (Autohaus.lua): Grundstück östlich der V3, nördlich der Diagonale; Westwand bei frontX, Showroom und Werkstatt als z-Bereiche (Nord nach Süd)
 C.autohaus = { x0 = 332, z0 = -196, x1 = 442, z1 = -116, frontX = 394, showroom = { -170, -122 }, werkstatt = { -196, -170 },
 	-- Vorfeld im Dreieck südlich (bis zum Gehweg der Diagonale): Stellplatzreihen als z-Bereiche, margin = Rasenstreifen zum Gehweg, trees/lamps = x-Lagen
 	vorfeld = { road = "Diagonale", margin = 5, rows = { { -114, -98 }, { -80, -64 } }, zMax = -20, trees = { 352, 372, 396, 420, 438 }, lamps = { 372, 404 } } }
+-- Werkstatt (Werkstatt.lua): Hof (gleicher Asphalt wie die Tankstelle, schließt an deren offene Südkante an), Halle mit Front nach Süden; gate = z-Bereich der offenen Zaunlücke an der Ostseite
+C.werkstatt = { x0 = 88, z0 = -150, x1 = 186, z1 = -90, hall = { 104, 156 }, depth = 22, gate = { -110, -98 } }
 C.driveways = {}
 for _, g in ipairs(C.tankstelle.gaps) do C.driveways[#C.driveways + 1] = { x0 = 43, x1 = 57, z0 = g[1] - 3, z1 = g[2] + 3 } end
 
@@ -159,6 +161,48 @@ do
 	C.bays[#C.bays + 1] = { ax + ux * b.from + ex * b.off, az + uz * b.from + ez * b.off, ax + ux * b.to + ex * b.off, az + uz * b.to + ez * b.off }
 	C.allee.ux, C.allee.uz, C.allee.len, C.allee.ax, C.allee.az = ux, uz, l, ax, az
 end
+
+-- Gestaltete Anlagen (Anlagen.lua): Polygon, Wege { pts, w, benchStep, lampStep }, Teiche { x, z, r }, Beete { x, z, Spalten, Reihen } (5x5-Felder), Baumreihen, freie Bäume
+-- { step, density, scale, edge }, Büsche, Findlinge. Alle Flächen liegen in Lücken zwischen Straßen und Häusern (aus dem Kartenbild abgelesen).
+local function ringPath(cx, cz, r, n)
+	local pts = circle(cx, cz, r, n)
+	pts[#pts + 1] = pts[1]
+	return pts
+end
+C.anlagen = {
+	{ name = "AlleeSchlossgarten", seed = 3, poly = { { 68, 62 }, { 392, 62 }, { 392, 97 }, { 68, 97 } },
+		paths = { { pts = { { 68, 80 }, { 214, 80 } }, w = 10, benchStep = 52, lampStep = 64 }, { pts = { { 246, 80 }, { 392, 80 } }, w = 10, benchStep = 52, lampStep = 64 },
+			{ pts = ringPath(230, 80, 16, 16), w = 5 } },
+		ponds = { { 230, 80, 8 } },
+		rows = { { z = 71, x0 = 80, x1 = 208, step = 14 }, { z = 71, x0 = 256, x1 = 384, step = 14 }, { z = 89, x0 = 80, x1 = 208, step = 14 }, { z = 89, x0 = 256, x1 = 384, step = 14 } },
+		bushes = 10 },
+	{ name = "Klinikpark", seed = 5, poly = { { 506, -306 }, { 675, -306 }, { 586, -233 }, { 452, -112 }, { 446, -232 }, { 506, -232 } },
+		paths = { { pts = { { 470, -150 }, { 506, -176 }, { 546, -214 }, { 586, -250 }, { 628, -286 }, { 646, -298 } }, w = 8, benchStep = 44, lampStep = 48 },
+			{ pts = ringPath(545, -262, 26, 20), w = 6, benchStep = 40 },
+			{ pts = { { 546, -214 }, { 545, -236 } }, w = 5 }, { pts = { { 571, -262 }, { 593, -256 } }, w = 5 },
+			{ pts = { { 470, -150 }, { 466, -190 }, { 484, -222 }, { 512, -228 }, { 522, -244 }, { 519, -262 } }, w = 5, benchStep = 40 } },
+		ponds = { { 545, -262, 16 } }, beds = { { 478, -190, 4, 2 } },
+		trees = { step = 12, density = 0.8, scale = 1.05, edge = 8 }, bushes = 24 },
+	{ name = "KlinikparkSued", seed = 6, poly = { { 540, -108 }, { 622, -108 }, { 622, -180 } },
+		paths = { { pts = { { 556, -114 }, { 600, -118 }, { 616, -150 } }, w = 5, benchStep = 36, lampStep = 56 } },
+		trees = { step = 12, density = 0.85, scale = 1.0, edge = 6 }, bushes = 6 },
+	{ name = "UferWestNord", seed = 7, poly = { { 672, -436 }, { 757, -436 }, { 745, -366 }, { 705, -330 }, { 672, -330 } },
+		paths = { { pts = { { 686, -428 }, { 700, -380 }, { 692, -342 } }, w = 5, benchStep = 36 } },
+		trees = { step = 13, density = 0.8, scale = 1.0, edge = 8 }, bushes = 14 },
+	{ name = "UferWestPromenade", seed = 9, willow = true, poly = { { 820, -440 }, { 846, -440 }, { 846, -328 }, { 820, -328 } },
+		paths = { { pts = { { 833, -436 }, { 833, -332 } }, w = 5, benchStep = 40, lampStep = 56 } },
+		trees = { step = 11, density = 0.85, scale = 0.95, edge = 5 }, bushes = 6, rocks = 4 },
+	{ name = "UferWestMitte", seed = 13, willow = true, poly = { { 708, 4 }, { 772, 4 }, { 758, 62 }, { 740, 120 }, { 724, 170 }, { 708, 170 } },
+		paths = { { pts = { { 722, 10 }, { 734, 60 }, { 720, 120 }, { 716, 164 } }, w = 5, benchStep = 36, lampStep = 60 } },
+		trees = { step = 12, density = 0.8, scale = 1.0, edge = 7 }, bushes = 12, rocks = 6 },
+	{ name = "UferOst", seed = 17, willow = true, poly = { { 1066, -14 }, { 1150, -14 }, { 1150, 160 }, { 1132, 160 }, { 1100, 128 }, { 1086, 92 }, { 1068, 36 } },
+		paths = { { pts = { { 1112, -8 }, { 1118, 60 }, { 1130, 120 }, { 1140, 154 } }, w = 5, benchStep = 40, lampStep = 60 } },
+		trees = { step = 12, density = 0.8, scale = 1.0, edge = 7 }, bushes = 12, rocks = 5 },
+	{ name = "UferFriedensengel", seed = 19, poly = { { 970, 46 }, { 984, 46 }, { 1000, 100 }, { 1016, 142 }, { 1036, 172 }, { 1066, 198 }, { 900, 198 }, { 930, 142 }, { 946, 100 } },
+		paths = { { pts = { { 976, 54 }, { 972, 100 }, { 958, 140 }, { 940, 188 } }, w = 5, benchStep = 36, lampStep = 56 } },
+		beds = { { 988, 150, 3, 2 } },
+		trees = { step = 12, density = 0.8, scale = 1.0, edge = 7 }, bushes = 10, rocks = 3 },
+}
 
 -- Gepflasterte Plätze (Odeonsplatz, Kirchplatz, Fußgängerzone) sind vorerst entfernt: die Leopoldstraße bleibt Asphalt, um die Frauenkirche liegt kein Pflaster.
 C.plazas = {}

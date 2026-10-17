@@ -61,6 +61,8 @@ local Config = M.Config
 local Planner = M.Planner
 local Blocks = M.Blocks
 local Specials = M.Specials
+local Werkstatt = M.Werkstatt
+local Anlagen = M.Anlagen
 local RoadsPlanner = M.RoadsPlanner
 local LightsPlanner = M.LightsPlanner
 local Landmarks = M.Landmarks
@@ -433,6 +435,8 @@ local Hochhaus = Hochhaus
 local Bushaltestellen = Bushaltestellen
 local Stachus = Stachus
 local Autohaus = Autohaus
+local Werkstatt = Werkstatt
+local Anlagen = Anlagen
 local Garden = Garden
 local TerrainPlanner = TerrainPlanner
 local WallPlanner = WallPlanner
@@ -637,6 +641,20 @@ local plan = Autohaus.plan(Config)
 Builder.buildParts(plan.parts, Builder.container("Autohaus"), origin)
 return string.format("%d Teile (%d Boxenlinien, %d Leuchten, %d Bäume), keine Fahrzeuge", #plan.parts, plan.stats.bays, plan.stats.lamps, plan.stats.trees)
 end,
+anlagen = function(opts, origin) -- Allee, Klinikpark, Ufer-Parks: Rasen (Terrain), Wege, Bäume usw.; ersetzt nur den Ordner Anlagen
+local ops = Anlagen.terrain(Config)
+Builder.applyTerrain(ops, origin)
+local plan = Anlagen.plan(Config)
+Builder.buildParts(plan.parts, Builder.container("Anlagen"), origin)
+Builder.paveUnder(plan.parts, origin, function() return true end) -- keine Gras-Büschel durch die Kieswege
+local st = plan.stats
+return string.format("%d Anlagen, %d Teile, %d Rasen-Blöcke, %d Bäume, %d Bänke, %d Leuchten, %d Büsche, %d Findlinge", st.areas, #plan.parts, #ops, st.trees, st.benches, st.lamps, st.bushes, st.rocks)
+end,
+werkstatt = function(opts, origin)
+local plan = Werkstatt.plan(Config)
+Builder.buildParts(plan.parts, Builder.container("Werkstatt"), origin)
+return string.format("%d Teile (%d Tore, %d Schriften, %d Leuchten)", #plan.parts, plan.stats.gates, plan.stats.texts, plan.stats.lamps)
+end,
 stachus = function(opts, origin)
 local plan = Stachus.plan(Config)
 Builder.buildParts(plan.parts, Builder.container("Stachus"), origin)
@@ -700,7 +718,7 @@ local st = Planner.stats(plan)
 return string.format("%d Gebäude, %d Teile", st.houses, st.parts + #plan.parts)
 end,
 }
-BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "stachus", "autohaus", "gardens", "pave", "houses", "skyline", "bus", "wall" }
+BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "stachus", "autohaus", "werkstatt", "anlagen", "gardens", "pave", "houses", "skyline", "bus", "wall" }
 local function afterTerrain(base)
 local ground = Builder.measureGround(base)
 print(string.format("[boden] Terrain-Oberkante gemessen: %.1f, alle weiteren Teile werden daran ausgerichtet", ground))

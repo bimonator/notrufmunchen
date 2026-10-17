@@ -17,6 +17,8 @@ local Hochhaus = require(script and script.Parent.Hochhaus or "Hochhaus")
 local Bushaltestellen = require(script and script.Parent.Bushaltestellen or "Bushaltestellen")
 local Stachus = require(script and script.Parent.Stachus or "Stachus")
 local Autohaus = require(script and script.Parent.Autohaus or "Autohaus")
+local Werkstatt = require(script and script.Parent.Werkstatt or "Werkstatt")
+local Anlagen = require(script and script.Parent.Anlagen or "Anlagen")
 local Garden = require(script and script.Parent.Garden or "Garden")
 local TerrainPlanner = require(script and script.Parent.TerrainPlanner or "TerrainPlanner")
 local WallPlanner = require(script and script.Parent.WallPlanner or "WallPlanner")
@@ -225,6 +227,20 @@ local STEPS = {
 		Builder.buildParts(plan.parts, Builder.container("Autohaus"), origin)
 		return string.format("%d Teile (%d Boxenlinien, %d Leuchten, %d Bäume), keine Fahrzeuge", #plan.parts, plan.stats.bays, plan.stats.lamps, plan.stats.trees)
 	end,
+	anlagen = function(opts, origin) -- Allee, Klinikpark, Ufer-Parks: Rasen (Terrain), Wege, Bäume usw.; ersetzt nur den Ordner Anlagen
+		local ops = Anlagen.terrain(Config)
+		Builder.applyTerrain(ops, origin)
+		local plan = Anlagen.plan(Config)
+		Builder.buildParts(plan.parts, Builder.container("Anlagen"), origin)
+		Builder.paveUnder(plan.parts, origin, function() return true end) -- keine Gras-Büschel durch die Kieswege
+		local st = plan.stats
+		return string.format("%d Anlagen, %d Teile, %d Rasen-Blöcke, %d Bäume, %d Bänke, %d Leuchten, %d Büsche, %d Findlinge", st.areas, #plan.parts, #ops, st.trees, st.benches, st.lamps, st.bushes, st.rocks)
+	end,
+	werkstatt = function(opts, origin)
+		local plan = Werkstatt.plan(Config)
+		Builder.buildParts(plan.parts, Builder.container("Werkstatt"), origin)
+		return string.format("%d Teile (%d Tore, %d Schriften, %d Leuchten)", #plan.parts, plan.stats.gates, plan.stats.texts, plan.stats.lamps)
+	end,
 	stachus = function(opts, origin)
 		local plan = Stachus.plan(Config)
 		Builder.buildParts(plan.parts, Builder.container("Stachus"), origin)
@@ -289,7 +305,7 @@ local STEPS = {
 	end,
 }
 
-BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "stachus", "autohaus", "gardens", "pave", "houses", "skyline", "bus", "wall" }
+BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "stachus", "autohaus", "werkstatt", "anlagen", "gardens", "pave", "houses", "skyline", "bus", "wall" }
 
 -- Nach dem Terrain: echte Bodenhöhe messen (alles weitere wird daran ausgerichtet) und prüfen, ob Wasser da ist.
 local function afterTerrain(base)

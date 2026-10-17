@@ -9,7 +9,7 @@ import re
 
 here = os.path.dirname(os.path.abspath(__file__))
 PARTS = [ # ModuleScripts (Name, Module); jedes Teil bekommt die Module der vorigen Teile über die Tabelle M
-    ("Teil1", ["Geo", "Config", "Planner", "Blocks", "Specials"]),
+    ("Teil1", ["Geo", "Config", "Planner", "Blocks", "Specials", "Werkstatt", "Anlagen"]),
     ("Teil2", ["RoadsPlanner", "LightsPlanner", "Landmarks", "Rathaus", "Marienplatz", "Stachus", "Autohaus", "Hochhaus", "Bushaltestellen", "TerrainPlanner", "Garden", "WallPlanner"]),
 ]
 MAIN = ["Ampel", "Builder", "BuildAll"]

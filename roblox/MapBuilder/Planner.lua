@@ -1572,7 +1572,12 @@ function Planner.planSpecial(spec, opts)
 		W3(h, "Plateau", "trim", (l[1] + l[3]) / 2, 0.4, (l[2] + l[4]) / 2, l[3] - l[1], 1.2, l[4] - l[2], { 78, 80, 86 }, "Asphalt", { collide = true })
 		local function kerb(x0, z0, x1, z1) W3(h, "Kante", "trim", (x0 + x1) / 2, 1.25, (z0 + z1) / 2, x1 - x0, 0.5, z1 - z0, KERB, "Concrete", { collide = true }) end
 		kerb(l[1], l[2], l[3], l[2] + K)
-		kerb(l[1], l[4] - K, l[3], l[4])
+		if spec.southOpen then -- Südkante offen (Durchfahrt zum Werkstatt-Hof)
+			kerb(l[1], l[4] - K, spec.southOpen[1], l[4])
+			if spec.southOpen[2] < l[3] then kerb(spec.southOpen[2], l[4] - K, l[3], l[4]) end
+		else
+			kerb(l[1], l[4] - K, l[3], l[4])
+		end
 		kerb(l[3] - K, l[2] + K, l[3], l[4] - K)
 		local z = l[2] + K
 		for _, g in ipairs(spec.curbGaps) do -- Straßenseite: Kante zwischen den Einfahrten

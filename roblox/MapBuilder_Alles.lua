@@ -270,9 +270,10 @@ C.busstops = {
 { x = 700, z = 279, zurStrasse = "S" }, { x = -642, z = -100, zurStrasse = "W" }, { x = 40, z = -453, zurStrasse = "N" },
 }
 C.bay = { length = 16, width = 9 }
-C.tankstelle = { lot = { 57, -336, 180, -150 }, gaps = { { -262, -218 }, { -196, -152 } }, parking = { x0 = 96, zBack = -152, depth = 16, w = 8, kinds = { "H", "E", "E", "E", "N", "N", "N", "N", "N", "N" } } } -- parking: Stellplatzreihe im Südteil (H Behinderte, E Ladeplatz, N normal)
+C.tankstelle = { lot = { 57, -336, 180, -150 }, gaps = { { -262, -218 }, { -196, -152 } }, southOpen = { 88, 180 }, parking = { x0 = 80, zBack = -152, depth = 16, w = 8, kinds = { "H", "E", "E", "E", "N", "N", "N", "N", "N", "N" } } } -- parking: Stellplatzreihe im Südteil (H Behinderte, E Ladeplatz, N normal)
 C.autohaus = { x0 = 332, z0 = -196, x1 = 442, z1 = -116, frontX = 394, showroom = { -170, -122 }, werkstatt = { -196, -170 },
 vorfeld = { road = "Diagonale", margin = 5, rows = { { -114, -98 }, { -80, -64 } }, zMax = -20, trees = { 352, 372, 396, 420, 438 }, lamps = { 372, 404 } } }
+C.werkstatt = { x0 = 88, z0 = -150, x1 = 186, z1 = -90, hall = { 104, 156 }, depth = 22, gate = { -110, -98 } }
 C.driveways = {}
 for _, g in ipairs(C.tankstelle.gaps) do C.driveways[#C.driveways + 1] = { x0 = 43, x1 = 57, z0 = g[1] - 3, z1 = g[2] + 3 } end
 C.einfahrten = {
@@ -312,6 +313,45 @@ local b = C.allee.bay
 C.bays[#C.bays + 1] = { ax + ux * b.from + ex * b.off, az + uz * b.from + ez * b.off, ax + ux * b.to + ex * b.off, az + uz * b.to + ez * b.off }
 C.allee.ux, C.allee.uz, C.allee.len, C.allee.ax, C.allee.az = ux, uz, l, ax, az
 end
+local function ringPath(cx, cz, r, n)
+local pts = circle(cx, cz, r, n)
+pts[#pts + 1] = pts[1]
+return pts
+end
+C.anlagen = {
+{ name = "AlleeSchlossgarten", seed = 3, poly = { { 68, 62 }, { 392, 62 }, { 392, 97 }, { 68, 97 } },
+paths = { { pts = { { 68, 80 }, { 214, 80 } }, w = 10, benchStep = 52, lampStep = 64 }, { pts = { { 246, 80 }, { 392, 80 } }, w = 10, benchStep = 52, lampStep = 64 },
+{ pts = ringPath(230, 80, 16, 16), w = 5 } },
+ponds = { { 230, 80, 8 } },
+rows = { { z = 71, x0 = 80, x1 = 208, step = 14 }, { z = 71, x0 = 256, x1 = 384, step = 14 }, { z = 89, x0 = 80, x1 = 208, step = 14 }, { z = 89, x0 = 256, x1 = 384, step = 14 } },
+bushes = 10 },
+{ name = "Klinikpark", seed = 5, poly = { { 506, -306 }, { 675, -306 }, { 586, -233 }, { 452, -112 }, { 446, -232 }, { 506, -232 } },
+paths = { { pts = { { 470, -150 }, { 506, -176 }, { 546, -214 }, { 586, -250 }, { 628, -286 }, { 646, -298 } }, w = 8, benchStep = 44, lampStep = 48 },
+{ pts = ringPath(545, -262, 26, 20), w = 6, benchStep = 40 },
+{ pts = { { 546, -214 }, { 545, -236 } }, w = 5 }, { pts = { { 571, -262 }, { 593, -256 } }, w = 5 },
+{ pts = { { 470, -150 }, { 466, -190 }, { 484, -222 }, { 512, -228 }, { 522, -244 }, { 519, -262 } }, w = 5, benchStep = 40 } },
+ponds = { { 545, -262, 16 } }, beds = { { 478, -190, 4, 2 } },
+trees = { step = 12, density = 0.8, scale = 1.05, edge = 8 }, bushes = 24 },
+{ name = "KlinikparkSued", seed = 6, poly = { { 540, -108 }, { 622, -108 }, { 622, -180 } },
+paths = { { pts = { { 556, -114 }, { 600, -118 }, { 616, -150 } }, w = 5, benchStep = 36, lampStep = 56 } },
+trees = { step = 12, density = 0.85, scale = 1.0, edge = 6 }, bushes = 6 },
+{ name = "UferWestNord", seed = 7, poly = { { 672, -436 }, { 757, -436 }, { 745, -366 }, { 705, -330 }, { 672, -330 } },
+paths = { { pts = { { 686, -428 }, { 700, -380 }, { 692, -342 } }, w = 5, benchStep = 36 } },
+trees = { step = 13, density = 0.8, scale = 1.0, edge = 8 }, bushes = 14 },
+{ name = "UferWestPromenade", seed = 9, willow = true, poly = { { 820, -440 }, { 846, -440 }, { 846, -328 }, { 820, -328 } },
+paths = { { pts = { { 833, -436 }, { 833, -332 } }, w = 5, benchStep = 40, lampStep = 56 } },
+trees = { step = 11, density = 0.85, scale = 0.95, edge = 5 }, bushes = 6, rocks = 4 },
+{ name = "UferWestMitte", seed = 13, willow = true, poly = { { 708, 4 }, { 772, 4 }, { 758, 62 }, { 740, 120 }, { 724, 170 }, { 708, 170 } },
+paths = { { pts = { { 722, 10 }, { 734, 60 }, { 720, 120 }, { 716, 164 } }, w = 5, benchStep = 36, lampStep = 60 } },
+trees = { step = 12, density = 0.8, scale = 1.0, edge = 7 }, bushes = 12, rocks = 6 },
+{ name = "UferOst", seed = 17, willow = true, poly = { { 1066, -14 }, { 1150, -14 }, { 1150, 160 }, { 1132, 160 }, { 1100, 128 }, { 1086, 92 }, { 1068, 36 } },
+paths = { { pts = { { 1112, -8 }, { 1118, 60 }, { 1130, 120 }, { 1140, 154 } }, w = 5, benchStep = 40, lampStep = 60 } },
+trees = { step = 12, density = 0.8, scale = 1.0, edge = 7 }, bushes = 12, rocks = 5 },
+{ name = "UferFriedensengel", seed = 19, poly = { { 970, 46 }, { 984, 46 }, { 1000, 100 }, { 1016, 142 }, { 1036, 172 }, { 1066, 198 }, { 900, 198 }, { 930, 142 }, { 946, 100 } },
+paths = { { pts = { { 976, 54 }, { 972, 100 }, { 958, 140 }, { 940, 188 } }, w = 5, benchStep = 36, lampStep = 56 } },
+beds = { { 988, 150, 3, 2 } },
+trees = { step = 12, density = 0.8, scale = 1.0, edge = 7 }, bushes = 10, rocks = 3 },
+}
 C.plazas = {}
 C.bridges = {
 { name = "B0", x = 640, z = -257, len = 56, wid = 48, yaw = 39.3 },
@@ -1840,7 +1880,12 @@ local KERB, K = { 190, 188, 182 }, 1.4
 W3(h, "Plateau", "trim", (l[1] + l[3]) / 2, 0.4, (l[2] + l[4]) / 2, l[3] - l[1], 1.2, l[4] - l[2], { 78, 80, 86 }, "Asphalt", { collide = true })
 local function kerb(x0, z0, x1, z1) W3(h, "Kante", "trim", (x0 + x1) / 2, 1.25, (z0 + z1) / 2, x1 - x0, 0.5, z1 - z0, KERB, "Concrete", { collide = true }) end
 kerb(l[1], l[2], l[3], l[2] + K)
+if spec.southOpen then -- Südkante offen (Durchfahrt zum Werkstatt-Hof)
+kerb(l[1], l[4] - K, spec.southOpen[1], l[4])
+if spec.southOpen[2] < l[3] then kerb(spec.southOpen[2], l[4] - K, l[3], l[4]) end
+else
 kerb(l[1], l[4] - K, l[3], l[4])
+end
 kerb(l[3] - K, l[2] + K, l[3], l[4] - K)
 local z = l[2] + K
 for _, g in ipairs(spec.curbGaps) do -- Straßenseite: Kante zwischen den Einfahrten
@@ -1962,7 +2007,7 @@ local T = Config.tankstelle
 return {
 { name = "Isarbank", x0 = -127, z0 = -385, x1 = -55, z1 = -315, facing = "E", floors = 4, color = { 176, 120, 100 } },
 { name = "Parkhaus", x0 = -205, z0 = -250, x1 = -109, z1 = -140, facing = "N", floors = 4, color = { 170, 170, 176 } },
-{ name = "Tankstellen-Shop", x0 = 78, z0 = -332, x1 = 146, z1 = -298, facing = "W", floors = 1, color = { 250, 250, 250 }, style = "tankstelle", canopy = { 78, -298, 146, -202 }, lot = T.lot, curbGaps = T.gaps, parking = T.parking },
+{ name = "Tankstellen-Shop", x0 = 78, z0 = -332, x1 = 146, z1 = -298, facing = "W", floors = 1, color = { 250, 250, 250 }, style = "tankstelle", canopy = { 78, -298, 146, -202 }, lot = T.lot, curbGaps = T.gaps, southOpen = T.southOpen, parking = T.parking },
 { name = "Tankstellen-Buero-Nord", x0 = 190, z0 = -400, x1 = 234, z1 = -318, facing = "W", floors = 5, color = { 38, 48, 62 }, style = "buero" },
 { name = "Tankstellen-Buero-Mitte", x0 = 190, z0 = -302, x1 = 234, z1 = -210, facing = "W", floors = 6, color = { 38, 48, 62 }, style = "buero" },
 { name = "Tankstellen-Buero-Sued", x0 = 190, z0 = -194, x1 = 234, z1 = -108, facing = "W", floors = 5, color = { 38, 48, 62 }, style = "buero" },
@@ -1976,6 +2021,321 @@ return {
 { name = "Klinikum-Parkhaus", x0 = 500, z0 = -430, x1 = 660, z1 = -310, facing = "N", floors = 3, color = { 176, 176, 172 }, style = "parkhaus" }, -- grenzt an das Klinikum (x = 500)
 { name = "Volksbank", x0 = 330, z0 = -280, x1 = 404, z1 = -210, facing = "W", floors = 3, color = { 236, 238, 240 }, style = "bank" }, -- Lücke an der V3, südlich des Klinikums (erster grober Entwurf)
 }
+
+end)()
+local Werkstatt = (function()
+local Werkstatt = {}
+local WHITE, GREY, DARK, YELLOW = { 240, 240, 236 }, { 132, 136, 142 }, { 58, 62, 70 }, { 255, 200, 0 }
+local GLASS, ASPH = { 120, 156, 178 }, { 78, 80, 86 } -- ASPH wie das Plateau der Tankstelle
+function Werkstatt.plan(cfg)
+local W = cfg.werkstatt
+local parts, stats = {}, { gates = 0, texts = 0, stalls = 0, lamps = 0 }
+local function r3(v) return math.floor(v * 1000 + 0.5) / 1000 end
+local function add(name, kind, x, y, z, sx, sy, sz, color, mat, e)
+e = e or {}
+parts[#parts + 1] = {
+name = name, kind = kind, size = { r3(sx), r3(sy), r3(sz) }, pos = { r3(x), r3(y), r3(z) }, yaw = e.yaw or 0, pitch = 0, roll = e.roll,
+color = color, material = mat, collide = e.collide == true, shape = e.shape, text = e.text, tag = e.tag, lit = e.lit, attrs = e.attrs, transparency = e.transparency,
+}
+end
+local function text(name, x, y, z, sx, sy, s, color, bg) -- Schrift nach Süden auf einer Fläche
+add(name, "sign", x, y, z, sx, sy, 0.1, bg or { 0, 0, 0 }, "SmoothPlastic", { yaw = 180, text = { s = s, color = color } })
+stats.texts = stats.texts + 1
+end
+local Y = 1.0 -- Oberkante Boden (wie das Tankstellen-Plateau, damit man ohne Stufe hinüberfährt)
+local H = 10 -- Traufhöhe der Halle
+local bx0, bx1 = W.hall[1], W.hall[2] -- Halle von West nach Ost
+local bz0, bz1 = W.z0 + 4, W.z0 + 4 + W.depth -- Halle von Nord nach Süd, Front bei bz1
+local zc = (bz0 + bz1) / 2
+add("Hof", "plaza", (W.x0 + W.x1) / 2, Y - 0.6, (W.z0 + W.z1) / 2, W.x1 - W.x0, 1.2, W.z1 - W.z0, ASPH, "Asphalt", { collide = true })
+add("Halle", "body", (bx0 + bx1) / 2, Y + H / 2, zc, bx1 - bx0, H, bz1 - bz0, WHITE, "SmoothPlastic", { collide = true })
+add("Dachrand", "trim", (bx0 + bx1) / 2, Y + H + 0.5, zc, bx1 - bx0 + 0.8, 1.0, bz1 - bz0 + 0.8, WHITE, "Concrete")
+add("Sockel", "trim", (bx0 + bx1) / 2, Y + 0.5, bz1 + 0.15, bx1 - bx0 + 0.2, 1.0, 0.5, { 150, 154, 158 }, "Concrete")
+local zf = bz1 + 0.15 -- Vorderkante der Halle
+add("Blende", "trim", (bx0 + bx1) / 2, Y + H - 1.3, zf + 0.25, bx1 - bx0 + 0.2, 2.6, 0.5, GREY, "Concrete")
+local gateW, pilW = 12, 6
+for g = 1, 3 do
+local gx = bx0 + 4 + gateW / 2 + (g - 1) * (gateW + pilW)
+add("TorRahmen", "trim", gx, Y + 4.3, zf + 0.2, gateW + 0.6, 8.6, 0.4, GREY, "Metal")
+add("TorGlas", "glass", gx, Y + 5.6, zf + 0.45, gateW - 0.8, 5.6, 0.2, GLASS, "Glass", { tag = "HouseWindow", lit = false })
+add("TorSockel", "trim", gx, Y + 1.5, zf + 0.5, gateW - 0.8, 3, 0.3, { 176, 180, 184 }, "Metal")
+for k = 1, 3 do add("TorSprosse", "trim", gx - (gateW - 0.8) / 2 + k * (gateW - 0.8) / 4, Y + 5.6, zf + 0.62, 0.3, 5.6, 0.2, DARK, "Metal") end
+for k = 1, 2 do add("TorSprosse", "trim", gx, Y + 3.7 + k * 1.9, zf + 0.62, gateW - 0.8, 0.3, 0.2, DARK, "Metal") end
+add("TorSchildPlatte", "sign", gx + gateW / 2 + 2.2, Y + 5, zf + 0.2, 2.6, 2.4, 0.2, { 120, 124, 128 }, "SmoothPlastic")
+text("TorSchildText", gx + gateW / 2 + 2.2, Y + 5, zf + 0.35, 2.2, 1.2, "Tor " .. g, { 255, 255, 255 }, { 120, 124, 128 })
+stats.gates = stats.gates + 1
+end
+for _, g in ipairs({ 1, 3 }) do
+local gx = bx0 + 4 + gateW / 2 + (g - 1) * (gateW + pilW)
+add("WerkstattSchild", "sign", gx, Y + H - 1.3, zf + 0.6, gateW + 0.2, 3.2, 0.4, YELLOW, "SmoothPlastic")
+text("WerkstattSchrift", gx, Y + H - 0.6, zf + 0.85, 9, 1.4, "ADAN", { 255, 255, 255 }, YELLOW)
+text("WerkstattSchrift", gx, Y + H - 2.1, zf + 0.85, 9, 1, "Werkstatt", { 255, 255, 255 }, YELLOW)
+end
+local gx2 = bx0 + 4 + gateW / 2 + (gateW + pilW)
+text("BlendeText", gx2, Y + H - 1.3, zf + 0.6, 10, 1.6, "Huber", { 255, 255, 255 }, GREY)
+local sx0, sx1 = bx0 + 2, bx0 + 2 + 36
+for _, px in ipairs({ sx0 + 3, sx1 - 3 }) do add("DachschildPfosten", "trim", px, Y + H + 2, zc + 3, 0.5, 4, 0.5, DARK, "Metal") end
+add("DachschildTafel", "sign", (sx0 + sx1) / 2, Y + H + 4.4, zc + 3, sx1 - sx0, 3.2, 0.4, GREY, "Concrete")
+add("DachschildGelb", "sign", sx0 + 4.4, Y + H + 4.4, zc + 3.25, 8.4, 3.2, 0.2, YELLOW, "SmoothPlastic")
+text("DachschildGelbText", sx0 + 4.4, Y + H + 4.4, zc + 3.4, 7.6, 1.8, "ADAN", { 0, 0, 0 }, YELLOW)
+text("DachschildText", (sx0 + sx1) / 2 + 4.4, Y + H + 4.4, zc + 3.4, 24, 1.8, "Service-Center", { 255, 255, 255 }, GREY)
+local lx0, lx1, lz0, lz1 = W.x0 + 2, bx0, bz1 - 14, bz1 + 4
+add("AnnahmeBoden", "floor", (lx0 + lx1) / 2, Y + 0.3, (lz0 + lz1) / 2, lx1 - lx0, 0.6, lz1 - lz0, { 200, 200, 196 }, "Concrete", { collide = true })
+add("AnnahmeGlas", "glass", (lx0 + lx1) / 2, Y + 3.6, lz1, lx1 - lx0, 6, 0.3, GLASS, "Glass", { tag = "HouseWindow", lit = true })
+add("AnnahmeGlas", "glass", lx0, Y + 3.6, (lz0 + lz1) / 2, 0.3, 6, lz1 - lz0, GLASS, "Glass", { tag = "HouseWindow", lit = true })
+for k = 0, 3 do add("AnnahmePfosten", "trim", lx0 + k * (lx1 - lx0) / 3, Y + 3.6, lz1, 0.5, 6.4, 0.5, DARK, "Metal") end
+add("AnnahmeDach", "roof", (lx0 + lx1) / 2, Y + 7.1, (lz0 + lz1) / 2, lx1 - lx0 + 1, 0.6, lz1 - lz0 + 1, GREY, "Concrete")
+add("AnnahmeTuer", "trim", lx0 + (lx1 - lx0) / 2, Y + 3.2, lz1 + 0.2, 3.6, 5.6, 0.2, DARK, "Metal")
+add("AnnahmePflanze", "bush", lx0 + 3, Y + 1.6, lz1 - 4, 2.6, 2.6, 2.6, { 56, 110, 60 }, "Grass", { shape = "Ball" })
+add("AnnahmeSchild", "sign", lx0 + (lx1 - lx0) / 2, Y + 8.1, lz1 + 0.3, 10, 1.6, 0.3, YELLOW, "SmoothPlastic")
+text("AnnahmeSchrift", lx0 + (lx1 - lx0) / 2, Y + 8.1, lz1 + 0.55, 9.2, 1.1, "Kundenannahme", { 0, 0, 0 }, YELLOW)
+local zs0, zs1 = W.z1 - 16, W.z1 - 0.5
+for x = W.x0 + 8, W.x1 - 8, 8 do add("StellplatzLinie", "dash", x, Y + 0.1, (zs0 + zs1) / 2, 0.3, 0.2, zs1 - zs0, { 240, 240, 236 }, "SmoothPlastic") end
+stats.stalls = math.floor((W.x1 - W.x0 - 16) / 8)
+add("StellplatzLinie", "dash", (W.x0 + W.x1) / 2, Y + 0.1, zs0, W.x1 - W.x0 - 16, 0.2, 0.3, { 240, 240, 236 }, "SmoothPlastic")
+local fx = W.x1 - 0.5
+for z = W.z0 + 2, W.z1 - 8, 6 do
+if z < W.gate[1] or z > W.gate[2] then
+add("ZaunPfosten", "fence", fx, Y + 2, z, 0.4, 4, 0.4, GREY, "Metal", { collide = true })
+add("ZaunFeld", "fence", fx, Y + 2, z + 3, 0.2, 3.4, 5.6, { 170, 174, 180 }, "Metal", { collide = true, transparency = 0.2 })
+end
+end
+local px, pz = W.x1 - 6, W.z1 - 1
+add("PylonMast", "trim", px, Y + 5, pz, 1.0, 10, 1.0, DARK, "Metal", { collide = true })
+add("PylonSchild", "sign", px, Y + 13, pz, 7, 5.6, 0.6, YELLOW, "SmoothPlastic")
+text("PylonSchrift", px, Y + 14, pz + 0.35, 6, 2.2, "ADAN", { 0, 0, 0 }, YELLOW)
+text("PylonSchrift", px, Y + 11.4, pz + 0.35, 6, 1.4, "Werkstatt", { 0, 0, 0 }, YELLOW)
+for _, lx in ipairs({ W.x0 + 22, W.x1 - 24 }) do
+local lz = bz1 + 9
+add("LampenMast", "lamp", lx, Y + 5, lz, 0.5, 10, 0.5, { 40, 56, 48 }, "Metal", { collide = true })
+add("LampenKopf", "lamp", lx, Y + 10.3, lz, 2.6, 0.6, 1.2, { 255, 226, 150 }, "Neon", { tag = "StreetLamp", attrs = { Lit = true } })
+stats.lamps = stats.lamps + 1
+end
+return { parts = parts, stats = stats }
+end
+return Werkstatt
+
+end)()
+local Anlagen = (function()
+local Geo = Geo
+local Anlagen = {}
+local GREENS = { { 70, 120, 60 }, { 88, 140, 70 }, { 56, 100, 56 }, { 104, 150, 76 }, { 64, 112, 80 } }
+local WILLOW = { { 128, 156, 84 }, { 112, 148, 88 }, { 142, 164, 96 } }
+local BARK, KIES, STONE, HEDGE = { 96, 70, 48 }, { 206, 196, 172 }, { 150, 146, 134 }, { 46, 92, 52 }
+local function newRng(seed)
+local s = seed % 2147483647
+if s <= 0 then s = s + 2147483646 end
+return function()
+s = (s * 48271) % 2147483647
+return s / 2147483647
+end
+end
+local function inside(poly, x, z) -- Punkt im Polygon (Strahlverfahren)
+local c, n = false, #poly
+local j = n
+for i = 1, n do
+local a, b = poly[i], poly[j]
+if (a[2] > z) ~= (b[2] > z) and x < (b[1] - a[1]) * (z - a[2]) / (b[2] - a[2]) + a[1] then c = not c end
+j = i
+end
+return c
+end
+local function distPoly(poly, x, z) -- kleinster Abstand zum Rand
+local best = 1e9
+for i = 1, #poly do
+local a, b = poly[i], poly[i % #poly + 1]
+local dx, dz = b[1] - a[1], b[2] - a[2]
+local l2 = dx * dx + dz * dz
+local t = l2 > 0 and math.max(0, math.min(1, ((x - a[1]) * dx + (z - a[2]) * dz) / l2)) or 0
+best = math.min(best, math.sqrt((x - a[1] - t * dx) ^ 2 + (z - a[2] - t * dz) ^ 2))
+end
+return best
+end
+function Anlagen.terrain(cfg)
+local ops = {}
+local G = cfg.groundTop
+for _, s in ipairs(cfg.anlagen) do
+if s.lawn ~= false then
+local minX, maxX = 1e9, -1e9
+for _, p in ipairs(s.poly) do minX, maxX = math.min(minX, p[1]), math.max(maxX, p[1]) end
+for x = minX + 2, maxX, 4 do
+local zs = {}
+for i = 1, #s.poly do
+local a, b = s.poly[i], s.poly[i % #s.poly + 1]
+if (a[1] > x) ~= (b[1] > x) then zs[#zs + 1] = a[2] + (x - a[1]) / (b[1] - a[1]) * (b[2] - a[2]) end
+end
+table.sort(zs)
+for k = 1, #zs - 1, 2 do
+local z0, z1 = zs[k], zs[k + 1]
+if z1 - z0 > 1 then
+ops[#ops + 1] = { op = "block", material = "Grass", pos = { Geo.round3(x), G - 2, Geo.round3((z0 + z1) / 2) }, size = { 4, 4, Geo.round3(z1 - z0) }, yaw = 0, tag = "anlage" }
+end
+end
+end
+end
+end
+return ops
+end
+function Anlagen.plan(cfg)
+local parts, stats = {}, { areas = 0, trees = 0, benches = 0, lamps = 0, rocks = 0, bushes = 0, beds = 0, pathSegs = 0 }
+local function add(name, kind, x, y, z, sx, sy, sz, color, mat, e)
+e = e or {}
+parts[#parts + 1] = {
+name = name, kind = kind, size = { Geo.round3(sx), Geo.round3(sy), Geo.round3(sz) }, pos = { Geo.round3(x), Geo.round3(y), Geo.round3(z) }, yaw = Geo.round3(e.yaw or 0),
+pitch = 0, roll = e.roll, color = color, material = mat, collide = e.collide == true, shape = e.shape, tag = e.tag, lit = e.lit, attrs = e.attrs, transparency = e.transparency,
+}
+end
+local function disc(name, x, y, z, dia, h, color, mat, e)
+e = e or {}
+e.shape, e.roll = "Cylinder", 90
+add(name, "decor", x, y, z, h, dia, dia, color, mat, e)
+end
+local function tree(rng, x, z, scale, palette)
+local h = (6 + 5 * rng()) * scale
+local cw = (9 + 6 * rng()) * scale
+local g = palette[math.floor(rng() * #palette) + 1]
+add("AnlageStamm", "tree", x, h / 2, z, 1.4, h, 1.4, BARK, "Wood", { collide = true })
+add("AnlageKrone", "tree", x, h + cw * 0.35, z, cw, cw, cw, g, "Grass", { shape = "Ball" })
+if rng() < 0.55 then
+add("AnlageKrone", "tree", x + (rng() - 0.5) * 4, h + cw * 0.15, z + (rng() - 0.5) * 4, cw * 0.75, cw * 0.75, cw * 0.75, palette[math.floor(rng() * #palette) + 1], "Grass", { shape = "Ball" })
+end
+stats.trees = stats.trees + 1
+end
+local function bench(x, z, nx, nz) -- Lehne zeigt in Richtung (nx, nz), Blick zum Weg
+local yaw = math.deg(math.atan2(nx, nz))
+local r = math.rad(yaw)
+local sx, sz = math.sin(r), math.cos(r)
+add("BankSitz", "bench", x, 1.3, z, 4.4, 0.4, 1.5, { 130, 90, 60 }, "Wood", { yaw = yaw, collide = true })
+add("BankLehne", "bench", x + sx * 0.7, 2.3, z + sz * 0.7, 4.4, 1.2, 0.3, { 130, 90, 60 }, "Wood", { yaw = yaw })
+for _, sd in ipairs({ -1.8, 1.8 }) do add("BankBein", "bench", x + math.cos(r) * sd, 0.65, z - math.sin(r) * sd, 0.4, 1.3, 1.2, { 60, 62, 66 }, "Metal", { yaw = yaw }) end
+stats.benches = stats.benches + 1
+end
+local function lamp(x, z)
+add("AnlagenMast", "lamp", x, 5, z, 0.5, 10, 0.5, { 40, 56, 48 }, "Metal", { collide = true })
+add("AnlagenKopf", "lamp", x, 10.4, z, 2.4, 0.8, 2.4, { 255, 226, 150 }, "Neon", { tag = "StreetLamp", attrs = { Lit = true } })
+stats.lamps = stats.lamps + 1
+end
+for _, s in ipairs(cfg.anlagen) do
+stats.areas = stats.areas + 1
+local rng = newRng(s.seed or 11)
+local poly = s.poly
+local minX, maxX, minZ, maxZ = 1e9, -1e9, 1e9, -1e9
+for _, p in ipairs(poly) do minX, maxX, minZ, maxZ = math.min(minX, p[1]), math.max(maxX, p[1]), math.min(minZ, p[2]), math.max(maxZ, p[2]) end
+local function clear(x, z, extra) -- frei von Wegen, Teichen, Beeten
+for _, p in ipairs(s.paths or {}) do
+if Geo.polyDist(x, z, p.pts) < p.w / 2 + extra then return false end
+end
+for _, q in ipairs(s.ponds or {}) do
+if (x - q[1]) ^ 2 + (z - q[2]) ^ 2 < (q[3] + 2 + extra) ^ 2 then return false end
+end
+for _, b in ipairs(s.beds or {}) do
+if x > b[1] - 2 - extra and x < b[1] + b[3] * 5 + extra and z > b[2] - 2 - extra and z < b[2] + b[4] * 5 + extra then return false end
+end
+return true
+end
+for _, p in ipairs(s.paths or {}) do
+for i = 1, #p.pts - 1 do
+local a, b = p.pts[i], p.pts[i + 1]
+local ux, uz, len = Geo.dir(a[1], a[2], b[1], b[2])
+add("AnlagenWeg", "path", (a[1] + b[1]) / 2, 0.15, (a[2] + b[2]) / 2, len, 0.4, p.w, KIES, "Pavement", { yaw = Geo.yawOf(ux, uz) })
+stats.pathSegs = stats.pathSegs + 1
+if i < #p.pts - 1 then disc("AnlagenWegGelenk", b[1], 0.15, b[2], p.w, 0.4, KIES, "Pavement") end
+end
+end
+for _, q in ipairs(s.ponds or {}) do
+disc("Teich", q[1], 0.1, q[2], q[3] * 2, 0.5, { 52, 112, 132 }, "SmoothPlastic", { transparency = 0.2 })
+local n = math.max(12, math.floor(q[3] * 1.4))
+for k = 0, n - 1 do
+local th = 2 * math.pi * k / n
+add("TeichRand", "decor", q[1] + (q[3] + 0.6) * math.cos(th), 0.55, q[2] + (q[3] + 0.6) * math.sin(th), 2 * math.pi * (q[3] + 0.6) / n + 0.3, 1.1, 1.8, STONE, "Cobblestone", { yaw = math.deg(-th) + 90, collide = true })
+end
+end
+for _, b in ipairs(s.beds or {}) do
+local cols = { { 214, 80, 96 }, { 236, 200, 70 }, { 150, 100, 190 }, { 240, 240, 236 } }
+for i = 0, b[3] - 1 do
+for j = 0, b[4] - 1 do
+add("Beet", "decor", b[1] + i * 5 + 2.5, 0.25, b[2] + j * 5 + 2.5, 4.2, 0.5, 4.2, cols[(i + 2 * j) % #cols + 1], "Grass")
+end
+end
+for _, e in ipairs({ { b[1] + b[3] * 2.5, b[2] - 0.5, b[3] * 5 + 1, 1 }, { b[1] + b[3] * 2.5, b[2] + b[4] * 5 + 0.5, b[3] * 5 + 1, 1 }, { b[1] - 0.5, b[2] + b[4] * 2.5, 1, b[4] * 5 }, { b[1] + b[3] * 5 + 0.5, b[2] + b[4] * 2.5, 1, b[4] * 5 } }) do
+add("BeetHecke", "decor", e[1], 0.7, e[2], e[3], 1.4, e[4], HEDGE, "Grass", { collide = true })
+end
+stats.beds = stats.beds + 1
+end
+for _, r in ipairs(s.rows or {}) do
+for x = r.x0, r.x1, r.step do tree(rng, x, r.z, 0.95, GREENS) end
+end
+if s.trees then
+local st = s.trees.step
+for x = minX + st / 2, maxX, st do
+for z = minZ + st / 2, maxZ, st do
+local tx, tz = x + (rng() - 0.5) * st * 0.7, z + (rng() - 0.5) * st * 0.7
+if rng() < (s.trees.density or 0.7) and inside(poly, tx, tz) and distPoly(poly, tx, tz) > (s.trees.edge or 7) and clear(tx, tz, 6) then
+tree(rng, tx, tz, s.trees.scale or 1, s.willow and WILLOW or GREENS)
+end
+end
+end
+end
+for _ = 1, s.bushes or 0 do
+for _ = 1, 8 do -- bis zu 8 Versuche pro Busch
+local x, z = minX + rng() * (maxX - minX), minZ + rng() * (maxZ - minZ)
+if inside(poly, x, z) and distPoly(poly, x, z) > 3 and clear(x, z, 2) then
+local d = 4 + rng() * 2.5
+add("AnlagenBusch", "bush", x, d / 2 - 0.4, z, d, d, d, GREENS[math.floor(rng() * #GREENS) + 1], "Grass", { shape = "Ball" })
+stats.bushes = stats.bushes + 1
+break
+end
+end
+end
+for _ = 1, s.rocks or 0 do
+for _ = 1, 8 do
+local x, z = minX + rng() * (maxX - minX), minZ + rng() * (maxZ - minZ)
+if inside(poly, x, z) and distPoly(poly, x, z) > 3 and clear(x, z, 2) then
+local sx, sy, sz = 3 + rng() * 4, 1.5 + rng() * 1.5, 3 + rng() * 3
+add("Findling", "rock", x, sy / 2 - 0.3, z, sx, sy, sz, { 120 + rng() * 40, 118 + rng() * 36, 110 + rng() * 30 }, "Rock", { yaw = rng() * 360, collide = true })
+stats.rocks = stats.rocks + 1
+break
+end
+end
+end
+for _, p in ipairs(s.paths or {}) do
+local total, acc = 0, {}
+for i = 1, #p.pts - 1 do
+local _, _, len = Geo.dir(p.pts[i][1], p.pts[i][2], p.pts[i + 1][1], p.pts[i + 1][2])
+acc[i] = total
+total = total + len
+end
+local function at(d)
+for i = #p.pts - 1, 1, -1 do
+if d >= acc[i] then
+local a, b = p.pts[i], p.pts[i + 1]
+local ux, uz = Geo.dir(a[1], a[2], b[1], b[2])
+return a[1] + ux * (d - acc[i]), a[2] + uz * (d - acc[i]), -uz, ux
+end
+end
+end
+local side = 1
+if p.benchStep then
+for d = p.benchStep / 2, total - 6, p.benchStep do
+local x, z, nx, nz = at(d)
+local bx, bz = x + nx * side * (p.w / 2 + 2.4), z + nz * side * (p.w / 2 + 2.4)
+if inside(poly, bx, bz) and distPoly(poly, bx, bz) > 3 and clear(bx, bz, 0) then bench(bx, bz, nx * side, nz * side) end
+side = -side
+end
+end
+if p.lampStep then
+for d = p.lampStep / 2, total - 6, p.lampStep do
+local x, z, nx, nz = at(d)
+local lx, lz = x + nx * side * (p.w / 2 + 1.6), z + nz * side * (p.w / 2 + 1.6)
+if inside(poly, lx, lz) and distPoly(poly, lx, lz) > 2 then lamp(lx, lz) end
+side = -side
+end
+end
+end
+end
+return { parts = parts, stats = stats }
+end
+return Anlagen
 
 end)()
 local RoadsPlanner = (function()
@@ -5502,6 +5862,8 @@ local Hochhaus = Hochhaus
 local Bushaltestellen = Bushaltestellen
 local Stachus = Stachus
 local Autohaus = Autohaus
+local Werkstatt = Werkstatt
+local Anlagen = Anlagen
 local Garden = Garden
 local TerrainPlanner = TerrainPlanner
 local WallPlanner = WallPlanner
@@ -5706,6 +6068,20 @@ local plan = Autohaus.plan(Config)
 Builder.buildParts(plan.parts, Builder.container("Autohaus"), origin)
 return string.format("%d Teile (%d Boxenlinien, %d Leuchten, %d Bäume), keine Fahrzeuge", #plan.parts, plan.stats.bays, plan.stats.lamps, plan.stats.trees)
 end,
+anlagen = function(opts, origin) -- Allee, Klinikpark, Ufer-Parks: Rasen (Terrain), Wege, Bäume usw.; ersetzt nur den Ordner Anlagen
+local ops = Anlagen.terrain(Config)
+Builder.applyTerrain(ops, origin)
+local plan = Anlagen.plan(Config)
+Builder.buildParts(plan.parts, Builder.container("Anlagen"), origin)
+Builder.paveUnder(plan.parts, origin, function() return true end) -- keine Gras-Büschel durch die Kieswege
+local st = plan.stats
+return string.format("%d Anlagen, %d Teile, %d Rasen-Blöcke, %d Bäume, %d Bänke, %d Leuchten, %d Büsche, %d Findlinge", st.areas, #plan.parts, #ops, st.trees, st.benches, st.lamps, st.bushes, st.rocks)
+end,
+werkstatt = function(opts, origin)
+local plan = Werkstatt.plan(Config)
+Builder.buildParts(plan.parts, Builder.container("Werkstatt"), origin)
+return string.format("%d Teile (%d Tore, %d Schriften, %d Leuchten)", #plan.parts, plan.stats.gates, plan.stats.texts, plan.stats.lamps)
+end,
 stachus = function(opts, origin)
 local plan = Stachus.plan(Config)
 Builder.buildParts(plan.parts, Builder.container("Stachus"), origin)
@@ -5769,7 +6145,7 @@ local st = Planner.stats(plan)
 return string.format("%d Gebäude, %d Teile", st.houses, st.parts + #plan.parts)
 end,
 }
-BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "stachus", "autohaus", "gardens", "pave", "houses", "skyline", "bus", "wall" }
+BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "stachus", "autohaus", "werkstatt", "anlagen", "gardens", "pave", "houses", "skyline", "bus", "wall" }
 local function afterTerrain(base)
 local ground = Builder.measureGround(base)
 print(string.format("[boden] Terrain-Oberkante gemessen: %.1f, alle weiteren Teile werden daran ausgerichtet", ground))
