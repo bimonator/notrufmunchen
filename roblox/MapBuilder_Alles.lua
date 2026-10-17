@@ -267,7 +267,7 @@ C.busstops = {
 { x = -330, z = 53.5, zurStrasse = "N" }, { x = -560, z = 6.5, zurStrasse = "S" }, { x = 281, z = -120, zurStrasse = "E" },
 { x = 319, z = -380, zurStrasse = "W" }, { x = 49, z = -380, zurStrasse = "W" }, { x = -49, z = -200, zurStrasse = "E" },
 { x = 49, z = 200, zurStrasse = "W" }, { x = -49, z = 250, zurStrasse = "E" }, { x = 600, z = 317, zurStrasse = "N" },
-{ x = 700, z = 279, zurStrasse = "S" }, { x = -642, z = -100, zurStrasse = "W" }, { x = 40, z = -453, zurStrasse = "N" },
+{ x = 700, z = 279, zurStrasse = "S" }, { x = -642, z = -100, zurStrasse = "W" }, { x = 66, z = -453, zurStrasse = "N" },
 }
 C.bay = { length = 16, width = 9 }
 C.tankstelle = { lot = { 57, -336, 180, -150 }, gaps = { { -262, -218 }, { -196, -152 } }, southOpen = { 88, 180 }, parking = { x0 = 80, zBack = -152, depth = 16, w = 8, kinds = { "H", "E", "E", "E", "N", "N", "N", "N", "N", "N" } } } -- parking: Stellplatzreihe im Südteil (H Behinderte, E Ladeplatz, N normal)
@@ -281,9 +281,9 @@ stops = {
 { name = "Biederstein", x = -460, z = -346 }, { name = "Hohenzollernplatz", x = -460, z = -45 }, { name = "Josephsplatz", x = -235, z = -45 },
 { name = "Karolinenplatz", x = -140, z = -285 }, { name = "Nordring", x = 436, z = -472 }, { name = "Klinikum", x = 514, z = -130 }, { name = "Isartor", x = 300, z = -193 },
 },
-carLen = 16, gap = 2.6, width = 7.4, bed = 7, gauge = 3.6,
+carLen = 16, gap = 2.6, width = 6.8, gauge = 3.6, median = 6,
 speed = 34, accel = 7, dwell = 12, dwellEnd = 20,
-platform = { len = 40, off = 5.2, w = 6.4 },
+platform = { len = 40, off = 4.0, w = 3.8 },
 }
 C.driveways = {}
 for _, g in ipairs(C.tankstelle.gaps) do C.driveways[#C.driveways + 1] = { x0 = 43, x1 = 57, z0 = g[1] - 3, z1 = g[2] + 3 } end
@@ -2403,11 +2403,12 @@ local Tram = (function()
 local Geo = Geo
 local Tram = {}
 local BLUE, WHITE, GREY, DARK, YELLOW = { 0, 98, 175 }, { 240, 244, 248 }, { 176, 178, 180 }, { 38, 42, 50 }, { 250, 210, 40 }
-local GLASS = { 170, 210, 235 }
-local BED_Y, RAIL_Y, FLOOR = 0.83, 1.01, 2.5
+local GLASS, STEEL = { 170, 210, 235 }, { 150, 154, 160 }
+local FLOOR = 2.5
 function Tram.path(cfg)
 local v = cfg.tram.route
-local pts = { { x = v[1][1], z = v[1][2] } }
+local pts, legs = { { x = v[1][1], z = v[1][2] } }, {}
+local legStart = 1
 local prevT = 0 -- Tangentenlänge der vorigen Rundung
 for i = 2, #v - 1 do
 local P, A, B = v[i], v[i - 1], v[i + 1]
@@ -2418,6 +2419,8 @@ local R = P[3] or 0
 if R <= 0 or phi > math.pi - 1e-4 then
 assert(prevT <= al + 1e-6, "Tram: Rundungen überlappen bei Eckpunkt " .. i)
 pts[#pts + 1] = { x = P[1], z = P[2] }
+legs[#legs + 1] = { legStart, #pts }
+legStart = #pts
 prevT = 0
 else
 local t = R / math.tan(phi / 2)
@@ -2434,6 +2437,8 @@ for k = 0, n do
 local a = a0 + sweep * k / n
 pts[#pts + 1] = { x = cx + R * math.cos(a), z = cz + R * math.sin(a) }
 end
+legs[#legs + 1] = { legStart, #pts - n }
+legStart = #pts
 local e = pts[#pts]
 assert(math.abs(e.x - (P[1] + bx * t)) < 0.05 and math.abs(e.z - (P[2] + bz * t)) < 0.05, "Tram: Rundung dreht falsch herum bei Eckpunkt " .. i)
 prevT = t
@@ -2443,13 +2448,14 @@ local last = v[#v]
 local _, _, ll = Geo.dir(v[#v - 1][1], v[#v - 1][2], last[1], last[2])
 assert(prevT <= ll + 1e-6, "Tram: letzte Rundung passt nicht auf den Endschenkel")
 pts[#pts + 1] = { x = last[1], z = last[2] }
+legs[#legs + 1] = { legStart, #pts }
 local s = 0
 pts[1].s = 0
 for i = 2, #pts do
 s = s + math.sqrt((pts[i].x - pts[i - 1].x) ^ 2 + (pts[i].z - pts[i - 1].z) ^ 2)
 pts[i].s = s
 end
-return { pts = pts, len = s }
+return { pts = pts, legs = legs, len = s }
 end
 function Tram.at(path, s)
 local pts = path.pts
@@ -2494,13 +2500,92 @@ parts[#parts + 1] = p
 return p
 end
 end
-local function track(path, T, parts)
+local function roadHalf(sg)
+local h = 0
+for _, st in ipairs(sg.prof.strips) do
+if st[3] ~= "walk" then h = math.max(h, math.abs(st[1]), math.abs(st[2])) end
+end
+return h
+end
+local function medians(path, T, segs)
+local slabs, M = {}, T.median
+local function existing(x, z)
+for _, sg in ipairs(segs) do
+local rc = sg.rect
+local dx, dz = x - rc.ax, z - rc.az
+local a, b = dx * rc.ux + dz * rc.uz, dx * rc.nx + dz * rc.nz
+if a > rc.s0 and a < rc.s1 then
+for _, st in ipairs(sg.prof.strips) do
+if st[3] == "median" and b >= st[1] and b <= st[2] then return true end
+end
+end
+end
+return false
+end
+for _, leg in ipairs(path.legs) do
+local a, b = path.pts[leg[1]], path.pts[leg[2]]
+local ux, uz, L = Geo.dir(a.x, a.z, b.x, b.z)
+local mx, mz = (a.x + b.x) / 2, (a.z + b.z) / 2
+local home
+for _, sg in ipairs(segs) do
+if not home and math.abs(sg.ux * ux + sg.uz * uz) > 0.99 then
+local rc = sg.rect
+local dx, dz = mx - rc.ax, mz - rc.az
+local along, lat = dx * rc.ux + dz * rc.uz, dx * rc.nx + dz * rc.nz
+if along > rc.s0 and along < rc.s1 and math.abs(lat) < 1.5 then home = sg end
+end
+end
+if home and L > 12 and not existing(mx, mz) then
+local cuts = {}
+for _, sg in ipairs(segs) do
+if sg.road.name ~= home.road.name then
+local rc = sg.rect
+local lo, hi = Geo.within(a.x, a.z, ux, uz, L, { ax = rc.ax, az = rc.az, ux = rc.ux, uz = rc.uz, nx = rc.nx, nz = rc.nz, s0 = rc.s0, s1 = rc.s1, w = roadHalf(sg) }, -(M + 2)) -- Abstand M + 2: auch die Kanten des Streifens bleiben aus der Kreuzung
+if lo then cuts[#cuts + 1] = { lo, hi } end
+end
+end
+for _, sp in ipairs(Geo.subtract({ { 0, L } }, cuts)) do
+if sp[2] - sp[1] > 12 then
+local c = (sp[1] + sp[2]) / 2
+slabs[#slabs + 1] = { x = a.x + ux * c, z = a.z + uz * c, ux = ux, uz = uz, len = sp[2] - sp[1], road = home.road.name }
+end
+end
+end
+end
+local function onMedian(x, z)
+for _, s in ipairs(slabs) do
+local dx, dz = x - s.x, z - s.z
+if math.abs(dx * s.ux + dz * s.uz) <= s.len / 2 and math.abs(-dx * s.uz + dz * s.ux) <= M then return true end
+end
+return existing(x, z)
+end
+return slabs, onMedian
+end
+local function track(path, T, parts, onMedian)
 for i = 1, #path.pts - 1 do
 local a, b = path.pts[i], path.pts[i + 1]
 local ux, uz, l = Geo.dir(a.x, a.z, b.x, b.z)
-local add = frame((a.x + b.x) / 2, (a.z + b.z) / 2, ux, uz, parts)
-add("Gleisbett", "rail", 0, BED_Y, 0, l + 0.3, 0.14, T.bed, { 96, 98, 100 }, "Concrete")
-for _, o in ipairs({ -1, 1 }) do add("Schiene", "rail", 0, RAIL_Y, o * T.gauge / 2, l + 0.3, 0.22, 0.4, { 150, 154, 160 }, "Metal") end
+local function emit(t0, t1, med)
+local add = frame(a.x + ux * (t0 + t1) / 2, a.z + uz * (t0 + t1) / 2, ux, uz, parts)
+for _, o in ipairs({ -1, 1 }) do
+local lz = o * T.gauge / 2
+if med then add("Schotter", "rail", 0, 0.8, lz, t1 - t0 + 0.3, 0.06, 1.4, { 112, 110, 106 }, "Concrete") end
+add("Schiene", "rail", 0, med and 0.85 or 0.57, lz, t1 - t0 + 0.3, med and 0.1 or 0.14, 0.35, STEEL, "Metal")
+end
+end
+local n = math.max(1, math.ceil(l / 2))
+local runStart, runMed
+for k = 1, n do
+local t0, t1 = l * (k - 1) / n, l * k / n
+local med = onMedian(a.x + ux * (t0 + t1) / 2, a.z + uz * (t0 + t1) / 2)
+if runMed == nil then runMed = med end
+if med ~= runMed then
+emit(runStart, t0, runMed)
+runStart, runMed = t0, med
+end
+if k == 1 then runStart = 0 end
+end
+emit(runStart, l, runMed)
 end
 for _, e in ipairs({ { path.pts[1], path.pts[2] }, { path.pts[#path.pts], path.pts[#path.pts - 1] } }) do
 local ux, uz = Geo.dir(e[2].x, e[2].z, e[1].x, e[1].z) -- vom Streckenende weg
@@ -2515,7 +2600,7 @@ local add = frame(st.x, st.z, st.side * st.ux, st.side * st.uz, parts, { Haltest
 local zc = P.off + P.w / 2
 add("Bahnsteig", "trim", 0, 0.75, zc, P.len, 0.5, P.w, GREY, "Concrete", { collide = true })
 add("Bahnsteigkante", "trim", 0, 1.03, P.off + 0.4, P.len, 0.06, 0.7, YELLOW, "SmoothPlastic")
-local zr, zb = P.off + 1.8, P.off + P.w - 0.6 -- Vorderkante und Rückwand
+local zr, zb = P.off + 0.5, P.off + P.w - 0.4 -- Vorderkante und Rückwand
 local zm = (zr + zb) / 2
 add("Dach", "trim", 0, 9.2, zm, 12, 0.4, zb - zr + 0.8, BLUE, "Metal")
 for _, lx in ipairs({ -5.6, 5.6 }) do
@@ -2523,8 +2608,8 @@ for _, lz in ipairs({ zr + 0.4, zb - 0.4 }) do add("Pfosten", "trim", lx, 5.1, l
 end
 add("Rueckwand", "glass", 0, 4.4, zb, 11.6, 6.4, 0.2, GLASS, "Glass")
 add("Seitenwand", "glass", -5.8, 4.4, zm, 0.2, 6.4, zb - zr, GLASS, "Glass")
-add("Bank", "trim", 0, 2.0, zb - 1.0, 7, 0.4, 1.4, { 140, 100, 64 }, "Wood")
-for _, lx in ipairs({ -2.8, 2.8 }) do add("Bankstuetze", "trim", lx, 1.5, zb - 1.0, 0.4, 1.0, 1.2, DARK, "Metal") end
+add("Bank", "trim", 0, 2.0, zb - 0.8, 7, 0.4, 1.1, { 140, 100, 64 }, "Wood")
+for _, lx in ipairs({ -2.8, 2.8 }) do add("Bankstuetze", "trim", lx, 1.5, zb - 0.8, 0.4, 1.0, 1.0, DARK, "Metal") end
 add("Fahrplan", "sign", 3.8, 4.8, zb - 0.2, 1.8, 2.6, 0.2, YELLOW, "SmoothPlastic")
 add("Leuchte", "lamp", 0, 8.95, zm, 6, 0.2, 0.6, { 255, 248, 225 }, "Neon", { tag = "StreetLamp", attrs = { Lit = true, Haltestelle = st.name } })
 add("Namensband", "sign", 0, 8.4, zr - 0.1, 12.4, 1.5, 0.25, BLUE, "SmoothPlastic")
@@ -2547,14 +2632,14 @@ add("Dachaufbau", "trim", -outer * 2, 9.35, 0, 6.5, 0.7, 3.4, { 150, 156, 164 },
 add("Innenlicht", "lamp", 0, 8.4, 0, 8, 0.12, 0.7, { 255, 248, 225 }, "Neon", { tag = "StreetLamp", attrs = { Lit = true } })
 for _, bx in ipairs({ -4.6, 4.6 }) do add("Drehgestell", "trim", bx, 1.5, 0, 4, 0.8, 4.6, DARK, "Metal") end
 for _, lx in ipairs({ -2.9, 2.9 }) do
-for _, lz in ipairs({ -1.6, 1.6 }) do add("Haltestange", "trim", lx, FLOOR + 3, lz, 0.25, 5.9, 0.25, YELLOW, "Metal") end
+for _, lz in ipairs({ -1.1, 1.1 }) do add("Haltestange", "trim", lx, FLOOR + 3, lz, 0.25, 5.9, 0.25, YELLOW, "Metal") end
 end
 for _, e in ipairs({ -1, 1 }) do
 add("Stirn", "trim", e * (L / 2 - 0.25), 5.7, 0, 0.5, 6.4, W - 0.4, BLUE, "SmoothPlastic")
 if e == outer then
 local ex = e * (L / 2)
 add("Frontscheibe", "glass", ex + e * 0.02, 6.6, 0, 0.2, 2.6, W - 1.6, { 30, 44, 60 }, "Glass")
-for _, lz in ipairs({ -2.5, 2.5 }) do add("Scheinwerfer", "lamp", ex + e * 0.05, 3.4, lz, 0.2, 0.8, 0.9, { 255, 244, 200 }, "Neon") end
+for _, lz in ipairs({ -2.3, 2.3 }) do add("Scheinwerfer", "lamp", ex + e * 0.05, 3.4, lz, 0.2, 0.8, 0.9, { 255, 244, 200 }, "Neon") end
 add("Stossfaenger", "trim", ex + e * 0.1, 2.8, 0, 0.5, 0.5, W - 0.6, GREY, "Metal")
 add("Zielanzeige", "sign", ex + e * 0.06, 8.1, 0, 0.12, 0.9, 4.2, { 20, 22, 26 }, "SmoothPlastic")
 add("Ziel", "sign", ex + e * 0.14, 8.1, 0, 4, 0.7, 0.1, { 20, 22, 26 }, "SmoothPlastic", { yaw = e == 1 and 270 or 90, text = { s = "Linie 1", color = { 255, 176, 40 } } })
@@ -2582,12 +2667,18 @@ for _, dx in ipairs({ -1.2, 1.2 }) do add("Sitzmarke", "trim", bx + dx, FLOOR + 
 end
 end
 end
-function Tram.plan(cfg)
+function Tram.plan(cfg, segs)
 local T = cfg.tram
 local path = Tram.path(cfg)
 local stops = Tram.stops(cfg, path)
 local parts = {}
-track(path, T, parts)
+local slabs, onMedian = {}, function() return false end
+if segs then slabs, onMedian = medians(path, T, segs) end
+for _, s in ipairs(slabs) do
+local add = frame(s.x, s.z, s.ux, s.uz, parts)
+add("Rasengleis", "median", 0, 0.6, 0, s.len + 0.2, 0.4, 2 * T.median, { 118, 150, 98 }, "Grass", { collide = true })
+end
+track(path, T, parts, onMedian)
 for i, st in ipairs(stops) do stop(parts, st, i, T) end
 local d = T.carLen + T.gap -- Abstand der Wagenmitten
 local s0 = stops[1].s
@@ -2605,7 +2696,7 @@ cp[1].attrs = { Route = table.concat(rt), Stops = table.concat(sp), Abstand = d,
 end
 houses[#houses + 1] = { name = outer == 1 and "TramVorn" or "TramHinten", floors = 1, side = "Q", parts = cp }
 end
-return { parts = parts, houses = houses, path = path, stops = stops, stats = { stops = #stops, seats = seats, len = path.len, pathPts = #path.pts } }
+return { parts = parts, houses = houses, path = path, stops = stops, slabs = slabs, onMedian = onMedian, stats = { stops = #stops, seats = seats, len = path.len, pathPts = #path.pts, slabs = #slabs } }
 end
 return Tram
 
@@ -3372,17 +3463,23 @@ pier(-32, -23, "PfeilerAussen")
 pier(-13, -8, "PfeilerMitte")
 pier(8, 13, "PfeilerMitte")
 pier(23, 32, "PfeilerAussen")
-local function arch(cx, r, spring, n, name)
+local function arch(cx, r, spring, n, m, name)
 local w = 2 * r / n
 for i = 1, n do
 local xc = -r + (i - 0.5) * w
-local bottom = spring + math.sqrt(math.max(0, r * r - xc * xc))
+local ix = math.max(0, math.abs(xc) - w / 2)
+local bottom = spring + math.sqrt(math.max(0, r * r - ix * ix))
 add(name, cx + xc, y0 + (bottom + TOP) / 2, 0, w + 0.05, TOP - bottom, D, STONE, "Concrete")
 end
+local t, da = 1.4, math.pi / m
+for k = 1, m do
+local a = (k - 0.5) * da
+add("BogenLaibung", cx + (r + t / 2) * math.cos(a), y0 + spring + (r + t / 2) * math.sin(a), 0, 2 * r * math.tan(da / 2) + 0.12, t, D, STONE, "Concrete", { roll = math.deg(a) + 90 })
 end
-arch(0, 8, 20, 8, "BogenMitte")
-arch(-18, 5, 14, 6, "BogenSeite")
-arch(18, 5, 14, 6, "BogenSeite")
+end
+arch(0, 8, 20, 16, 30, "BogenMitte")
+arch(-18, 5, 14, 10, 22, "BogenSeite")
+arch(18, 5, 14, 10, 22, "BogenSeite")
 local function deco(name, x, y, z, sx, sy, sz, color, mat, extra)
 extra = extra or {}
 extra.collide = false
@@ -3421,12 +3518,13 @@ end
 for _, x in ipairs({ -10.5, 10.5 }) do deco("Kaempfer", x, y0 + 20, sz * (D / 2 + 0.1), 6.2, 0.9, 0.9, STONE, "Concrete") end
 end
 local function archivolt(cx, r, spring, name)
-local R2, m = r + 1.7, 14
+local R2, m = r + 1.7, 72
 local w = 2 * R2 / m
 for _, sz in ipairs({ -1, 1 }) do
 for i = 1, m do
 local xc = -R2 + (i - 0.5) * w
-local inner = (math.abs(xc) < r) and (spring + math.sqrt(r * r - xc * xc)) or spring
+local ix = math.max(0, math.abs(xc) - w / 2) -- Innenkante nie in die Öffnung hinein
+local inner = (ix < r) and (spring + math.sqrt(r * r - ix * ix)) or spring
 local outer = spring + math.sqrt(math.max(0, R2 * R2 - xc * xc))
 if outer - inner > 0.3 then deco(name, cx + xc, y0 + (inner + outer) / 2, sz * (D / 2 + 0.25), w + 0.05, outer - inner, 0.5, LIGHT, "Concrete") end
 end
@@ -6266,6 +6364,21 @@ local plan = Landmarks.plan(Config)
 Builder.buildParts(plan.parts, Builder.container("Wahrzeichen"), origin)
 return string.format("%d Teile (Siegestor, Friedensengel, Frauenkirche, Chinesischer Turm)", #plan.parts)
 end,
+siegestor = function(opts, origin) -- nur die Bögen des Siegestors (Scheiben, runde Laibung, Bogenprofile) in der fertigen Karte erneuern, übrige Teile bleiben
+local folder = game:GetService("Workspace"):FindFirstChild("Map").Wahrzeichen
+local NAMES = { BogenMitte = true, BogenSeite = true, BogenLaibung = true, ArchivolteMitte = true, ArchivolteSeite = true }
+local L = Config.landmarks.siegestor
+local removed = 0
+for _, c in ipairs(folder:GetChildren()) do
+if c:IsA("BasePart") and NAMES[c.Name] and math.abs(c.Position.X - origin.X - L.x) < 45 and math.abs(c.Position.Z - origin.Z - L.z) < 12 then c:Destroy() removed = removed + 1 end
+end
+local list = {}
+for _, p in ipairs(Landmarks.siegestor(Config)) do
+if NAMES[p.name] then list[#list + 1] = p end
+end
+Builder.buildParts(list, folder, origin)
+return string.format("%d alte Teile entfernt, %d neu", removed, #list)
+end,
 marienplatz = function(opts, origin)
 local folder = Builder.container("Marienplatz")
 local rh, mp = Rathaus.plan(Config), Marienplatz.plan(Config)
@@ -6278,8 +6391,21 @@ local plan = Hochhaus.plan(Config)
 Builder.buildParts(plan.parts, Builder.container("Hochhaeuser"), origin)
 return string.format("%d Teile, %d Hochhäuser (höchstes %d Studs)", #plan.parts, plan.stats.towers, plan.stats.tallest)
 end,
-bus = function(opts, origin)
+bus = function(opts, origin) -- opts.busOnly = Liste von Haltestellen-Nummern: nur diese in der fertigen Karte neu bauen, übrige Haltestellen bleiben
 local plan = Bushaltestellen.plan(Config)
+if opts.busOnly then
+local folder = game:GetService("Workspace"):FindFirstChild("Map").Bushaltestellen
+local prefixes, removed, list = {}, 0, {}
+for _, i in ipairs(opts.busOnly) do prefixes[string.format("Bus%02d_", i)] = true end
+for _, c in ipairs(folder:GetChildren()) do
+if prefixes[c.Name:sub(1, 6)] then c:Destroy() removed = removed + 1 end
+end
+for _, p in ipairs(plan.parts) do
+if prefixes[p.name:sub(1, 6)] then list[#list + 1] = p end
+end
+Builder.buildParts(list, folder, origin)
+return string.format("%d alte Teile entfernt, %d neu (Haltestellen %s)", removed, #list, table.concat(opts.busOnly, ","))
+end
 Builder.buildParts(plan.parts, Builder.container("Bushaltestellen"), origin)
 return string.format("%d Haltestellen, %d Teile", plan.stats.stops, #plan.parts)
 end,
@@ -6354,7 +6480,7 @@ local st = plan.stats
 return string.format("%d Anlagen, %d Teile, %d Rasen-Blöcke, %d Bäume, %d Bänke, %d Leuchten, %d Büsche, %d Findlinge", st.areas, #plan.parts, #ops, st.trees, st.benches, st.lamps, st.bushes, st.rocks)
 end,
 tram = function(opts, origin) -- Gleise, Haltestellen und die blaue Bahn; mit opts.tramSource legt der Schritt auch das Fahr-Script TramSteuerung an
-local plan = Tram.plan(Config)
+local plan = Tram.plan(Config, RoadsPlanner.segments(Config))
 local folder = Builder.container("Tram")
 Builder.build(plan, folder, origin)
 Builder.buildParts(plan.parts, folder, origin)
@@ -6364,7 +6490,7 @@ Builder.installScript("TramSteuerung", opts.tramSource)
 script = ", Script TramSteuerung angelegt"
 end
 local st = plan.stats
-return string.format("%d Teile (Strecke %.0f Studs, %d Halte), Wagen %d Teile, %d Sitze%s", #plan.parts, st.len, st.stops, #plan.houses[1].parts + #plan.houses[2].parts, st.seats, script)
+return string.format("%d Teile (Strecke %.0f Studs, %d Halte, %d Rasenstreifen), Wagen %d Teile, %d Sitze%s", #plan.parts, st.len, st.stops, st.slabs, #plan.houses[1].parts + #plan.houses[2].parts, st.seats, script)
 end,
 werkstatt = function(opts, origin)
 local plan = Werkstatt.plan(Config)

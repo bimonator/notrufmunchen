@@ -98,7 +98,7 @@ C.busstops = {
 	{ x = -330, z = 53.5, zurStrasse = "N" }, { x = -560, z = 6.5, zurStrasse = "S" }, { x = 281, z = -120, zurStrasse = "E" },
 	{ x = 319, z = -380, zurStrasse = "W" }, { x = 49, z = -380, zurStrasse = "W" }, { x = -49, z = -200, zurStrasse = "E" },
 	{ x = 49, z = 200, zurStrasse = "W" }, { x = -49, z = 250, zurStrasse = "E" }, { x = 600, z = 317, zurStrasse = "N" },
-	{ x = 700, z = 279, zurStrasse = "S" }, { x = -642, z = -100, zurStrasse = "W" }, { x = 40, z = -453, zurStrasse = "N" },
+	{ x = 700, z = 279, zurStrasse = "S" }, { x = -642, z = -100, zurStrasse = "W" }, { x = 66, z = -453, zurStrasse = "N" },
 }
 
 -- Parkbuchten: Mittellinie des Parkstreifens, Buchtlänge 16, Breite 9. { x0, z0, x1, z1 }
@@ -115,7 +115,8 @@ C.werkstatt = { x0 = 88, z0 = -150, x1 = 186, z1 = -90, hall = { 104, 160 }, hal
 
 -- Tram (blau, Pendel): Linie vom Biederstein (Westen) über Josephsplatz, Karolinenplatz, die Mittelinsel der Achse und den Nordring, die Diagonale und die Isarspange
 -- zum Isartor an der V3. route = Eckpunkte { x, z, Rundungsradius } auf den Straßenmitten; stops liegen auf der Strecke, aufsteigend vom Biederstein zum Isartor.
--- Wagen: 2 x carLen mit Gelenk gap; bed = Breite des Gleisbetts, gauge = Schienenabstand; Fahrdaten in Studs/s, Studs/s^2 und Sekunden; platform = Bahnsteig { Länge, Abstand der Kante zur Gleismitte, Breite }.
+-- Wagen: 2 x carLen mit Gelenk gap; gauge = Schienenabstand; median = halbe Breite des Rasenstreifens in der Straßenmitte (Rasengleis, ausgespart an Kreuzungen; die Achse hat schon einen);
+-- Fahrdaten in Studs/s, Studs/s^2 und Sekunden; platform = Bahnsteig { Länge, Abstand der Kante zur Gleismitte, Breite }, ragt nur ca. 2 Studs über den Rasenstreifen in die Fahrbahn.
 C.tram = {
 	route = { { -460, -382, 0 }, { -460, 30, 40 }, { -235, 30, 40 }, { -235, -285, 40 }, { 0, -285, 40 }, { 0, -472, 40 }, { 790, -472, 30 }, { 770, -347, 70 },
 		{ 605, -212, 100 }, { 455, -77, 100 }, { 300, 29.15, 22 }, { 300, -229, 0 } },
@@ -123,9 +124,9 @@ C.tram = {
 		{ name = "Biederstein", x = -460, z = -346 }, { name = "Hohenzollernplatz", x = -460, z = -45 }, { name = "Josephsplatz", x = -235, z = -45 },
 		{ name = "Karolinenplatz", x = -140, z = -285 }, { name = "Nordring", x = 436, z = -472 }, { name = "Klinikum", x = 514, z = -130 }, { name = "Isartor", x = 300, z = -193 },
 	},
-	carLen = 16, gap = 2.6, width = 7.4, bed = 7, gauge = 3.6,
+	carLen = 16, gap = 2.6, width = 6.8, gauge = 3.6, median = 6,
 	speed = 34, accel = 7, dwell = 12, dwellEnd = 20,
-	platform = { len = 40, off = 5.2, w = 6.4 },
+	platform = { len = 40, off = 4.0, w = 3.8 },
 }
 C.driveways = {}
 for _, g in ipairs(C.tankstelle.gaps) do C.driveways[#C.driveways + 1] = { x0 = 43, x1 = 57, z0 = g[1] - 3, z1 = g[2] + 3 } end

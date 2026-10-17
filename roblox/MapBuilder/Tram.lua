@@ -1,9 +1,11 @@
 -- Tram.lua
--- Blaue Straßenbahn auf der markierten Linie: Strecke mit gerundeten Ecken (Gleisbett + Schienen), Haltestellen (Bahnsteig, Wartehäuschen,
--- Namensband, Schild "H") und die Bahn selbst (zwei Wagen mit Gelenk, 16 Sitzmarken). Reine Geometrie; Fahren, Einsteigen und Aussteigen macht das
--- Script TramSteuerung (liest Strecke und Halte aus den Attributen am Wagenboden "Body" des Vorderwagens).
+-- Blaue Straßenbahn auf der markierten Linie: Strecke mit gerundeten Ecken, Rasenstreifen in der Straßenmitte (Rasengleis) mit bündig liegenden Schienen,
+-- Haltestellen (schmaler Bahnsteig, Wartehäuschen, Namensband, Schild "H") und die Bahn selbst (zwei Wagen mit Gelenk, 16 Sitzmarken). Reine Geometrie;
+-- Fahren, Einsteigen und Aussteigen macht das Script TramSteuerung (liest Strecke und Halte aus den Attributen am Wagenboden "Body" des Vorderwagens).
 -- Config.tram = { route = { {x, z, R}, ... } (Eckpunkte, R = Rundungsradius, 0 = spitz), stops = { {name, x, z, side}, ... } (aufsteigend entlang der Strecke,
--- side = Bahnsteigseite relativ zur Fahrtrichtung vom ersten zum letzten Halt, 1 = rechts), carLen, gap, width, bed, gauge, speed, accel, dwell, dwellEnd, platform = { len, off, w } }
+-- side = Bahnsteigseite relativ zur Fahrtrichtung vom ersten zum letzten Halt, 1 = rechts), carLen, gap, width, gauge, median (halbe Breite des Rasenstreifens),
+-- speed, accel, dwell, dwellEnd, platform = { len, off (Kante zur Gleismitte), w } }
+-- Tram.plan(cfg, segs): segs = RoadsPlanner.segments(cfg); ohne segs gibt es keinen Rasenstreifen.
 -- Wagen-Koordinaten: lx = Fahrtrichtung, lz = rechts, Oberkante Wagenboden 2,5.
 
 local Geo = require(script and script.Parent.Geo or "Geo")
@@ -11,13 +13,15 @@ local Geo = require(script and script.Parent.Geo or "Geo")
 local Tram = {}
 
 local BLUE, WHITE, GREY, DARK, YELLOW = { 0, 98, 175 }, { 240, 244, 248 }, { 176, 178, 180 }, { 38, 42, 50 }, { 250, 210, 40 }
-local GLASS = { 170, 210, 235 }
-local BED_Y, RAIL_Y, FLOOR = 0.83, 1.01, 2.5
+local GLASS, STEEL = { 170, 210, 235 }, { 150, 154, 160 }
+local FLOOR = 2.5
 
--- Strecke als dichter Linienzug { x, z, s } (s = Weg ab Anfang); an den Ecken Kreisbögen mit Sehnen von höchstens 3,5 Studs
+-- Strecke als dichter Linienzug { x, z, s } (s = Weg ab Anfang); an den Ecken Kreisbögen mit Sehnen von höchstens 3,5 Studs.
+-- legs = gerade Strecken zwischen den Rundungen als Indexpaare { von, bis } in pts.
 function Tram.path(cfg)
 	local v = cfg.tram.route
-	local pts = { { x = v[1][1], z = v[1][2] } }
+	local pts, legs = { { x = v[1][1], z = v[1][2] } }, {}
+	local legStart = 1
 	local prevT = 0 -- Tangentenlänge der vorigen Rundung
 	for i = 2, #v - 1 do
 		local P, A, B = v[i], v[i - 1], v[i + 1]
@@ -28,6 +32,8 @@ function Tram.path(cfg)
 		if R <= 0 or phi > math.pi - 1e-4 then
 			assert(prevT <= al + 1e-6, "Tram: Rundungen überlappen bei Eckpunkt " .. i)
 			pts[#pts + 1] = { x = P[1], z = P[2] }
+			legs[#legs + 1] = { legStart, #pts }
+			legStart = #pts
 			prevT = 0
 		else
 			local t = R / math.tan(phi / 2)
@@ -44,6 +50,8 @@ function Tram.path(cfg)
 				local a = a0 + sweep * k / n
 				pts[#pts + 1] = { x = cx + R * math.cos(a), z = cz + R * math.sin(a) }
 			end
+			legs[#legs + 1] = { legStart, #pts - n }
+			legStart = #pts
 			local e = pts[#pts]
 			assert(math.abs(e.x - (P[1] + bx * t)) < 0.05 and math.abs(e.z - (P[2] + bz * t)) < 0.05, "Tram: Rundung dreht falsch herum bei Eckpunkt " .. i)
 			prevT = t
@@ -53,13 +61,14 @@ function Tram.path(cfg)
 	local _, _, ll = Geo.dir(v[#v - 1][1], v[#v - 1][2], last[1], last[2])
 	assert(prevT <= ll + 1e-6, "Tram: letzte Rundung passt nicht auf den Endschenkel")
 	pts[#pts + 1] = { x = last[1], z = last[2] }
+	legs[#legs + 1] = { legStart, #pts }
 	local s = 0
 	pts[1].s = 0
 	for i = 2, #pts do
 		s = s + math.sqrt((pts[i].x - pts[i - 1].x) ^ 2 + (pts[i].z - pts[i - 1].z) ^ 2)
 		pts[i].s = s
 	end
-	return { pts = pts, len = s }
+	return { pts = pts, legs = legs, len = s }
 end
 
 -- Punkt und Fahrtrichtung bei Weg s (außerhalb [0, len] bleibt der Punkt am Streckenende)
@@ -111,14 +120,100 @@ local function frame(cx, cz, fx, fz, parts, attrs)
 	end
 end
 
--- Gleisbett (dunkler Streifen) und zwei Schienen je Streckenstück, am Ende ein Prellbock
-local function track(path, T, parts)
+-- Fahrbahn-Halbbreite eines Straßenabschnitts (alles außer Gehweg)
+local function roadHalf(sg)
+	local h = 0
+	for _, st in ipairs(sg.prof.strips) do
+		if st[3] ~= "walk" then h = math.max(h, math.abs(st[1]), math.abs(st[2])) end
+	end
+	return h
+end
+
+-- Rasenstreifen für die Bahn: auf geraden Strecken, die auf der Mitte einer Straße ohne eigenen Mittelstreifen liegen, kommt ein Streifen (2 * median breit) über die Fahrbahn,
+-- ausgespart an Kreuzungen mit anderen Straßen. Liefert die Streifen { x, z, ux, uz, len } und onMedian(x, z): liegt der Punkt auf einem solchen oder einem vorhandenen
+-- Mittelstreifen (Achse)?
+local function medians(path, T, segs)
+	local slabs, M = {}, T.median
+	local function existing(x, z)
+		for _, sg in ipairs(segs) do
+			local rc = sg.rect
+			local dx, dz = x - rc.ax, z - rc.az
+			local a, b = dx * rc.ux + dz * rc.uz, dx * rc.nx + dz * rc.nz
+			if a > rc.s0 and a < rc.s1 then
+				for _, st in ipairs(sg.prof.strips) do
+					if st[3] == "median" and b >= st[1] and b <= st[2] then return true end
+				end
+			end
+		end
+		return false
+	end
+	for _, leg in ipairs(path.legs) do
+		local a, b = path.pts[leg[1]], path.pts[leg[2]]
+		local ux, uz, L = Geo.dir(a.x, a.z, b.x, b.z)
+		local mx, mz = (a.x + b.x) / 2, (a.z + b.z) / 2
+		local home
+		for _, sg in ipairs(segs) do
+			if not home and math.abs(sg.ux * ux + sg.uz * uz) > 0.99 then
+				local rc = sg.rect
+				local dx, dz = mx - rc.ax, mz - rc.az
+				local along, lat = dx * rc.ux + dz * rc.uz, dx * rc.nx + dz * rc.nz
+				if along > rc.s0 and along < rc.s1 and math.abs(lat) < 1.5 then home = sg end
+			end
+		end
+		if home and L > 12 and not existing(mx, mz) then
+			local cuts = {}
+			for _, sg in ipairs(segs) do
+				if sg.road.name ~= home.road.name then
+					local rc = sg.rect
+					local lo, hi = Geo.within(a.x, a.z, ux, uz, L, { ax = rc.ax, az = rc.az, ux = rc.ux, uz = rc.uz, nx = rc.nx, nz = rc.nz, s0 = rc.s0, s1 = rc.s1, w = roadHalf(sg) }, -(M + 2)) -- Abstand M + 2: auch die Kanten des Streifens bleiben aus der Kreuzung
+					if lo then cuts[#cuts + 1] = { lo, hi } end
+				end
+			end
+			for _, sp in ipairs(Geo.subtract({ { 0, L } }, cuts)) do
+				if sp[2] - sp[1] > 12 then
+					local c = (sp[1] + sp[2]) / 2
+					slabs[#slabs + 1] = { x = a.x + ux * c, z = a.z + uz * c, ux = ux, uz = uz, len = sp[2] - sp[1], road = home.road.name }
+				end
+			end
+		end
+	end
+	local function onMedian(x, z)
+		for _, s in ipairs(slabs) do
+			local dx, dz = x - s.x, z - s.z
+			if math.abs(dx * s.ux + dz * s.uz) <= s.len / 2 and math.abs(-dx * s.uz + dz * s.ux) <= M then return true end
+		end
+		return existing(x, z)
+	end
+	return slabs, onMedian
+end
+
+-- Schienen: auf dem Rasenstreifen mit Schotterband bündig zum Gras (Oberkante 0,9), auf Asphalt knapp über der Fahrbahn (Oberkante 0,64); kein Gleisbett, keine Erhöhung.
+-- Lange Strecken werden in 2-Studs-Stücken klassifiziert und gleichartige zusammengefasst. Am Ende jedes Gleises ein Prellbock.
+local function track(path, T, parts, onMedian)
 	for i = 1, #path.pts - 1 do
 		local a, b = path.pts[i], path.pts[i + 1]
 		local ux, uz, l = Geo.dir(a.x, a.z, b.x, b.z)
-		local add = frame((a.x + b.x) / 2, (a.z + b.z) / 2, ux, uz, parts)
-		add("Gleisbett", "rail", 0, BED_Y, 0, l + 0.3, 0.14, T.bed, { 96, 98, 100 }, "Concrete")
-		for _, o in ipairs({ -1, 1 }) do add("Schiene", "rail", 0, RAIL_Y, o * T.gauge / 2, l + 0.3, 0.22, 0.4, { 150, 154, 160 }, "Metal") end
+		local function emit(t0, t1, med)
+			local add = frame(a.x + ux * (t0 + t1) / 2, a.z + uz * (t0 + t1) / 2, ux, uz, parts)
+			for _, o in ipairs({ -1, 1 }) do
+				local lz = o * T.gauge / 2
+				if med then add("Schotter", "rail", 0, 0.8, lz, t1 - t0 + 0.3, 0.06, 1.4, { 112, 110, 106 }, "Concrete") end
+				add("Schiene", "rail", 0, med and 0.85 or 0.57, lz, t1 - t0 + 0.3, med and 0.1 or 0.14, 0.35, STEEL, "Metal")
+			end
+		end
+		local n = math.max(1, math.ceil(l / 2))
+		local runStart, runMed
+		for k = 1, n do
+			local t0, t1 = l * (k - 1) / n, l * k / n
+			local med = onMedian(a.x + ux * (t0 + t1) / 2, a.z + uz * (t0 + t1) / 2)
+			if runMed == nil then runMed = med end
+			if med ~= runMed then
+				emit(runStart, t0, runMed)
+				runStart, runMed = t0, med
+			end
+			if k == 1 then runStart = 0 end
+		end
+		emit(runStart, l, runMed)
 	end
 	for _, e in ipairs({ { path.pts[1], path.pts[2] }, { path.pts[#path.pts], path.pts[#path.pts - 1] } }) do
 		local ux, uz = Geo.dir(e[2].x, e[2].z, e[1].x, e[1].z) -- vom Streckenende weg
@@ -128,7 +223,7 @@ local function track(path, T, parts)
 	end
 end
 
--- Haltestelle i: Bahnsteig rechts (side = 1) bzw. links neben dem Gleis, Wartehäuschen mit Namensband, zwei Schilder "H"
+-- Haltestelle i: schmaler Bahnsteig (Kante knapp neben dem Wagen), Wartehäuschen mit Namensband, zwei Schilder "H"
 local function stop(parts, st, i, T)
 	local P = T.platform
 	local add = frame(st.x, st.z, st.side * st.ux, st.side * st.uz, parts, { Haltestelle = st.name })
@@ -136,7 +231,7 @@ local function stop(parts, st, i, T)
 	add("Bahnsteig", "trim", 0, 0.75, zc, P.len, 0.5, P.w, GREY, "Concrete", { collide = true })
 	add("Bahnsteigkante", "trim", 0, 1.03, P.off + 0.4, P.len, 0.06, 0.7, YELLOW, "SmoothPlastic")
 	-- Wartehäuschen: Dach, vier Pfosten, Rück- und Seitenwand aus Glas, Bank, Fahrplan, Leuchte
-	local zr, zb = P.off + 1.8, P.off + P.w - 0.6 -- Vorderkante und Rückwand
+	local zr, zb = P.off + 0.5, P.off + P.w - 0.4 -- Vorderkante und Rückwand
 	local zm = (zr + zb) / 2
 	add("Dach", "trim", 0, 9.2, zm, 12, 0.4, zb - zr + 0.8, BLUE, "Metal")
 	for _, lx in ipairs({ -5.6, 5.6 }) do
@@ -144,8 +239,8 @@ local function stop(parts, st, i, T)
 	end
 	add("Rueckwand", "glass", 0, 4.4, zb, 11.6, 6.4, 0.2, GLASS, "Glass")
 	add("Seitenwand", "glass", -5.8, 4.4, zm, 0.2, 6.4, zb - zr, GLASS, "Glass")
-	add("Bank", "trim", 0, 2.0, zb - 1.0, 7, 0.4, 1.4, { 140, 100, 64 }, "Wood")
-	for _, lx in ipairs({ -2.8, 2.8 }) do add("Bankstuetze", "trim", lx, 1.5, zb - 1.0, 0.4, 1.0, 1.2, DARK, "Metal") end
+	add("Bank", "trim", 0, 2.0, zb - 0.8, 7, 0.4, 1.1, { 140, 100, 64 }, "Wood")
+	for _, lx in ipairs({ -2.8, 2.8 }) do add("Bankstuetze", "trim", lx, 1.5, zb - 0.8, 0.4, 1.0, 1.0, DARK, "Metal") end
 	add("Fahrplan", "sign", 3.8, 4.8, zb - 0.2, 1.8, 2.6, 0.2, YELLOW, "SmoothPlastic")
 	add("Leuchte", "lamp", 0, 8.95, zm, 6, 0.2, 0.6, { 255, 248, 225 }, "Neon", { tag = "StreetLamp", attrs = { Lit = true, Haltestelle = st.name } })
 	-- Namensband an der Dachkante zum Gleis: blaue Tafel, davor die weiße Schrift (Vorderseite = Richtung Gleis)
@@ -172,14 +267,14 @@ local function car(T, cx, cz, ux, uz, outer, parts)
 	add("Innenlicht", "lamp", 0, 8.4, 0, 8, 0.12, 0.7, { 255, 248, 225 }, "Neon", { tag = "StreetLamp", attrs = { Lit = true } })
 	for _, bx in ipairs({ -4.6, 4.6 }) do add("Drehgestell", "trim", bx, 1.5, 0, 4, 0.8, 4.6, DARK, "Metal") end
 	for _, lx in ipairs({ -2.9, 2.9 }) do
-		for _, lz in ipairs({ -1.6, 1.6 }) do add("Haltestange", "trim", lx, FLOOR + 3, lz, 0.25, 5.9, 0.25, YELLOW, "Metal") end
+		for _, lz in ipairs({ -1.1, 1.1 }) do add("Haltestange", "trim", lx, FLOOR + 3, lz, 0.25, 5.9, 0.25, YELLOW, "Metal") end
 	end
 	for _, e in ipairs({ -1, 1 }) do
 		add("Stirn", "trim", e * (L / 2 - 0.25), 5.7, 0, 0.5, 6.4, W - 0.4, BLUE, "SmoothPlastic")
 		if e == outer then
 			local ex = e * (L / 2)
 			add("Frontscheibe", "glass", ex + e * 0.02, 6.6, 0, 0.2, 2.6, W - 1.6, { 30, 44, 60 }, "Glass")
-			for _, lz in ipairs({ -2.5, 2.5 }) do add("Scheinwerfer", "lamp", ex + e * 0.05, 3.4, lz, 0.2, 0.8, 0.9, { 255, 244, 200 }, "Neon") end
+			for _, lz in ipairs({ -2.3, 2.3 }) do add("Scheinwerfer", "lamp", ex + e * 0.05, 3.4, lz, 0.2, 0.8, 0.9, { 255, 244, 200 }, "Neon") end
 			add("Stossfaenger", "trim", ex + e * 0.1, 2.8, 0, 0.5, 0.5, W - 0.6, GREY, "Metal")
 			add("Zielanzeige", "sign", ex + e * 0.06, 8.1, 0, 0.12, 0.9, 4.2, { 20, 22, 26 }, "SmoothPlastic")
 			add("Ziel", "sign", ex + e * 0.14, 8.1, 0, 4, 0.7, 0.1, { 20, 22, 26 }, "SmoothPlastic", { yaw = e == 1 and 270 or 90, text = { s = "Linie 1", color = { 255, 176, 40 } } })
@@ -208,12 +303,18 @@ local function car(T, cx, cz, ux, uz, outer, parts)
 	end
 end
 
-function Tram.plan(cfg)
+function Tram.plan(cfg, segs)
 	local T = cfg.tram
 	local path = Tram.path(cfg)
 	local stops = Tram.stops(cfg, path)
 	local parts = {}
-	track(path, T, parts)
+	local slabs, onMedian = {}, function() return false end
+	if segs then slabs, onMedian = medians(path, T, segs) end
+	for _, s in ipairs(slabs) do
+		local add = frame(s.x, s.z, s.ux, s.uz, parts)
+		add("Rasengleis", "median", 0, 0.6, 0, s.len + 0.2, 0.4, 2 * T.median, { 118, 150, 98 }, "Grass", { collide = true })
+	end
+	track(path, T, parts, onMedian)
 	for i, st in ipairs(stops) do stop(parts, st, i, T) end
 	local d = T.carLen + T.gap -- Abstand der Wagenmitten
 	local s0 = stops[1].s
@@ -231,7 +332,7 @@ function Tram.plan(cfg)
 		end
 		houses[#houses + 1] = { name = outer == 1 and "TramVorn" or "TramHinten", floors = 1, side = "Q", parts = cp }
 	end
-	return { parts = parts, houses = houses, path = path, stops = stops, stats = { stops = #stops, seats = seats, len = path.len, pathPts = #path.pts } }
+	return { parts = parts, houses = houses, path = path, stops = stops, slabs = slabs, onMedian = onMedian, stats = { stops = #stops, seats = seats, len = path.len, pathPts = #path.pts, slabs = #slabs } }
 end
 
 return Tram

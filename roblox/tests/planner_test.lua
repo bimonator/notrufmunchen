@@ -727,6 +727,17 @@ do
 			local dot = dir[1] * rc.nx * (b > 0 and -1 or 1) + dir[2] * rc.nz * (b > 0 and -1 or 1)
 			check(dot > 0.9, "Haltestelle " .. i .. ": Fahrbahn liegt nicht auf der Seite " .. st.zurStrasse)
 		end
+		-- in keiner anderen Straße (z. B. Fahrbahn der Achse neben dem Ring) darf die Haltestelle auf Fahrbahn oder Mittelstreifen stehen
+		for _, sg in ipairs(segs) do
+			local rc = sg.rect
+			local dx, dz = st.x - rc.ax, st.z - rc.az
+			local a, b = dx * rc.ux + dz * rc.uz, dx * rc.nx + dz * rc.nz
+			if a > rc.s0 and a < rc.s1 and math.abs(b) < rc.w then
+				for _, s in ipairs(sg.prof.strips) do
+					if b >= s[1] and b <= s[2] then check(s[3] == "walk", string.format("Haltestelle %d (%d,%d) steht auf %s von %s", i, st.x, st.z, s[3], sg.road.name)) end
+				end
+			end
+		end
 		for j = 1, i - 1 do check(math.sqrt((st.x - Config.busstops[j].x) ^ 2 + (st.z - Config.busstops[j].z) ^ 2) > 60, "Haltestellen " .. i .. "/" .. j .. " zu dicht") end
 	end
 end
@@ -857,24 +868,65 @@ do
 		end
 		return found
 	end
-	local plan = Tram.plan(Config)
+	local plan = Tram.plan(Config, segs)
 	local path = plan.path
 	check(plan.stats.len > 3000 and plan.stats.len < 3400, "Tram: Streckenlänge " .. plan.stats.len)
-	-- Gleisbett (Mitte und beide Kanten) liegt überall auf Fahrbahn oder Mittelstreifen
+	-- Gleis (Mitte und beide Wagenkanten) liegt überall auf Fahrbahn oder Mittelstreifen
 	local bad = 0
 	for i = 1, #path.pts do
 		local a, b = path.pts[math.max(1, i - 1)], path.pts[math.min(#path.pts, i + 1)]
 		local ux, uz = Geo.dir(a.x, a.z, b.x, b.z)
 		local p = path.pts[i]
-		for _, o in ipairs({ -T.bed / 2, 0, T.bed / 2 }) do
+		for _, o in ipairs({ -T.width / 2, 0, T.width / 2 }) do
 			local k = kindAt(p.x - uz * o, p.z + ux * o)
 			if k ~= "road" and k ~= "median" then
 				bad = bad + 1
-				if bad <= 6 then print(string.format("Tram: Gleisbett bei s=%.0f (%.1f,%.1f) quer %.1f liegt auf %s", p.s, p.x, p.z, o, tostring(k))) end
+				if bad <= 6 then print(string.format("Tram: Gleis bei s=%.0f (%.1f,%.1f) quer %.1f liegt auf %s", p.s, p.x, p.z, o, tostring(k))) end
 			end
 		end
 	end
-	check(bad == 0, "Tram: " .. bad .. " Gleisbett-Punkte außerhalb der Fahrbahn")
+	check(bad == 0, "Tram: " .. bad .. " Gleis-Punkte außerhalb der Fahrbahn")
+	-- Rasenstreifen: nur auf Fahrbahn, nirgends in der Fahrbahn einer anderen Straße (Kreuzungen bleiben frei), keine Parkbucht darunter
+	local function roadHalfOf(sg)
+		local h = 0
+		for _, st in ipairs(sg.prof.strips) do if st[3] ~= "walk" then h = math.max(h, math.abs(st[1]), math.abs(st[2])) end end
+		return h
+	end
+	local function inOtherRoad(x, z, name)
+		for _, sg in ipairs(segs) do
+			if sg.road.name ~= name then
+				local rc = sg.rect
+				local dx, dz = x - rc.ax, z - rc.az
+				local a, b = dx * rc.ux + dz * rc.uz, dx * rc.nx + dz * rc.nz
+				if a > rc.s0 and a < rc.s1 and math.abs(b) < roadHalfOf(sg) then return sg.road.name end
+			end
+		end
+	end
+	local function inBay(x, z)
+		for _, b in ipairs(Config.bays) do
+			local ux, uz, len = Geo.dir(b[1], b[2], b[3], b[4])
+			local dx, dz = x - b[1], z - b[2]
+			local a, l = dx * ux + dz * uz, -dx * uz + dz * ux
+			if a > -1 and a < len + Config.bay.length and math.abs(l) < Config.bay.width / 2 then return true end
+		end
+		return false
+	end
+	check(plan.stats.slabs >= 8, "Tram: Rasenstreifen " .. plan.stats.slabs)
+	local medLen = 0
+	for _, s in ipairs(plan.slabs) do
+		medLen = medLen + s.len
+		for t = -s.len / 2, s.len / 2, 4 do
+			for _, o in ipairs({ -T.median, 0, T.median }) do
+				local x, z = s.x + s.ux * t + s.uz * o, s.z + s.uz * t - s.ux * o
+				local k = kindAt(x, z)
+				check(k == "road" or k == "median", string.format("Tram: Rasenstreifen bei (%.0f,%.0f) liegt auf %s", x, z, tostring(k)))
+				local other = inOtherRoad(x, z, s.road)
+				check(not other, string.format("Tram: Rasenstreifen bei (%.0f,%.0f) liegt in der Fahrbahn von %s", x, z, tostring(other)))
+				check(not inBay(x, z), string.format("Tram: Rasenstreifen bei (%.0f,%.0f) liegt auf einer Parkbucht", x, z))
+			end
+		end
+	end
+	check(medLen > 1500, string.format("Tram: Rasenstreifen nur %.0f Studs lang", medLen))
 	-- Halte: auf der Strecke, gerade Strecke 22 Studs davor und dahinter, Bahnsteig-Ecken auf der Fahrbahn
 	check(plan.stats.stops == 7 and #plan.stops == 7, "Tram: Halte " .. plan.stats.stops)
 	for i, st in ipairs(plan.stops) do
@@ -886,10 +938,12 @@ do
 		end
 		local P = T.platform
 		local fx, fz = st.side * st.ux, st.side * st.uz
-		for _, lx in ipairs({ -P.len / 2, P.len / 2 }) do
+		for _, lx in ipairs({ -P.len / 2, 0, P.len / 2 }) do
 			for _, lz in ipairs({ P.off, P.off + P.w }) do
-				local k = kindAt(st.x + lx * fx - lz * fz, st.z + lx * fz + lz * fx)
+				local x, z = st.x + lx * fx - lz * fz, st.z + lx * fz + lz * fx
+				local k = kindAt(x, z)
 				check(k == "road", string.format("Tram: Bahnsteig %s: Ecke (%d,%d) liegt auf %s", st.name, lx, lz, tostring(k)))
+				check(not inBay(x, z), string.format("Tram: Bahnsteig %s steht auf einer Parkbucht (%.0f,%.0f)", st.name, x, z))
 			end
 		end
 		if i > 1 then check(st.s - plan.stops[i - 1].s > P.len, "Tram: Halte " .. st.name .. " zu dicht") end

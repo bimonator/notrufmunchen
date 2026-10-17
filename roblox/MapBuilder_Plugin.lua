@@ -523,6 +523,21 @@ local plan = Landmarks.plan(Config)
 Builder.buildParts(plan.parts, Builder.container("Wahrzeichen"), origin)
 return string.format("%d Teile (Siegestor, Friedensengel, Frauenkirche, Chinesischer Turm)", #plan.parts)
 end,
+siegestor = function(opts, origin) -- nur die Bögen des Siegestors (Scheiben, runde Laibung, Bogenprofile) in der fertigen Karte erneuern, übrige Teile bleiben
+local folder = game:GetService("Workspace"):FindFirstChild("Map").Wahrzeichen
+local NAMES = { BogenMitte = true, BogenSeite = true, BogenLaibung = true, ArchivolteMitte = true, ArchivolteSeite = true }
+local L = Config.landmarks.siegestor
+local removed = 0
+for _, c in ipairs(folder:GetChildren()) do
+if c:IsA("BasePart") and NAMES[c.Name] and math.abs(c.Position.X - origin.X - L.x) < 45 and math.abs(c.Position.Z - origin.Z - L.z) < 12 then c:Destroy() removed = removed + 1 end
+end
+local list = {}
+for _, p in ipairs(Landmarks.siegestor(Config)) do
+if NAMES[p.name] then list[#list + 1] = p end
+end
+Builder.buildParts(list, folder, origin)
+return string.format("%d alte Teile entfernt, %d neu", removed, #list)
+end,
 marienplatz = function(opts, origin)
 local folder = Builder.container("Marienplatz")
 local rh, mp = Rathaus.plan(Config), Marienplatz.plan(Config)
@@ -535,8 +550,21 @@ local plan = Hochhaus.plan(Config)
 Builder.buildParts(plan.parts, Builder.container("Hochhaeuser"), origin)
 return string.format("%d Teile, %d Hochhäuser (höchstes %d Studs)", #plan.parts, plan.stats.towers, plan.stats.tallest)
 end,
-bus = function(opts, origin)
+bus = function(opts, origin) -- opts.busOnly = Liste von Haltestellen-Nummern: nur diese in der fertigen Karte neu bauen, übrige Haltestellen bleiben
 local plan = Bushaltestellen.plan(Config)
+if opts.busOnly then
+local folder = game:GetService("Workspace"):FindFirstChild("Map").Bushaltestellen
+local prefixes, removed, list = {}, 0, {}
+for _, i in ipairs(opts.busOnly) do prefixes[string.format("Bus%02d_", i)] = true end
+for _, c in ipairs(folder:GetChildren()) do
+if prefixes[c.Name:sub(1, 6)] then c:Destroy() removed = removed + 1 end
+end
+for _, p in ipairs(plan.parts) do
+if prefixes[p.name:sub(1, 6)] then list[#list + 1] = p end
+end
+Builder.buildParts(list, folder, origin)
+return string.format("%d alte Teile entfernt, %d neu (Haltestellen %s)", removed, #list, table.concat(opts.busOnly, ","))
+end
 Builder.buildParts(plan.parts, Builder.container("Bushaltestellen"), origin)
 return string.format("%d Haltestellen, %d Teile", plan.stats.stops, #plan.parts)
 end,
@@ -611,7 +639,7 @@ local st = plan.stats
 return string.format("%d Anlagen, %d Teile, %d Rasen-Blöcke, %d Bäume, %d Bänke, %d Leuchten, %d Büsche, %d Findlinge", st.areas, #plan.parts, #ops, st.trees, st.benches, st.lamps, st.bushes, st.rocks)
 end,
 tram = function(opts, origin) -- Gleise, Haltestellen und die blaue Bahn; mit opts.tramSource legt der Schritt auch das Fahr-Script TramSteuerung an
-local plan = Tram.plan(Config)
+local plan = Tram.plan(Config, RoadsPlanner.segments(Config))
 local folder = Builder.container("Tram")
 Builder.build(plan, folder, origin)
 Builder.buildParts(plan.parts, folder, origin)
@@ -621,7 +649,7 @@ Builder.installScript("TramSteuerung", opts.tramSource)
 script = ", Script TramSteuerung angelegt"
 end
 local st = plan.stats
-return string.format("%d Teile (Strecke %.0f Studs, %d Halte), Wagen %d Teile, %d Sitze%s", #plan.parts, st.len, st.stops, #plan.houses[1].parts + #plan.houses[2].parts, st.seats, script)
+return string.format("%d Teile (Strecke %.0f Studs, %d Halte, %d Rasenstreifen), Wagen %d Teile, %d Sitze%s", #plan.parts, st.len, st.stops, st.slabs, #plan.houses[1].parts + #plan.houses[2].parts, st.seats, script)
 end,
 werkstatt = function(opts, origin)
 local plan = Werkstatt.plan(Config)

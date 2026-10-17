@@ -771,17 +771,23 @@ pier(-32, -23, "PfeilerAussen")
 pier(-13, -8, "PfeilerMitte")
 pier(8, 13, "PfeilerMitte")
 pier(23, 32, "PfeilerAussen")
-local function arch(cx, r, spring, n, name)
+local function arch(cx, r, spring, n, m, name)
 local w = 2 * r / n
 for i = 1, n do
 local xc = -r + (i - 0.5) * w
-local bottom = spring + math.sqrt(math.max(0, r * r - xc * xc))
+local ix = math.max(0, math.abs(xc) - w / 2)
+local bottom = spring + math.sqrt(math.max(0, r * r - ix * ix))
 add(name, cx + xc, y0 + (bottom + TOP) / 2, 0, w + 0.05, TOP - bottom, D, STONE, "Concrete")
 end
+local t, da = 1.4, math.pi / m
+for k = 1, m do
+local a = (k - 0.5) * da
+add("BogenLaibung", cx + (r + t / 2) * math.cos(a), y0 + spring + (r + t / 2) * math.sin(a), 0, 2 * r * math.tan(da / 2) + 0.12, t, D, STONE, "Concrete", { roll = math.deg(a) + 90 })
 end
-arch(0, 8, 20, 8, "BogenMitte")
-arch(-18, 5, 14, 6, "BogenSeite")
-arch(18, 5, 14, 6, "BogenSeite")
+end
+arch(0, 8, 20, 16, 30, "BogenMitte")
+arch(-18, 5, 14, 10, 22, "BogenSeite")
+arch(18, 5, 14, 10, 22, "BogenSeite")
 local function deco(name, x, y, z, sx, sy, sz, color, mat, extra)
 extra = extra or {}
 extra.collide = false
@@ -820,12 +826,13 @@ end
 for _, x in ipairs({ -10.5, 10.5 }) do deco("Kaempfer", x, y0 + 20, sz * (D / 2 + 0.1), 6.2, 0.9, 0.9, STONE, "Concrete") end
 end
 local function archivolt(cx, r, spring, name)
-local R2, m = r + 1.7, 14
+local R2, m = r + 1.7, 72
 local w = 2 * R2 / m
 for _, sz in ipairs({ -1, 1 }) do
 for i = 1, m do
 local xc = -R2 + (i - 0.5) * w
-local inner = (math.abs(xc) < r) and (spring + math.sqrt(r * r - xc * xc)) or spring
+local ix = math.max(0, math.abs(xc) - w / 2) -- Innenkante nie in die Öffnung hinein
+local inner = (ix < r) and (spring + math.sqrt(r * r - ix * ix)) or spring
 local outer = spring + math.sqrt(math.max(0, R2 * R2 - xc * xc))
 if outer - inner > 0.3 then deco(name, cx + xc, y0 + (inner + outer) / 2, sz * (D / 2 + 0.25), w + 0.05, outer - inner, 0.5, LIGHT, "Concrete") end
 end
