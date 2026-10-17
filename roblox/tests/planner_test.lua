@@ -790,8 +790,8 @@ do
 	end
 	for _, sp in ipairs(Specials) do check(not (sp.x0 < W.x1 and sp.x1 > W.x0 and sp.z0 < W.z1 and sp.z1 > W.z0), sp.name .. " überlappt die Werkstatt") end
 	for _, h in ipairs(Config.hochhaeuser) do if h.w then check(not (h.x - h.w / 2 < W.x1 and h.x + h.w / 2 > W.x0 and h.z - h.d / 2 < W.z1 and h.z + h.d / 2 > W.z0), h.name .. " überlappt die Werkstatt") end end
-	check(texts["Service-Center"] == 1 and texts["Tor 1"] == 1 and texts["Tor 2"] == 1 and texts["Tor 3"] == 1 and (texts["ADAN"] or 0) >= 3 and (texts["Werkstatt"] or 0) >= 3, "Werkstatt: Schilder unvollständig")
-	check(plan.stats.gates == 3 and #plan.parts > 60 and #plan.parts < 250, "Werkstatt: Teile " .. #plan.parts)
+	check(texts["Service-Center"] == 2 and texts["Tor 1"] == 1 and texts["Tor 2"] == 1 and texts["Tor 3"] == 1 and texts["Tor 4"] == 1 and texts["Tor 5"] == 1 and texts["Tor 6"] == 1 and (texts["ADAN"] or 0) >= 8 and (texts["Werkstatt"] or 0) >= 6, "Werkstatt: Schilder unvollständig (beide Seiten)")
+	check(plan.stats.gates == 6 and #plan.parts > 150 and #plan.parts < 450, "Werkstatt: Teile " .. #plan.parts)
 	print(string.format("Werkstatt: %d Teile (%d Tore, %d Leuchten)", #plan.parts, plan.stats.gates, plan.stats.lamps))
 end
 

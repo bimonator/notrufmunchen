@@ -111,7 +111,7 @@ C.autohaus = { x0 = 332, z0 = -196, x1 = 442, z1 = -116, frontX = 394, showroom 
 	-- Vorfeld im Dreieck südlich (bis zum Gehweg der Diagonale): Stellplatzreihen als z-Bereiche, margin = Rasenstreifen zum Gehweg, trees/lamps = x-Lagen
 	vorfeld = { road = "Diagonale", margin = 5, rows = { { -114, -98 }, { -80, -64 } }, zMax = -20, trees = { 352, 372, 396, 420, 438 }, lamps = { 372, 404 } } }
 -- Werkstatt (Werkstatt.lua): Hof (gleicher Asphalt wie die Tankstelle, schließt an deren offene Südkante an), Halle mit Front nach Süden; gate = z-Bereich der offenen Zaunlücke an der Ostseite
-C.werkstatt = { x0 = 88, z0 = -150, x1 = 186, z1 = -90, hall = { 104, 156 }, depth = 22, gate = { -110, -98 } }
+C.werkstatt = { x0 = 88, z0 = -150, x1 = 186, z1 = -90, hall = { 104, 160 }, hallOffset = 14, depth = 22, gate = { -110, -98 } }
 C.driveways = {}
 for _, g in ipairs(C.tankstelle.gaps) do C.driveways[#C.driveways + 1] = { x0 = 43, x1 = 57, z0 = g[1] - 3, z1 = g[2] + 3 } end
 
