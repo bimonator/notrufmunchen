@@ -51,7 +51,7 @@ local l1 = (leg[2] < 0) and t or (bl - t)
 if l1 > 0.03 then
 local dx, dz = leg[2] * bx, leg[2] * bz -- Richtung vom Fußpunkt zur Ecke
 part(parts, name, "corner", fx + dx * l1 / 2 + hx * hl / 2, top - thick / 2, fz + dz * l1 / 2 + hz * hl / 2, thick, l1, hl, 0, color, material,
-{ wedge = { { dx, dz }, { -hx, -hz } } })
+{ wedge = { { dx, 0, dz }, { -hx, 0, -hz } } })
 end
 end
 end
@@ -229,8 +229,8 @@ local lift = (kind == "road") and LEVEL_STEP * level[seg.id] or (kind == "plaza"
 if CUT[kind] then cuts = crossCuts(segs, seg, sx, sz, L, 0.05) end
 if kind == "walk" then
 local so = mid > 0 and 1 or -1
-if seg.outerA == so then cuts[#cuts + 1] = { -1, seg.extA } end -- Außenseite von Knicken: Gehweg endet am Knickpunkt, eine Rundung schließt an
-if seg.outerB == so then cuts[#cuts + 1] = { L - seg.extB, L + 1 } end
+if seg.outerA == so then cuts[#cuts + 1] = { -1, 0 } end -- Außenseite von Knicken: Gehweg endet am Knickpunkt, eine Rundung schließt an
+if seg.outerB == so then cuts[#cuts + 1] = { L, L + 1 } end
 for _, k in ipairs(curves) do
 if k.arm.cut and k.arm.road == seg.road.name and (nx * k.sx + nz * k.sz) * mid > 0 and math.abs(math.abs(mid) - (k.arm.d0 + k.arm.d1) / 2) < 0.5 then
 local qx, qz = k.world(k.aStart, 0)
@@ -396,7 +396,9 @@ stats.skips = {}
 for i = 1, #segs do
 for j = i + 1, #segs do
 local A, B = segs[i], segs[j]
-if A.road ~= B.road and not A.prof.core and not B.prof.core then
+local bend = A.road == B.road and A.nextDir ~= nil and math.abs(A.ax + A.ux * A.len - B.ax) < 0.01 and math.abs(A.az + A.uz * A.len - B.az) < 0.01
+and math.abs(A.ux * B.uz - A.uz * B.ux) >= 0.5
+if (A.road ~= B.road or bend) and not A.prof.core and not B.prof.core then
 local ta = isect(A.ax, A.az, A.ux, A.uz, B.ax, B.az, B.ux, B.uz)
 local tb = isect(B.ax, B.az, B.ux, B.uz, A.ax, A.az, A.ux, A.uz)
 if ta and tb and ta > -0.5 and ta < A.len + 0.5 and tb > -0.5 and tb < B.len + 0.5 then
@@ -697,14 +699,15 @@ if roadHalf and not custom then -- nur Straßen mit Gehweg (Kreisel und Plätze 
 local nx, nz = -seg.uz, seg.ux
 for _, side in ipairs({ -1, 1 }) do
 local off = side * (roadHalf + L.inset)
-local t = L.spacing / 2
+local sp = seg.road.lampSpacing or L.spacing -- Straßen mit lampSpacing: weniger Laternen, abwechselnd links und rechts
+local t = seg.road.lampSpacing and (side > 0 and sp / 2 or sp) or sp / 2
 while t < seg.len do
 local x, z = seg.ax + seg.ux * t + nx * off, seg.az + seg.uz * t + nz * off
 if onWalk(walks, x, z) and not inDriveway(cfg, x, z) then
 lamp(parts, x, z, -nx * side, -nz * side, L.height)
 stats.lamps = stats.lamps + 1
 end
-t = t + L.spacing
+t = t + sp
 end
 end
 end
@@ -1666,7 +1669,7 @@ e = e or {}
 parts[#parts + 1] = {
 name = name, kind = kind, size = { Geo.round3(sx), Geo.round3(sy), Geo.round3(sz) }, pos = { Geo.round3(x), Geo.round3(y), Geo.round3(z) },
 yaw = e.yaw or 0, pitch = e.pitch or 0, roll = e.roll, color = color, material = mat, collide = e.collide == true, shape = e.shape,
-text = e.text, tag = e.tag, lit = e.lit, attrs = e.attrs, transparency = e.transparency, emitter = e.emitter,
+text = e.text, tag = e.tag, lit = e.lit, attrs = e.attrs, transparency = e.transparency, emitter = e.emitter, wedge = e.wedge,
 }
 end
 local function vcyl(name, kind, x, y, z, h, d, color, mat, e)
@@ -1677,13 +1680,43 @@ end
 local function frame(cx, cz, psi)
 local r = math.rad(psi)
 local c, s = math.cos(r), math.sin(r)
+local function W(lx, y, lz) return cx + lx * c + lz * s, y, cz - lx * s + lz * c end
 return function(name, kind, lx, y, lz, sx, sy, sz, color, mat, e)
 e = e or {}
 local ee = {}
 for k, v in pairs(e) do ee[k] = v end
 ee.yaw = (psi + (e.yaw or 0)) % 360
 add(name, kind, cx + lx * c + lz * s, y, cz - lx * s + lz * c, sx, sy, sz, color, mat, ee)
+end, W
 end
+local function wtri(W, name, kind, a, b, c, thick, color, mat, hint, e)
+local function pt(v) local x, y, z = W(v[1], v[2], v[3]) return { x, y, z } end
+local h
+if hint then
+local hx, hy, hz = W(hint[1], hint[2], hint[3])
+local ox, oy, oz = W(0, 0, 0)
+h = { hx - ox, hy - oy, hz - oz }
+end
+for _, w in ipairs(Geo.wedges(pt(a), pt(b), pt(c), thick, h)) do
+local ee = {}
+for k, v in pairs(e or {}) do ee[k] = v end
+ee.wedge = w.wedge
+add(name, kind, w.pos[1], w.pos[2], w.pos[3], w.size[1], w.size[2], w.size[3], color, mat, ee)
+end
+end
+local function facebox(put, face, half, name, kind, u, y, n, su, sy, sn, color, mat, e)
+if face == "F" then put(name, kind, u, y, -(half + n), su, sy, sn, color, mat, e)
+elseif face == "B" then put(name, kind, u, y, half + n, su, sy, sn, color, mat, e)
+elseif face == "L" then put(name, kind, -(half + n), y, u, sn, sy, su, color, mat, e)
+else put(name, kind, half + n, y, u, sn, sy, su, color, mat, e) end
+end
+local TRIM = { 226, 212, 184 }
+local function bay(put, face, half, u, yc, ww, wh, lit)
+facebox(put, face, half, "FensterRahmen", "trim", u, yc, 0.3, ww + 1.4, wh + 1.4, 0.6, TRIM, "Concrete")
+facebox(put, face, half, "Fenster", "glass", u, yc, 0.62, ww, wh, 0.2, lit and GLASS_LIT or GLASS, "Glass", { tag = "HouseWindow", lit = false })
+facebox(put, face, half, "Fenstersprosse", "trim", u, yc, 0.8, 0.25, wh, 0.25, TRIM, "Concrete")
+facebox(put, face, half, "Fensterbank", "trim", u, yc - wh / 2 - 0.7, 0.7, ww + 2.2, 0.5, 1.4, TRIM, "Concrete")
+facebox(put, face, half, "Sturz", "trim", u, yc + wh / 2 + 0.9, 0.5, ww + 2, 0.7, 1.0, TRIM, "Concrete")
 end
 local cx, cz, ac, bc, D = S.cx, S.cz, S.ac, S.bc, S.depth
 local H, Y0 = 14 + 12 * (S.floors - 1), 1
@@ -1752,8 +1785,11 @@ local put = frame(x, z, psi)
 local W = len + 1.4
 stats.segs = stats.segs + 1
 put("Gebaeude", "body", 0, Y0 + H / 2, 0, W, H, D, SAND, "SmoothPlastic", { collide = true })
-put("Sockel", "trim", 0, Y0 + 1.2, -D / 2 - 0.25, W, 2.4, 0.5, { 140, 136, 130 }, "Concrete")
-for k = 1, S.floors - 1 do put("Gesims", "trim", 0, Y0 + 14 + 12 * (k - 1), -D / 2 - 0.4, W, 0.7, 0.8, { 214, 200, 170 }, "Concrete") end
+for _, face in ipairs({ "F", "B" }) do
+facebox(put, face, D / 2, "Sockel", "trim", 0, Y0 + 1.2, 0.25, W, 2.4, 0.5, { 140, 136, 130 }, "Concrete")
+for k = 1, S.floors - 1 do facebox(put, face, D / 2, "Gesims", "trim", 0, Y0 + 14 + 12 * (k - 1), 0.4, W, 0.7, 0.8, { 214, 200, 170 }, "Concrete") end
+facebox(put, face, D / 2, "Lisene", "trim", -len / 2, Y0 + 2.4 + (H - 3.6) / 2, 0.3, 1.0, H - 3.6, 0.6, TRIM, "Concrete")
+end
 put("Kranzgesims", "trim", 0, Y0 + H - 0.8, 0, W + 0.4, 1.6, D + 0.8, { 244, 236, 214 }, "Concrete")
 local rise, run = 7, 4
 local ln = math.sqrt(run * run + rise * rise)
@@ -1770,13 +1806,16 @@ put("GaubeDach", "roof", 0, base + 5.0, -D / 2 + 2.2, 4.6, 0.5, 3.4, SLATE, "Met
 end
 for k = 1, S.floors - 1 do
 local yb = Y0 + 14 + 12 * (k - 1)
-put("Fenster", "glass", 0, yb + 6, -D / 2 - 0.15, 3.8, 6.4, 0.3, rng() < 0.3 and GLASS_LIT or GLASS, "Glass", { tag = "HouseWindow", lit = false })
-put("Fensterbank", "trim", 0, yb + 2.6, -D / 2 - 0.45, 5, 0.5, 0.9, { 214, 200, 170 }, "Concrete")
+for _, u in ipairs({ -len * 0.25, len * 0.25 }) do
+bay(put, "F", D / 2, u, yb + 6, 2.8, 6.2, rng() < 0.3)
+bay(put, "B", D / 2, u, yb + 6, 2.8, 6.2, rng() < 0.3)
+end
 if k == 1 or k == 3 then
 put("BalkonPlatte", "balcony", 0, yb + 0.3, -D / 2 - 1.2, W - 1.2, 0.5, 2.4, { 170, 166, 158 }, "Concrete")
-put("BalkonGitter", "balcony", 0, yb + 1.9, -D / 2 - 2.3, W - 1.2, 2.4, 0.25, { 60, 60, 66 }, "Metal")
+for _, yy in ipairs({ yb + 0.9, yb + 3.0 }) do put("BalkonHolm", "balcony", 0, yy, -D / 2 - 2.3, W - 1.2, 0.25, 0.25, { 60, 60, 66 }, "Metal") end
+local nb = 7
+for q = 0, nb do put("BalkonStab", "balcony", -(W - 1.2) / 2 + q * (W - 1.2) / nb, yb + 1.95, -D / 2 - 2.3, 0.18, 2.1, 0.18, { 60, 60, 66 }, "Metal") end
 end
-put("FensterAussen", "glass", 0, yb + 6, D / 2 + 0.15, 3.8, 6.4, 0.3, rng() < 0.3 and GLASS_LIT or GLASS, "Glass", { tag = "HouseWindow", lit = false })
 end
 put("Pilaster", "trim", -len / 2, Y0 + 7, -D / 2 - 0.6, 1.2, 14, 1.2, { 214, 200, 170 }, "Concrete")
 if not opts.noShop then
@@ -1790,39 +1829,69 @@ put("LadenSchild", "trim", 0, Y0 + 11.3, -D / 2 - 0.5, len - 0.2, 2.2, 0.5, sc, 
 put("LadenSchrift", "sign", 0, Y0 + 11.3, -D / 2 - 0.8, len - 0.8, 1.7, 0.1, { 0, 0, 0 }, "SmoothPlastic", { text = { s = name, color = burger and { 255, 208, 40 } or { 244, 238, 220 } } })
 put("Markise", "trim", 0, Y0 + 9.6, -D / 2 - 1.4, len - 0.4, 0.3, 2.6, burger and { 255, 208, 40 } or AWN[shopNo % #AWN + 1], "Fabric", { pitch = 14 })
 end
-put("EGFensterAussen", "glass", 0, Y0 + 6, D / 2 + 0.15, len - 1.6, 8, 0.3, GLASS, "Glass", { tag = "HouseWindow", lit = false })
+for _, u in ipairs({ -len * 0.25, len * 0.25 }) do bay(put, "B", D / 2, u, Y0 + 7.2, 3.2, 8.6, true) end
 end
-local ROOF = { 96, 58, 56 }
-local function tower(x, z, psi, Wt, endSide)
-local put = frame(x, z, psi)
+local ROOFA, ROOFB, GOLD = { 84, 128, 112 }, { 70, 112, 98 }, { 226, 184, 72 }
+local function dome(put, W, y0, a, b, rise)
+local N = 16
+local rings = {}
+for _, phi in ipairs({ 0, 32, 60, 80 }) do
+local sc, h, pts = math.cos(math.rad(phi)), rise * math.sin(math.rad(phi)), {}
+for k = 0, N - 1 do
+local t = 2 * math.pi * k / N
+local c, sn = math.cos(t), math.sin(t)
+pts[#pts + 1] = { sc * a * (c < 0 and -1 or 1) * math.abs(c) ^ 0.5, y0 + h, sc * b * (sn < 0 and -1 or 1) * math.abs(sn) ^ 0.5 }
+end
+rings[#rings + 1] = pts
+end
+local apex = { 0, y0 + rise, 0 }
+local function face(p1, p2, p3, col)
+local hint = { (p1[1] + p2[1] + p3[1]) / 3, (p1[2] + p2[2] + p3[2]) / 3 - (y0 - rise * 0.5), (p1[3] + p2[3] + p3[3]) / 3 }
+wtri(W, "Kuppel", "roof", p1, p2, p3, 0.8, col, "Metal", hint)
+end
+for i = 1, #rings - 1 do
+for k = 1, N do
+local k2 = k % N + 1
+local col = ((i + k) % 2 == 0) and ROOFA or ROOFB
+face(rings[i][k], rings[i][k2], rings[i + 1][k2], col)
+face(rings[i][k], rings[i + 1][k2], rings[i + 1][k], col)
+end
+end
+local top = rings[#rings]
+for k = 1, N do face(top[k], top[k % N + 1], apex, (k % 2 == 0) and ROOFA or ROOFB) end
+local fy = y0 + rise - 0.3 -- Spitze aus sechs Dreiecken
+for k = 0, 5 do
+local t0, t1 = math.pi * k / 3, math.pi * (k + 1) / 3
+local p1, p2, p3 = { 1.1 * math.cos(t0), fy, 1.1 * math.sin(t0) }, { 1.1 * math.cos(t1), fy, 1.1 * math.sin(t1) }, { 0, fy + 6.5, 0 }
+wtri(W, "KuppelSpitze", "roof", p1, p2, p3, 0.4, GOLD, "Metal", { (p1[1] + p2[1]) / 2, fy + 1, (p1[3] + p2[3]) / 2 })
+end
+end
+local function tower(x, z, psi, Wt)
+local put, Wf = frame(x, z, psi)
 local Ht = H + 12
 stats.towers = stats.towers + 1
 put("Turm", "body", 0, Y0 + Ht / 2, 0, Wt, Ht, D, SAND2, "SmoothPlastic", { collide = true })
-put("TurmSockel", "trim", 0, Y0 + 1.2, -D / 2 - 0.25, Wt, 2.4, 0.5, { 140, 136, 130 }, "Concrete")
-put("TurmKranz", "trim", 0, Y0 + Ht - 0.8, 0, Wt + 1.4, 1.6, D + 0.8, { 244, 236, 214 }, "Concrete")
-for k = 1, 5 do put("TurmGesims", "trim", 0, Y0 + 14 + 12 * (k - 1), -D / 2 - 0.4, Wt, 0.7, 0.8, { 214, 200, 170 }, "Concrete") end
+put("TurmKranz", "trim", 0, Y0 + Ht - 0.8, 0, Wt + 1.4, 1.6, D + 1.4, { 244, 236, 214 }, "Concrete")
+for _, face in ipairs({ "F", "B", "L", "R" }) do
+local half = (face == "F" or face == "B") and D / 2 or Wt / 2
+local len = (face == "F" or face == "B") and Wt or D
+facebox(put, face, half, "TurmSockel", "trim", 0, Y0 + 1.2, 0.25, len, 2.4, 0.5, { 140, 136, 130 }, "Concrete")
+for k = 1, 5 do facebox(put, face, half, "TurmGesims", "trim", 0, Y0 + 14 + 12 * (k - 1), 0.4, len, 0.7, 0.8, { 214, 200, 170 }, "Concrete") end
+for _, u in ipairs({ -len / 2 + 0.6, len / 2 - 0.6 }) do facebox(put, face, half, "Lisene", "trim", u, Y0 + 2.4 + (Ht - 3.6) / 2, 0.3, 1.2, Ht - 3.6, 0.6, TRIM, "Concrete") end
 for k = 1, 5 do
-local yb = Y0 + 14 + 12 * (k - 1)
-for _, lx in ipairs({ -8, 0, 8 }) do
-put("TurmFenster", "glass", lx, yb + 6, -D / 2 - 0.15, 3.8, 6.4, 0.3, rng() < 0.3 and GLASS_LIT or GLASS, "Glass", { tag = "HouseWindow", lit = false })
-put("TurmFensterAussen", "glass", lx, yb + 6, D / 2 + 0.15, 3.8, 6.4, 0.3, rng() < 0.3 and GLASS_LIT or GLASS, "Glass", { tag = "HouseWindow", lit = false })
+for _, u in ipairs({ -len / 3, 0, len / 3 }) do bay(put, face, half, u, Y0 + 14 + 12 * (k - 1) + 6, 2.8, 6.4, rng() < 0.3) end
 end
-if endSide then
-for _, lz in ipairs({ -10, 0, 10 }) do put("TurmFensterStirn", "glass", endSide * (Wt / 2 + 0.15), yb + 6, lz, 0.3, 6.4, 3.8, rng() < 0.3 and GLASS_LIT or GLASS, "Glass", { tag = "HouseWindow", lit = false }) end
+for _, u in ipairs({ -len / 3, 0, len / 3 }) do bay(put, face, half, u, Y0 + 7.2, 3.6, 8.6, true) end
 end
+dome(put, Wf, Y0 + Ht, Wt / 2, D / 2, 14)
 end
-for _, lx in ipairs({ -8, 0, 8 }) do put("TurmEG", "glass", lx, Y0 + 6, -D / 2 - 0.15, 5.6, 8, 0.3, GLASS, "Glass", { tag = "HouseWindow", lit = true }) end
-local rise = 10
-put("Rundach", "roof", 0, Y0 + Ht, 0, D, 2 * rise, Wt, ROOF, "Metal", { shape = "Cylinder", yaw = 90 })
-put("Turmkugel", "roof", 0, Y0 + Ht + rise + 1, 0, 2.2, 2.2, 2.2, { 226, 184, 72 }, "Metal", { shape = "Ball" })
-end
-local TW = 26 -- Breite der Endtürme
+local TW = D -- Eckturm: Grundfläche quadratisch (Breite = Tiefe)
 local zN = S.rowN -- Mittellinie der Nordzeile; die Südzeile liegt spiegelbildlich zur Platzmitte
 local zS = 2 * cz - zN
-local xW = S.x0 + D / 2 -- Mittellinie der Westzeile
+local xW = S.x0 + D / 2 + 1.6 -- Mittellinie der Westzeile (1,6 Abstand zur Platzgrenze für Gesimse und Fensterrahmen der Rückseite)
 local idx = 0
-local function rowEW(z, psi, side, burgerAt) -- Zeile von der Platzkante x0 bis zum Ostende, am Ende ein Turm
-local xa, xb = S.x0 + 0.7, S.eastEnd - 0.7
+local function rowEW(z, psi, burgerAt) -- Zeile von der Platzkante x0 bis zum Eckturm am Ostende
+local xa, xb = S.x0 + 2.3, S.eastEnd - TW - 0.7
 local m = math.floor((xb - xa) / S.seg + 0.5)
 local Lr = (xb - xa) / m
 for k = 1, m do
@@ -1830,23 +1899,23 @@ idx = idx + 1
 segment(xa + (k - 0.5) * Lr, z, psi, Lr, idx, { burger = burgerAt and (k == burgerAt or k == burgerAt + 1) })
 if k == math.floor(m / 2) then roofSigns[#roofSigns + 1] = { x = xa + (k - 0.5) * Lr, z = z, psi = psi } end
 end
-tower(S.eastEnd - TW / 2 - 0.7, z, psi, TW, side)
+tower(S.eastEnd - TW / 2 - 0.7, z, psi, TW)
 end
-rowEW(zN, 180, -1, 11)
-rowEW(zS, 0, 1, nil)
-do -- Westzeile zwischen den beiden Zeilen, Lücke fürs Karlstor, daneben je ein Turm
-local za, zb = zN + D / 2, zS - D / 2
-local m = math.floor((zb - za) / S.seg + 0.5)
+rowEW(zN, 180, 10)
+rowEW(zS, 0, nil)
+do -- Westzeile: zwischen Nord- und Südzeile je ein Stück bis zum Eckturm neben dem Karlstor
+local function run(za, zb)
+local m = math.max(1, math.floor((zb - za) / S.seg + 0.5))
 local Lr = (zb - za) / m
 for k = 1, m do
-local z = za + (k - 0.5) * Lr
-if math.abs(z - cz) >= S.gate + Lr * 0.1 then
 idx = idx + 1
-segment(xW, z, 270, Lr, idx, {})
+segment(xW, za + (k - 0.5) * Lr, 270, Lr, idx, {})
 end
 end
-tower(xW, cz - S.gate - TW / 2, 270, TW, nil)
-tower(xW, cz + S.gate + TW / 2, 270, TW, nil)
+run(zN + D / 2, cz - S.gate - TW)
+run(cz + S.gate + TW, zS - D / 2)
+tower(xW, cz - S.gate - TW / 2, 270, TW)
+tower(xW, cz + S.gate + TW / 2, 270, TW)
 end
 for _, rs in ipairs(roofSigns) do
 local put = frame(rs.x, rs.z, rs.psi)
@@ -1857,45 +1926,77 @@ put("SchriftOSRUM", "sign", 0, base + 7.5, -4.5, 31, 5.4, 0.2, { 0, 0, 0 }, "Smo
 end
 do
 local gx, gz = xW, cz
-local put = frame(gx, gz, 270)
+local put, Wf = frame(gx, gz, 270)
 local GD = D - 1.6
 local WALL, WALL2 = { 238, 236, 228 }, { 226, 222, 210 }
 local TT, MT = H - 2.2, H - 6.2 -- Mauerkrone Türme / Mittelbau (Zinnen setzen 2,2 obendrauf)
+local function archPts(hw, ySpring, n) -- Spitzbogen aus zwei Kreisbögen (Radius = Breite): Punkte von links nach rechts, y relativ zum Pflaster
+local R, pts = 2 * hw, {}
+for k = 0, n do
+local th = math.rad(180 - 60 * k / n)
+pts[#pts + 1] = { hw + R * math.cos(th), ySpring + R * math.sin(th) }
+end
+for k = n - 1, 0, -1 do pts[#pts + 1] = { -pts[k + 1][1], pts[k + 1][2] } end
+return pts
+end
+local function archWall(cxm, hw, ySpring, xl, xr, top, n)
+put("TorMauer", "body", (xl + cxm - hw) / 2, Y0 + top / 2, 0, cxm - hw - xl, top, GD, WALL, "SmoothPlastic", { collide = true })
+put("TorMauer", "body", (cxm + hw + xr) / 2, Y0 + top / 2, 0, xr - cxm - hw, top, GD, WALL, "SmoothPlastic", { collide = true })
+local pts = archPts(hw, ySpring, n)
+for k = 1, #pts - 1 do
+local a, b = pts[k], pts[k + 1]
+local xa, xb = cxm + a[1], cxm + b[1]
+local yhi = math.max(a[2], b[2])
+if top > yhi then put("TorMauer", "body", (xa + xb) / 2, Y0 + (yhi + top) / 2, 0, xb - xa + 0.02, top - yhi, GD, WALL, "SmoothPlastic", { collide = true }) end
+local third = (a[2] < b[2]) and { xa, Y0 + b[2], 0 } or { xb, Y0 + a[2], 0 }
+wtri(Wf, "TorMauer", "body", { xa, Y0 + a[2], 0 }, { xb, Y0 + b[2], 0 }, third, GD, WALL, "SmoothPlastic", nil, { collide = true })
+end
+end
+local function moulding(cxm, hw, ySpring, n, band)
+local inner, outer = archPts(hw, ySpring, n), archPts(hw + band, ySpring, n)
+for _, fz in ipairs({ -1, 1 }) do
+local zz = fz * (GD / 2 + 0.25)
+for k = 1, #inner - 1 do
+local p1, p2 = { cxm + inner[k][1], Y0 + inner[k][2], zz }, { cxm + inner[k + 1][1], Y0 + inner[k + 1][2], zz }
+local q1, q2 = { cxm + outer[k][1], Y0 + outer[k][2], zz }, { cxm + outer[k + 1][1], Y0 + outer[k + 1][2], zz }
+wtri(Wf, "TorLeiste", "trim", p1, p2, q1, 0.5, WALL2, "Concrete", { 0, 0, fz })
+wtri(Wf, "TorLeiste", "trim", p2, q2, q1, 0.5, WALL2, "Concrete", { 0, 0, fz })
+end
+for _, sd in ipairs({ -1, 1 }) do put("TorLeiste", "trim", cxm + sd * (hw + band / 2), Y0 + ySpring / 2, zz, band, ySpring, 0.5, WALL2, "Concrete") end
+end
+end
+archWall(0, 7.5, 22, -12, 12, MT, 9)
+moulding(0, 7.5, 22, 9, 1.4)
 for _, sd in ipairs({ -1, 1 }) do
-put("TorTurm", "body", sd * 21, Y0 + TT / 2, 0, 18, TT, GD, WALL, "SmoothPlastic", { collide = true })
+archWall(sd * 21, 3.5, 11, sd * 21 - 9, sd * 21 + 9, TT, 6)
+moulding(sd * 21, 3.5, 11, 6, 0.9)
 put("TorTurmGesims", "trim", sd * 21, Y0 + TT - 1, 0, 19.2, 1.4, GD + 1.2, WALL2, "Concrete")
-for _, wz in ipairs({ -GD / 2 - 0.15, GD / 2 + 0.15 }) do
-put("TorSeitenbogen", "trim", sd * 21, Y0 + 6, wz, 6, 12, 0.3, { 60, 56, 52 }, "SmoothPlastic")
-put("TorSeitenbogen", "trim", sd * 21, Y0 + 12, wz, 4.2, 4.2, 0.3, { 60, 56, 52 }, "SmoothPlastic", { roll = 45 })
-for _, wy in ipairs({ 26, 40, 52 }) do put("TorFenster", "glass", sd * 21, Y0 + wy, wz, 2.6, 5, 0.3, GLASS, "Glass", { tag = "HouseWindow", lit = false }) end
-put("TorTurmStreifen", "trim", sd * 21, Y0 + 18, wz, 19, 0.8, 0.5, WALL2, "Concrete")
+put("TorTurmStreifen", "trim", sd * 21, Y0 + 22, 0, 19, 0.8, GD + 1.0, WALL2, "Concrete")
+for _, fz in ipairs({ -1, 1 }) do
+for _, wy in ipairs({ 30, 41, 51 }) do bay(put, fz < 0 and "F" or "B", GD / 2, sd * 21, Y0 + wy, 2.2, 4.4, false) end
+local zz = fz * (GD / 2 + 0.3)
+put("TorTafel", "trim", sd * 27.6, Y0 + 30, zz, 4.2, 6, 0.5, { 214, 206, 190 }, "Concrete")
+put("TorTafelSchrift", "sign", sd * 27.6, Y0 + 30, zz + fz * 0.3, 3.6, 1.1, 0.1, { 0, 0, 0 }, "SmoothPlastic", { yaw = fz < 0 and 0 or 180, text = { s = "ANNO 1302", color = { 90, 86, 80 } } })
 end
 end
-for _, sd in ipairs({ -1, 1 }) do -- Pfeiler beidseits des Durchgangs (|lx| 6 bis 12)
-put("TorPfeiler", "body", sd * 9, Y0 + MT / 2, 0, 6, MT, GD, WALL, "SmoothPlastic", { collide = true })
+for _, fz in ipairs({ -1, 1 }) do
+local zz = fz * (GD / 2 + 0.35)
+for _, sd in ipairs({ -1, 1 }) do -- Wappen in den Zwickeln neben dem Hauptbogen
+local u, wy = sd * 9.9, Y0 + 30
+local col = sd < 0 and { 70, 110, 190 } or { 220, 220, 226 }
+put("TorWappen", "trim", u, wy, zz, 3.4, 3.4, 0.5, col, "SmoothPlastic")
+wtri(Wf, "TorWappen", "trim", { u - 1.7, wy - 1.7, zz }, { u + 1.7, wy - 1.7, zz }, { u, wy - 4.2, zz }, 0.5, col, "SmoothPlastic", { 0, 0, fz })
+put("TorWappenKreuz", "trim", u, wy, zz + fz * 0.3, 0.6, 3.0, 0.2, { 190, 150, 50 }, "Metal")
 end
-local rr, spring, m = 6, 12, 12 -- Bogen: Halbkreis
-local w = 2 * rr / m
-for i = 1, m do
-local xc = -rr + (i - 0.5) * w
-local bottom = spring + math.sqrt(math.max(0, rr * rr - xc * xc))
-put("TorBogen", "body", xc, Y0 + (bottom + MT) / 2, 0, w + 0.05, MT - bottom, GD, WALL, "SmoothPlastic", { collide = true })
-end
-for _, fz in ipairs({ -GD / 2 - 0.3, GD / 2 + 0.3 }) do
-for _, sd in ipairs({ -1, 1 }) do put("TorBogenLeiste", "trim", sd * 6.5, Y0 + 7, fz, 1, 14, 0.6, WALL2, "Concrete") end
-put("TorBogenLeiste", "trim", 0, Y0 + 18.8, fz, 1.6, 2, 0.6, WALL2, "Concrete")
-put("TorUhr", "sign", 0, Y0 + MT - 16, fz, 0.4, 7, 7, { 250, 246, 236 }, "SmoothPlastic", { shape = "Cylinder", yaw = 90 })
-put("TorUhrRand", "trim", 0, Y0 + MT - 16, fz + (fz < 0 and -0.1 or 0.1), 0.2, 8, 8, { 60, 56, 52 }, "Metal", { shape = "Cylinder", yaw = 90 })
-put("TorWappen", "trim", -9, Y0 + MT - 16, fz, 3, 4, 0.3, { 70, 110, 190 }, "SmoothPlastic")
-put("TorWappen", "trim", 9, Y0 + MT - 16, fz, 3, 4, 0.3, { 220, 220, 226 }, "SmoothPlastic")
+put("TorSchrift", "sign", 0, Y0 + 42, fz * (GD / 2 + 0.4), 12, 1.6, 0.1, { 0, 0, 0 }, "SmoothPlastic", { yaw = fz < 0 and 0 or 180, text = { s = "KARLSTOR", color = { 90, 86, 80 } } })
 end
 put("TorMittelGesims", "trim", 0, Y0 + MT - 0.8, 0, 26, 1.6, GD + 1.2, WALL2, "Concrete")
 local function merlons(lx0, lx1, y)
 local len = lx1 - lx0
 local k = math.max(2, math.floor(len / 3.6))
-for i = 1, k do
+for q = 1, k do
 for _, fz in ipairs({ -GD / 2 + 1, GD / 2 - 1 }) do
-put("Zinne", "trim", lx0 + (i - 0.5) * len / k, y + 1.1, fz, len / k * 0.55, 2.2, 1.6, WALL, "Concrete", { collide = true })
+put("Zinne", "trim", lx0 + (q - 0.5) * len / k, y + 1.1, fz, len / k * 0.55, 2.2, 1.6, WALL, "Concrete", { collide = true })
 stats.merlons = stats.merlons + 1
 end
 end
@@ -1906,57 +2007,50 @@ end
 merlons(-12, 12, Y0 + MT)
 merlons(-30, -12, Y0 + TT)
 merlons(12, 30, Y0 + TT)
-for _, fz in ipairs({ -GD / 2 - 0.4, GD / 2 + 0.4 }) do
-put("TorSchrift", "sign", 0, Y0 + MT - 5, fz, 12, 1.6, 0.1, { 0, 0, 0 }, "SmoothPlastic", { yaw = fz < 0 and 0 or 180, text = { s = "KARLSTOR", color = { 90, 86, 80 } } })
-end
 end
 local CONC, STEEL, UBLUE, SGREEN, WHITE = { 226, 224, 218 }, { 60, 64, 70 }, { 0, 94, 184 }, { 0, 150, 70 }, { 255, 255, 255 }
 for pi, U in ipairs(pits) do
-local len, wd = U.z1 - U.z0, U.x1 - U.x0
-local ux = (U.x0 + U.x1) / 2
+local len, wd = U.x1 - U.x0, U.z1 - U.z0
+local put = frame(U.x0, (U.z0 + U.z1) / 2, 90)
 local nSteps, landing = 14, 6
 local rise, run = U.depth / nSteps, (len - landing) / nSteps
 local bottom = 1 - U.depth
-local function zAt(t) return U.dir > 0 and (U.z0 + t) or (U.z1 - t) end -- t = Abstand vom Zugang
 local lanes = { { -4.6, 3.8, { 70, 74, 80 }, "Metal" }, { 0, 4.8, { 168, 166, 160 }, "Granite" }, { 4.6, 3.8, { 70, 74, 80 }, "Metal" } }
 for k = 1, nSteps do
 local t = 1 - k * rise
 for _, ln in ipairs(lanes) do
-add("UBahnStufe", "plaza", ux + ln[1], (t - 12) / 2, zAt((k - 0.5) * run), ln[2], t + 12, run, ln[3], ln[4], { collide = true })
+put("UBahnStufe", "plaza", ln[1], (t - 12) / 2, (k - 0.5) * run, ln[2], t + 12, run, ln[3], ln[4], { collide = true })
 end
 end
-add("UBahnPodest", "plaza", ux, (bottom - 12) / 2, zAt(len - landing / 2), wd - 2.4, bottom + 12, landing, { 150, 148, 144 }, "Granite", { collide = true })
+put("UBahnPodest", "plaza", 0, (bottom - 12) / 2, len - landing / 2, wd - 2.4, bottom + 12, landing, { 150, 148, 144 }, "Granite", { collide = true })
 local slope = math.sqrt((len - landing) ^ 2 + U.depth ^ 2)
-local pitch = U.dir * math.deg(math.atan2(U.depth, len - landing))
+local pitch = math.deg(math.atan2(U.depth, len - landing))
 for _, lx in ipairs({ -7.2, -2.4, 2.4, 7.2 }) do -- Handläufe (sinken mit der Treppe)
-add("UBahnHandlauf", "plaza", ux + lx, 1 - U.depth / 2 + 2.6, zAt((len - landing) / 2), 0.3, 0.3, slope, STEEL, "Metal", { pitch = pitch })
+put("UBahnHandlauf", "plaza", lx, 1 - U.depth / 2 + 2.6, (len - landing) / 2, 0.3, 0.3, slope, STEEL, "Metal", { pitch = pitch })
 end
 for _, sd in ipairs({ -1, 1 }) do -- Seitenwände (Betonrahmen) bis 1,6 über das Pflaster
-add("UBahnWand", "plaza", ux + sd * (wd / 2 - 0.6), -5.2 + 0.8, (U.z0 + U.z1) / 2, 1.2, 13.6 + 1.6, len, CONC, "Concrete", { collide = true })
+put("UBahnWand", "plaza", sd * (wd / 2 - 0.6), -5.2 + 0.8, len / 2, 1.2, 13.6 + 1.6, len, CONC, "Concrete", { collide = true })
 for k = 0, 5 do -- Glasgeländer auf dem Rahmen
-add("UBahnGlas", "glass", ux + sd * (wd / 2 - 0.6), 3.2, U.z0 + (k + 0.5) * len / 6, 0.2, 1.8, len / 6 - 0.3, { 190, 220, 232 }, "Glass", { collide = false, transparency = 0.5 })
+put("UBahnGlas", "glass", sd * (wd / 2 - 0.6), 3.2, (k + 0.5) * len / 6, 0.2, 1.8, len / 6 - 0.3, { 190, 220, 232 }, "Glass", { collide = false, transparency = 0.5 })
 end
 end
-local ez, wz = zAt(0), zAt(len)
-local sdir = U.dir
 local pw, ph = 10, 8
 for _, sd in ipairs({ -1, 1 }) do
-add("UBahnWand", "plaza", ux + sd * (pw / 2 + (wd - pw) / 4), -5.2 + 0.8, wz - sdir * 0.6, (wd - pw) / 2, 13.6 + 1.6, 1.2, CONC, "Concrete", { collide = true })
+put("UBahnWand", "plaza", sd * (pw / 2 + (wd - pw) / 4), -5.2 + 0.8, len - 0.6, (wd - pw) / 2, 13.6 + 1.6, 1.2, CONC, "Concrete", { collide = true })
 end
-add("UBahnWand", "plaza", ux, (bottom + ph + 2.4) / 2, wz - sdir * 0.6, pw, 2.4 - bottom - ph, 1.2, CONC, "Concrete", { collide = true })
-add("UBahnSchild", "plaza", ux, 3.2, wz - sdir * 1.3, 14, 2.4, 0.3, UBLUE, "SmoothPlastic")
-add("Schrift", "sign", ux, 3.2, wz - sdir * 1.5, 13, 1.8, 0.2, WHITE, "SmoothPlastic", { yaw = sdir > 0 and 180 or 0, text = { s = "U  S  KARLSPLATZ", color = WHITE } })
-local sx, sz = U.x0 - 2.4, ez + sdir * -2.5
-add("UBahnPylon", "plaza", sx, 6, sz, 0.8, 10, 0.8, { 30, 32, 36 }, "Metal", { collide = true })
-add("UBahnU", "plaza", sx, 10.8, sz, 4, 4, 0.4, UBLUE, "SmoothPlastic")
-add("Schrift", "sign", sx, 10.8, sz - 0.3, 3.4, 3.4, 0.2, WHITE, "SmoothPlastic", { text = { s = "U", color = WHITE } })
-add("Schrift", "sign", sx, 10.8, sz + 0.3, 3.4, 3.4, 0.2, WHITE, "SmoothPlastic", { yaw = 180, text = { s = "U", color = WHITE } })
-local g0, g1 = math.min(wz, wz + sdir * U.gang), math.max(wz, wz + sdir * U.gang)
-add("UBahnGangBoden", "plaza", ux, bottom - 0.5, (g0 + g1) / 2, pw + 2, 1, g1 - g0, { 150, 148, 144 }, "Granite", { collide = true })
-add("UBahnGangDecke", "plaza", ux, bottom + ph + 1, (g0 + g1) / 2, pw + 2, 1, g1 - g0, { 200, 200, 196 }, "Concrete", { collide = true })
-for _, sd in ipairs({ -1, 1 }) do add("UBahnGangWand", "plaza", ux + sd * (pw / 2 + 0.5), bottom + ph / 2, (g0 + g1) / 2, 1, ph, g1 - g0, { 226, 222, 210 }, "Concrete", { collide = true }) end
-add("UBahnGangWand", "plaza", ux, bottom + ph / 2, wz + sdir * (U.gang + 0.5), pw + 2, ph, 1, { 226, 222, 210 }, "Concrete", { collide = true })
-for k = 1, 3 do add("UBahnLicht", "plaza", ux, bottom + ph + 0.4, wz + sdir * k * U.gang / 4, 1.2, 0.2, 3, { 255, 250, 236 }, "Neon") end
+put("UBahnWand", "plaza", 0, (bottom + ph + 2.4) / 2, len - 0.6, pw, 2.4 - bottom - ph, 1.2, CONC, "Concrete", { collide = true })
+put("UBahnSchild", "plaza", 0, 3.2, len - 1.3, 14, 2.4, 0.3, UBLUE, "SmoothPlastic")
+put("Schrift", "sign", 0, 3.2, len - 1.5, 13, 1.8, 0.2, WHITE, "SmoothPlastic", { yaw = 0, text = { s = "U  S  KARLSPLATZ", color = WHITE } })
+put("UBahnPylon", "plaza", -(wd / 2 + 2.4), 6, -2.5, 0.8, 10, 0.8, { 30, 32, 36 }, "Metal", { collide = true })
+put("UBahnU", "plaza", -(wd / 2 + 2.4), 10.8, -2.5, 4, 4, 0.4, UBLUE, "SmoothPlastic")
+put("Schrift", "sign", -(wd / 2 + 2.4), 10.8, -2.8, 3.4, 3.4, 0.2, WHITE, "SmoothPlastic", { text = { s = "U", color = WHITE } })
+put("Schrift", "sign", -(wd / 2 + 2.4), 10.8, -2.2, 3.4, 3.4, 0.2, WHITE, "SmoothPlastic", { yaw = 180, text = { s = "U", color = WHITE } })
+local g0, g1 = len, len + U.gang
+put("UBahnGangBoden", "plaza", 0, bottom - 0.5, (g0 + g1) / 2, pw + 2, 1, g1 - g0, { 150, 148, 144 }, "Granite", { collide = true })
+put("UBahnGangDecke", "plaza", 0, bottom + ph + 1, (g0 + g1) / 2, pw + 2, 1, g1 - g0, { 200, 200, 196 }, "Concrete", { collide = true })
+for _, sd in ipairs({ -1, 1 }) do put("UBahnGangWand", "plaza", sd * (pw / 2 + 0.5), bottom + ph / 2, (g0 + g1) / 2, 1, ph, g1 - g0, { 226, 222, 210 }, "Concrete", { collide = true }) end
+put("UBahnGangWand", "plaza", 0, bottom + ph / 2, g1 + 0.5, pw + 2, ph, 1, { 226, 222, 210 }, "Concrete", { collide = true })
+for k = 1, 3 do put("UBahnLicht", "plaza", 0, bottom + ph + 0.4, len + k * U.gang / 4, 1.2, 0.2, 3, { 255, 250, 236 }, "Neon") end
 end
 for z = S.z0 + 41, S.z1 - 12, 42 do -- mittig zwischen den Platanen (Bäume bei z = 80 + 42 k), nicht in den Kronen
 vcyl("KugelleuchteMast", "plaza", -68, 13, z, 24, 0.8, { 150, 152, 156 }, "Metal", { collide = true })
@@ -1988,6 +2082,7 @@ return Stachus
 
 end)()
 local Autohaus = (function()
+local Geo = Geo
 local Autohaus = {}
 local WHITE, GREY, DARK, CONC, ASPHALT, GLASS, BLUE, LINE = { 240, 240, 236 }, { 150, 154, 160 }, { 70, 74, 82 }, { 196, 196, 192 }, { 84, 90, 96 }, { 150, 186, 204 }, { 24, 66, 150 }, { 240, 240, 236 }
 function Autohaus.plan(cfg)
@@ -1998,7 +2093,7 @@ local function add(name, kind, x, y, z, sx, sy, sz, color, mat, e)
 e = e or {}
 parts[#parts + 1] = {
 name = name, kind = kind, size = { r3(sx), r3(sy), r3(sz) }, pos = { r3(x), r3(y), r3(z) }, yaw = e.yaw or 0, pitch = e.pitch or 0, roll = e.roll,
-color = color, material = mat, collide = e.collide == true, shape = e.shape, text = e.text, tag = e.tag, lit = e.lit, attrs = e.attrs, transparency = e.transparency,
+color = color, material = mat, collide = e.collide == true, shape = e.shape, text = e.text, tag = e.tag, lit = e.lit, attrs = e.attrs, transparency = e.transparency, wedge = e.wedge,
 }
 end
 local function disc(name, x, y, z, h, d, color, mat, collide) -- stehende Scheibe
@@ -2021,7 +2116,7 @@ end
 for _, xx in ipairs({ x, x + 16 }) do add("Boxenlinie", "dash", xx, Y + 0.1, (zW1 + 4 + zS1 - 2) / 2, 0.3, 0.2, zS1 - 2 - zW1 - 4, LINE, "SmoothPlastic") end
 end
 for _, z in ipairs({ zc - 14, zc, zc + 14 }) do disc("Drehteller", bx - 6, Y + 0.25, z, 0.5, 11, WHITE, "SmoothPlastic", true) end
-for _, z in ipairs({ A.z0 + 0.4, A.z1 - 0.4 }) do add("Zaun", "fence", (A.x0 + bx) / 2, Y + 0.7, z, bx - A.x0, 1.4, 0.2, DARK, "Metal") end
+for _, z in ipairs({ A.z0 + 0.4 }) do add("Zaun", "fence", (A.x0 + bx) / 2, Y + 0.7, z, bx - A.x0, 1.4, 0.2, DARK, "Metal") end
 local H = 12
 add("ShowroomBoden", "floor", xm, Y + 0.3, zc, xe - bx, 0.6, zS1 - zS0, { 200, 200, 196 }, "Concrete", { collide = true })
 local R, N = 9, 6
@@ -2125,6 +2220,59 @@ for _, q in ipairs({ { A.x0 + 4, A.z0 + 6 }, { A.x0 + 40, A.z0 + 4 }, { A.x0 + 4
 add("AutohausStamm", "tree", q[1], Y + 4, q[2], 1.2, 8, 1.2, { 96, 70, 48 }, "Wood", { collide = true })
 add("AutohausKrone", "tree", q[1], Y + 11, q[2], 9, 9, 9, { 88, 140, 70 }, "Grass", { shape = "Ball" })
 stats.trees = stats.trees + 1
+end
+local V = A.vorfeld
+if V then
+local road
+for _, r in ipairs(cfg.roads) do if r.name == V.road then road = r end end
+local ra, rb = road.pts[2], road.pts[3]
+local ex = 0
+for _, st in ipairs(cfg.profiles[road.profile].strips) do ex = math.max(ex, math.abs(st[1]), math.abs(st[2])) end
+local dl = math.sqrt((rb[1] - ra[1]) ^ 2 + (rb[2] - ra[2]) ^ 2)
+local rux, ruz = (rb[1] - ra[1]) / dl, (rb[2] - ra[2]) / dl
+local rnx, rnz = ruz, -rux -- weg von der Straße nach Norden
+local function zEdge(x) return ra[2] + (ex - (x - ra[1]) * rnx) / rnz end -- Außenkante des Gehwegs
+local X0 = A.x0 + 4
+local function xMax(zSouth) -- letztes Stellplatzende (Vielfaches von 8 ab X0) mit V.margin Abstand zum Gehweg
+local x = math.min(ra[1] + (ex - (zSouth + V.margin - ra[2]) * rnz) / rnx, A.x1 - 4)
+return X0 + math.floor((x - X0) / 8) * 8
+end
+local rA, rB = V.rows[1], V.rows[2]
+local xAisle, xB, xA = xMax(rB[1]), xMax(rB[2]), xMax(rA[2]) -- Fahrgasse, Reihe B, Reihe A
+local function plate(x0, x1, z0, z1)
+add("Vorfeld", "plaza", (x0 + x1) / 2, Y - 0.5, (z0 + z1) / 2, x1 - x0, 1, z1 - z0, ASPHALT, "Asphalt", { collide = true })
+end
+plate(A.x0, xAisle, A.z1, rB[1]) -- Reihe A und Fahrgasse
+plate(A.x0, xB, rB[1], rB[2]) -- Reihe B
+if xA > xAisle then plate(xAisle, xA, A.z1, rA[2]) end -- Reihe A läuft hinter der Fahrgasse weiter
+for _, row in ipairs({ { rA, xA }, { rB, xB } }) do
+for x = X0, row[2], 8 do add("Boxenlinie", "dash", x, Y + 0.1, (row[1][1] + row[1][2]) / 2, 0.3, 0.2, row[1][2] - row[1][1], LINE, "SmoothPlastic") end
+stats.bays = stats.bays + (row[2] - X0) / 8
+end
+local function lawn(p, q, r)
+for _, w in ipairs(Geo.wedges({ p[1], Y, p[2] }, { q[1], Y, q[2] }, { r[1], Y, r[2] }, 1, { 0, 1, 0 })) do
+add("Rasen", "decor", w.pos[1], w.pos[2], w.pos[3], w.size[1], w.size[2], w.size[3], { 84, 132, 64 }, "Grass", { wedge = w.wedge })
+end
+end
+local function quad(p1, p2, p3, p4) lawn(p1, p2, p3) lawn(p1, p3, p4) end
+local function e(x) return { x, zEdge(x) - 1.4 } end
+local xw, xe2 = A.x0 + 2, A.x1
+quad({ xw, rB[2] }, { xB, rB[2] }, e(xB), e(xw))
+quad({ xB, rB[1] }, { xAisle, rB[1] }, e(xAisle), e(xB))
+quad({ xAisle, rA[2] }, { xA, rA[2] }, e(xA), e(xAisle))
+quad({ xA, A.z1 }, { xe2, A.z1 }, e(xe2), e(xA))
+for _, x in ipairs(V.trees) do
+local z = zEdge(x) - 7
+add("AutohausStamm", "tree", x, Y + 4, z, 1.2, 8, 1.2, { 96, 70, 48 }, "Wood", { collide = true })
+add("AutohausKrone", "tree", x, Y + 11, z, 9, 9, 9, { 88, 140, 70 }, "Grass", { shape = "Ball" })
+stats.trees = stats.trees + 1
+end
+for _, x in ipairs(V.lamps) do -- zwei Leuchten in der Fahrgasse
+local z = (rA[2] + rB[1]) / 2
+add("LampenMast", "lamp", x, Y + 5, z, 0.5, 10, 0.5, { 40, 56, 48 }, "Metal", { collide = true })
+add("LampenKopf", "lamp", x, Y + 10.3, z, 2.6, 0.6, 1.2, { 255, 226, 150 }, "Neon", { tag = "StreetLamp", attrs = { Lit = true } })
+stats.lamps = stats.lamps + 1
+end
 end
 return { parts = parts, stats = stats }
 end
@@ -2438,8 +2586,7 @@ block(ops, "Air", (U.x0 + U.x1) / 2, -5.5, U.z0 - U.gang / 2, 16, 11, U.gang + 1
 end
 for _, U in ipairs(cfg.stachus and cfg.stachus.ubahn or {}) do
 block(ops, "Air", (U.x0 + U.x1) / 2, -3, (U.z0 + U.z1) / 2, U.x1 - U.x0, 18, U.z1 - U.z0, "ubahn")
-local zEnd = U.dir > 0 and U.z1 + U.gang / 2 or U.z0 - U.gang / 2
-block(ops, "Air", (U.x0 + U.x1) / 2, -5.5, zEnd, 16, 11, U.gang + 1, "ubahn")
+block(ops, "Air", U.x1 + U.gang / 2, -5.5, (U.z0 + U.z1) / 2, U.gang + 1, 11, 16, "ubahn")
 end
 cfg.water.isar.name, cfg.water.bach.name = "isar", "bach"
 river(ops, cfg.water.isar)
@@ -2761,24 +2908,36 @@ local cz = zc
 local nx, nz = -uz, ux -- zeigt vom Bach nach Westen (Zuschauerseite)
 local function at(a, l) return cx + ux * a + nx * l, cz + uz * a + nz * l end
 local yawU, yawN = Geo.yawOf(ux, uz), Geo.yawOf(nx, nz)
-local rng, rngTree = newRng(23), newRng(31) -- eigene Zufallsfolgen, damit die übrigen Grünanlagen unverändert bleiben
+local rngTree = newRng(31) -- eigene Zufallsfolge, damit die übrigen Grünanlagen unverändert bleiben
 local WALL, CAP, CONC, WOOD, DARKW = { 150, 146, 134 }, { 190, 184, 170 }, { 170, 168, 160 }, { 132, 100, 68 }, { 86, 64, 46 }
 local aEnd = 40 -- Ende der Mauern (vor der Luitpoldbrücke)
-local wx, wz = at(0, 0)
-add("Eisbachwelle", "wave", wx, -4, wz, 2 * hw, 7, 14, { 206, 232, 244 }, "SmoothPlastic", { shape = "Cylinder", yaw = yawN, transparency = 0.2, tag = "Eisbachwelle", attrs = { Surf = true } })
-local rx0, rz0 = at(-8, 0)
-add("Schussrinne", "wave", rx0, -3.9, rz0, 14, 0.2, 2 * hw - 0.4, { 40, 96, 88 }, "SmoothPlastic", { yaw = yawU, transparency = 0.55 })
-local bx0, bz0 = at(13.5, 0)
-add("Kanalboden", "wave", bx0, -5.9, bz0, 57, 0.2, 2 * hw - 0.4, { 36, 84, 96 }, "SmoothPlastic", { yaw = yawU }) -- dunkles Bachbett unter dem Wasser (verdeckt das Muster des Terrain-Grunds)
-local kx, kz = at(20.5, 0)
-add("Kanalwasser", "wave", kx, -3.9, kz, 43, 0.2, 2 * hw - 0.4, { 52, 112, 132 }, "SmoothPlastic", { yaw = yawU, transparency = 0.25 })
-local fx, fz = at(15, 0)
-add("Wellenschaum", "wave", fx, -3.75, fz, 26, 0.3, 2 * hw - 0.4, { 248, 252, 255 }, "SmoothPlastic", { yaw = yawU, transparency = 0.5 })
-local kx0, kz0 = at(0.4, 0)
-add("Wellenkamm", "wave", kx0, -1.4, kz0, 2 * hw - 0.4, 2.4, 4.5, { 250, 252, 255 }, "SmoothPlastic", { shape = "Cylinder", yaw = yawN, transparency = 0.12 })
-for _, wv in ipairs({ { 9, 2.6, 9 }, { 17, 1.6, 8 } }) do -- { Abstand a, Höhe, Länge }
-local x, z = at(wv[1], 0)
-add("Wellenzug", "wave", x, -4, z, 2 * hw - 0.4, 2 * wv[2], wv[3], { 226, 242, 250 }, "SmoothPlastic", { shape = "Cylinder", yaw = yawN, transparency = 0.3 })
+local wl0, wl1 = -(hw - 5.8), hw - 4.8 -- freie Wasserbreite zwischen Ost-Plateau und West-Steg
+local wmid, ww = (wl0 + wl1) / 2, wl1 - wl0 - 0.4
+local function slab(name, a0, y0, a1, y1, th, color, transp)
+local da, dy = a1 - a0, y1 - y0
+local phi = math.atan2(dy, da)
+local x, z = at((a0 + a1) / 2 - math.sin(phi) * th / 2, wmid)
+add(name, "wave", x, (y0 + y1) / 2 + math.cos(phi) * th / 2, z, math.sqrt(da * da + dy * dy), th, ww, color, "SmoothPlastic", { yaw = yawU, roll = math.deg(phi), transparency = transp })
+end
+local WATER, FOAM = { 62, 126, 162 }, { 246, 250, 252 }
+local wx, wz = at(3, wmid)
+add("Eisbachwelle", "wave", wx, -4, wz, 6.6, 4, ww, FOAM, "SmoothPlastic", { yaw = yawU, transparency = 1, tag = "Eisbachwelle", attrs = { Surf = true } })
+local kx, kz = at(14, 0)
+add("Kanalboden", "wave", kx, -5.9, kz, 66, 0.2, 2 * hw - 0.4, { 36, 84, 96 }, "SmoothPlastic", { yaw = yawU }) -- dunkles Bachbett unter dem Wasser (verdeckt das Muster des Terrain-Grunds)
+local wx2, wz2 = at(21, 0)
+add("Kanalwasser", "wave", wx2, -3.9, wz2, 44, 0.2, 2 * hw - 0.4, { 52, 112, 132 }, "SmoothPlastic", { yaw = yawU, transparency = 0.25 })
+slab("Wellenhang", -3.5, -3.8, 1.5, -2.1, 0.4, WATER, 0.2)
+slab("Wellenruecken", 1.5, -2.1, 3.3, -1.5, 0.4, WATER, 0.2)
+slab("Wellenflanke", 3.3, -1.5, 6.8, -3.7, 0.4, WATER, 0.2)
+slab("Wellenkrone", 1.6, -2.05, 3.6, -1.4, 0.75, FOAM, 0.12)
+slab("Wellenkrone", 3.6, -1.4, 5.0, -2.3, 0.65, FOAM, 0.18)
+for _, f in ipairs({ { 6.4, 9.6, -4.6, 5 }, { 6.8, 11, 3.2, 6 }, { 9.8, 13.4, -1.2, 7 }, { 12, 16, 4.6, 4 }, { 13.2, 18, -5, 5 }, { 16.6, 20.6, 0.4, 6 }, { 5.8, 8, 4.8, 3.5 }, { 8.4, 10.6, -6.4, 3 } }) do
+local x, z = at((f[1] + f[2]) / 2, wmid + f[3])
+add("Wellenschaum", "wave", x, -3.8, z, f[2] - f[1], 0.15, f[4], FOAM, "SmoothPlastic", { yaw = yawU, transparency = 0.35 })
+end
+for _, n in ipairs({ { 10.4, 1.0 }, { 17, 0.6 } }) do -- Nachläufer: flache Hügel aus zwei Platten
+slab("Nachlauf", n[1] - 1.8, -3.85, n[1], -3.85 + n[2], 0.3, WATER, 0.3)
+slab("Nachlauf", n[1], -3.85 + n[2], n[1] + 1.8, -3.85, 0.3, WATER, 0.3)
 end
 add("SurfZone", "zone", wx, -2.5, wz, 2 * hw, 6, 18, { 255, 255, 255 }, "SmoothPlastic", { yaw = yawN, transparency = 1, tag = "SurfZone", attrs = { Welle = "Eisbach" } })
 local function wall(side, a0, a1)
@@ -2790,9 +2949,26 @@ wall(1, -7, -3) -- Anfang jeweils hinter der Brückenkante (der Kanal verläuft 
 wall(1, 21, aEnd)
 wall(-1, -17, -4)
 wall(-1, 0, aEnd)
-for i, top in ipairs({ -0.2, -1.5, -2.8, -3.6 }) do -- Betonstufen im Westen (a -2 bis 20), die letzte knapp über dem Wasser
+for i, top in ipairs({ -0.2, -1.5 }) do
 local x, z = at(9, hw + 1.5 - (i - 1) * 1.8)
 add("Kanalstufe", "steps", x, (top - 9) / 2, z, 22, top + 9, 1.8, CONC, "Concrete", { yaw = yawU, collide = true })
+add("Sitzbohle", "decor", x, top + 0.1, z, 21, 0.2, 1.3, WOOD, "Wood", { yaw = yawU, collide = true })
+end
+local sx, sz = at(9, hw - 1.6)
+add("Stegstufe", "steps", sx, (-2.5 - 9) / 2, sz, 22, -2.5 + 9, 1.0, WOOD, "Wood", { yaw = yawU, collide = true })
+local wsx, wsz = at(9, hw - 3.4) -- West-Steg: Bohlen, Randbalken, Querbalken, Pfosten
+add("StegWest", "deck", wsx, -3.6, wsz, 22, 0.4, 2.8, WOOD, "Wood", { yaw = yawU, collide = true })
+local wbx, wbz = at(9, hw - 4.9)
+add("StegWestBalken", "deck", wbx, -3.1, wbz, 22, 0.7, 0.7, DARKW, "Wood", { yaw = yawU, collide = true })
+for a = -1, 19, 4 do
+local qx, qz = at(a, hw - 3.4)
+add("StegWestQuerbalken", "deck", qx, -3.35, qz, 0.6, 0.35, 3.2, DARKW, "Wood", { yaw = yawU })
+end
+for _, a in ipairs({ -1, 19 }) do
+for _, l in ipairs({ hw - 1.4, hw - 4.9 }) do
+local qx, qz = at(a, l)
+add("StegWestPfosten", "deck", qx, -6, qz, 0.6, 4.4, 0.6, DARKW, "Wood", { yaw = yawU })
+end
 end
 local px, pz = at(9, -(hw - 2.9))
 add("Plateau", "deck", px, -3.6, pz, 22, 0.4, 5.8, WOOD, "Wood", { yaw = yawU, collide = true })
@@ -2808,17 +2984,35 @@ local qx, qz = at(a, l)
 add("Plateaupfosten", "deck", qx, -6, qz, 0.6, 4.4, 0.6, DARKW, "Wood", { yaw = yawU })
 end
 end
+for _, a in ipairs({ 1, 17 }) do
+local qx, qz = at(a, -(hw - 5.2))
+add("Stegpoller", "deck", qx, -2.6, qz, 0.6, 1.6, 0.6, { 60, 62, 66 }, "Metal", { yaw = yawU, collide = true })
+end
 for i, top in ipairs({ -0.5, -1.6, -2.7 }) do -- Holztreppe in der Mauerlücke (a -4 bis 0)
 local x, z = at(-2, -(hw + 1.6 - (i - 1) * 1.0))
 add("Holzstufe", "steps", x, (top - 9) / 2, z, 4, top + 9, 1.0, WOOD, "Wood", { yaw = yawU, collide = true })
 end
-local lx, lz = at(30, hw + 3.6)
-add("RettungsringPfosten", "decor", lx, 2.4, lz, 0.3, 4.8, 0.3, { 230, 200, 60 }, "Metal", { collide = true })
-local ox, oz = at(30, hw + 2.9)
-add("Rettungsring", "decor", ox, 3.6, oz, 0.5, 2.2, 2.2, { 210, 44, 40 }, "SmoothPlastic", { shape = "Cylinder", yaw = yawN })
+local function rettungsring(a, l, yc)
+local R = 1.6
+local x0, z0 = at(a, l)
+add("RettungsringPfosten", "decor", x0, yc - 2.4, z0, 0.4, 4.8, 0.4, { 70, 62, 56 }, "Metal", { collide = true })
+local tx, tz = at(a, l + 0.2)
+add("RettungsringTafel", "decor", tx, yc, tz, 4.4, 4.4, 0.2, { 238, 200, 56 }, "SmoothPlastic", { yaw = yawU })
+for k = 0, 15 do
+local th = k * math.pi / 8
+local x, z = at(a + R * math.cos(th), l + 0.6)
+add("RettungsringSegment", "decor", x, yc + R * math.sin(th), z, 0.72, 0.6, 0.6, (math.floor(k / 2) % 2 == 0) and { 214, 40, 36 } or { 248, 248, 248 }, "SmoothPlastic", { yaw = yawU, roll = math.deg(th) + 90 })
+end
+end
+rettungsring(26, hw + 2.8, 3.8) -- an der Westmauer
+rettungsring(19.5, -(hw - 1.4), -0.8) -- am Ende des Ost-Stegs
 for _, q in ipairs({ { 6, -25 }, { 18, -29 }, { 30, -26 }, { 40, -29 } }) do
 local x, z = at(q[1], q[2])
 tree(add, rngTree, x, 0, z, 1.15, "Eis")
+end
+for _, a in ipairs({ 4, 13, 22 }) do -- Bänke am Ostufer, Blick zum Wasser
+local x, z = at(a, -(hw + 4.6))
+bench(add, x, 0.5, z, math.deg(math.atan2(nx, nz)) + 180)
 end
 local dx, dz = at(20, 21)
 add("Zuschauerdeck", "deck", dx, 0.25, dz, 26, 0.5, 10, { 140, 104, 70 }, "Wood", { yaw = yawU, collide = true })
@@ -2828,11 +3022,11 @@ for _, a in ipairs({ -8, 0, 8 }) do
 local x, z = at(20 + a, 24.2)
 bench(add, x, 0.5, z, math.deg(math.atan2(nx, nz)))
 end
-local sx, sz = at(36, 16.5)
+local gx, gz = at(36, 16.5)
 local signYaw = yawU + 180
-add("Schild", "decor", sx, 3.4, sz, 9, 2.4, 0.3, { 36, 70, 110 }, "SmoothPlastic", { yaw = signYaw })
-add("SchildPfosten", "decor", sx, 1.6, sz, 0.5, 3.2, 0.5, { 70, 62, 56 }, "Metal", { yaw = signYaw, collide = true })
-local tx2, tz2 = sx + nx * 0.25, sz + nz * 0.25
+add("Schild", "decor", gx, 3.4, gz, 9, 2.4, 0.3, { 36, 70, 110 }, "SmoothPlastic", { yaw = signYaw })
+add("SchildPfosten", "decor", gx, 1.6, gz, 0.5, 3.2, 0.5, { 70, 62, 56 }, "Metal", { yaw = signYaw, collide = true })
+local tx2, tz2 = gx + nx * 0.25, gz + nz * 0.25
 add("Schrift", "text", tx2, 3.4, tz2, 8.4, 1.8, 0.2, { 255, 255, 255 }, "SmoothPlastic", { yaw = signYaw, text = { s = "EISBACHWELLE", color = { 255, 255, 255 } } })
 end
 local function biergarten(cfg, add, rng, free)

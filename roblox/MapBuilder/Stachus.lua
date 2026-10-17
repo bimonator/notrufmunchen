@@ -33,7 +33,7 @@ function Stachus.plan(cfg)
 		parts[#parts + 1] = {
 			name = name, kind = kind, size = { Geo.round3(sx), Geo.round3(sy), Geo.round3(sz) }, pos = { Geo.round3(x), Geo.round3(y), Geo.round3(z) },
 			yaw = e.yaw or 0, pitch = e.pitch or 0, roll = e.roll, color = color, material = mat, collide = e.collide == true, shape = e.shape,
-			text = e.text, tag = e.tag, lit = e.lit, attrs = e.attrs, transparency = e.transparency, emitter = e.emitter,
+			text = e.text, tag = e.tag, lit = e.lit, attrs = e.attrs, transparency = e.transparency, emitter = e.emitter, wedge = e.wedge,
 		}
 	end
 	local function vcyl(name, kind, x, y, z, h, d, color, mat, e)
@@ -41,17 +41,51 @@ function Stachus.plan(cfg)
 		e.shape, e.roll = "Cylinder", 90
 		add(name, kind, x, y, z, h, d, d, color, mat, e)
 	end
-	-- lokales Hausmaß: lx entlang der Fassade, lz in das Gebäude (Front lz < 0), Drehung wie in Planner.add
+	-- lokales Hausmaß: lx entlang der Fassade, lz in das Gebäude (Front lz < 0), Drehung wie in Planner.add; liefert put und die Umrechnung W(lx, y, lz) -> x, y, z
 	local function frame(cx, cz, psi)
 		local r = math.rad(psi)
 		local c, s = math.cos(r), math.sin(r)
+		local function W(lx, y, lz) return cx + lx * c + lz * s, y, cz - lx * s + lz * c end
 		return function(name, kind, lx, y, lz, sx, sy, sz, color, mat, e)
 			e = e or {}
 			local ee = {}
 			for k, v in pairs(e) do ee[k] = v end
 			ee.yaw = (psi + (e.yaw or 0)) % 360
 			add(name, kind, cx + lx * c + lz * s, y, cz - lx * s + lz * c, sx, sy, sz, color, mat, ee)
+		end, W
+	end
+	-- Dreieck aus Keilen im lokalen Maß: a, b, c = { lx, y, lz }; hint = Richtung der Außenseite (lokal), die Fläche liegt auf der Ebene, die Dicke geht nach innen
+	local function wtri(W, name, kind, a, b, c, thick, color, mat, hint, e)
+		local function pt(v) local x, y, z = W(v[1], v[2], v[3]) return { x, y, z } end
+		local h
+		if hint then
+			local hx, hy, hz = W(hint[1], hint[2], hint[3])
+			local ox, oy, oz = W(0, 0, 0)
+			h = { hx - ox, hy - oy, hz - oz }
 		end
+		for _, w in ipairs(Geo.wedges(pt(a), pt(b), pt(c), thick, h)) do
+			local ee = {}
+			for k, v in pairs(e or {}) do ee[k] = v end
+			ee.wedge = w.wedge
+			add(name, kind, w.pos[1], w.pos[2], w.pos[3], w.size[1], w.size[2], w.size[3], color, mat, ee)
+		end
+	end
+	-- Teil auf einer Gebäudefläche: face F (Front, lz < 0), B (Rückseite), L/R (Schmalseiten); half = halbe Ausdehnung senkrecht zur Fläche, u = Lage entlang der Fläche,
+	-- n = Abstand von der Wand nach außen (Mitte des Teils), su = Länge entlang der Fläche, sn = Dicke
+	local function facebox(put, face, half, name, kind, u, y, n, su, sy, sn, color, mat, e)
+		if face == "F" then put(name, kind, u, y, -(half + n), su, sy, sn, color, mat, e)
+		elseif face == "B" then put(name, kind, u, y, half + n, su, sy, sn, color, mat, e)
+		elseif face == "L" then put(name, kind, -(half + n), y, u, sn, sy, su, color, mat, e)
+		else put(name, kind, half + n, y, u, sn, sy, su, color, mat, e) end
+	end
+	local TRIM = { 226, 212, 184 }
+	-- Fenster mit Gewände: Rahmenplatte, Glas, Sprosse, Fensterbank und Sturz
+	local function bay(put, face, half, u, yc, ww, wh, lit)
+		facebox(put, face, half, "FensterRahmen", "trim", u, yc, 0.3, ww + 1.4, wh + 1.4, 0.6, TRIM, "Concrete")
+		facebox(put, face, half, "Fenster", "glass", u, yc, 0.62, ww, wh, 0.2, lit and GLASS_LIT or GLASS, "Glass", { tag = "HouseWindow", lit = false })
+		facebox(put, face, half, "Fenstersprosse", "trim", u, yc, 0.8, 0.25, wh, 0.25, TRIM, "Concrete")
+		facebox(put, face, half, "Fensterbank", "trim", u, yc - wh / 2 - 0.7, 0.7, ww + 2.2, 0.5, 1.4, TRIM, "Concrete")
+		facebox(put, face, half, "Sturz", "trim", u, yc + wh / 2 + 0.9, 0.5, ww + 2, 0.7, 1.0, TRIM, "Concrete")
 	end
 	local cx, cz, ac, bc, D = S.cx, S.cz, S.ac, S.bc, S.depth
 	local H, Y0 = 14 + 12 * (S.floors - 1), 1
@@ -127,8 +161,12 @@ function Stachus.plan(cfg)
 		local W = len + 1.4
 		stats.segs = stats.segs + 1
 		put("Gebaeude", "body", 0, Y0 + H / 2, 0, W, H, D, SAND, "SmoothPlastic", { collide = true })
-		put("Sockel", "trim", 0, Y0 + 1.2, -D / 2 - 0.25, W, 2.4, 0.5, { 140, 136, 130 }, "Concrete")
-		for k = 1, S.floors - 1 do put("Gesims", "trim", 0, Y0 + 14 + 12 * (k - 1), -D / 2 - 0.4, W, 0.7, 0.8, { 214, 200, 170 }, "Concrete") end
+		for _, face in ipairs({ "F", "B" }) do
+			facebox(put, face, D / 2, "Sockel", "trim", 0, Y0 + 1.2, 0.25, W, 2.4, 0.5, { 140, 136, 130 }, "Concrete")
+			for k = 1, S.floors - 1 do facebox(put, face, D / 2, "Gesims", "trim", 0, Y0 + 14 + 12 * (k - 1), 0.4, W, 0.7, 0.8, { 214, 200, 170 }, "Concrete") end
+			-- Lisene: senkrechter Pfeilerstreifen an der Segmentgrenze
+			facebox(put, face, D / 2, "Lisene", "trim", -len / 2, Y0 + 2.4 + (H - 3.6) / 2, 0.3, 1.0, H - 3.6, 0.6, TRIM, "Concrete")
+		end
 		put("Kranzgesims", "trim", 0, Y0 + H - 0.8, 0, W + 0.4, 1.6, D + 0.8, { 244, 236, 214 }, "Concrete")
 		-- Mansarddach innen und außen
 		local rise, run = 7, 4
@@ -144,18 +182,21 @@ function Stachus.plan(cfg)
 			put("GaubeFenster", "glass", 0, base + 2.6, -D / 2 + 0.85, 2.4, 2.8, 0.2, GLASS, "Glass", { tag = "HouseWindow", lit = rng() < 0.3 })
 			put("GaubeDach", "roof", 0, base + 5.0, -D / 2 + 2.2, 4.6, 0.5, 3.4, SLATE, "Metal")
 		end
-		-- Fenster: innen (zum Brunnen) und außen
+		-- Obergeschosse: zwei Fenster je Feld mit Gewände, innen (zum Brunnen) und außen; Balkone mit Stabgitter innen
 		for k = 1, S.floors - 1 do
 			local yb = Y0 + 14 + 12 * (k - 1)
-			put("Fenster", "glass", 0, yb + 6, -D / 2 - 0.15, 3.8, 6.4, 0.3, rng() < 0.3 and GLASS_LIT or GLASS, "Glass", { tag = "HouseWindow", lit = false })
-			put("Fensterbank", "trim", 0, yb + 2.6, -D / 2 - 0.45, 5, 0.5, 0.9, { 214, 200, 170 }, "Concrete")
+			for _, u in ipairs({ -len * 0.25, len * 0.25 }) do
+				bay(put, "F", D / 2, u, yb + 6, 2.8, 6.2, rng() < 0.3)
+				bay(put, "B", D / 2, u, yb + 6, 2.8, 6.2, rng() < 0.3)
+			end
 			if k == 1 or k == 3 then
 				put("BalkonPlatte", "balcony", 0, yb + 0.3, -D / 2 - 1.2, W - 1.2, 0.5, 2.4, { 170, 166, 158 }, "Concrete")
-				put("BalkonGitter", "balcony", 0, yb + 1.9, -D / 2 - 2.3, W - 1.2, 2.4, 0.25, { 60, 60, 66 }, "Metal")
+				for _, yy in ipairs({ yb + 0.9, yb + 3.0 }) do put("BalkonHolm", "balcony", 0, yy, -D / 2 - 2.3, W - 1.2, 0.25, 0.25, { 60, 60, 66 }, "Metal") end
+				local nb = 7
+				for q = 0, nb do put("BalkonStab", "balcony", -(W - 1.2) / 2 + q * (W - 1.2) / nb, yb + 1.95, -D / 2 - 2.3, 0.18, 2.1, 0.18, { 60, 60, 66 }, "Metal") end
 			end
-			put("FensterAussen", "glass", 0, yb + 6, D / 2 + 0.15, 3.8, 6.4, 0.3, rng() < 0.3 and GLASS_LIT or GLASS, "Glass", { tag = "HouseWindow", lit = false })
 		end
-		-- Erdgeschoss: Pilaster und Laden mit Schild und Markise (innen), dunkle Fensterfläche (außen)
+		-- Erdgeschoss: Pilaster und Laden mit Schild und Markise (innen), Schaufenster mit Rahmen (außen)
 		put("Pilaster", "trim", -len / 2, Y0 + 7, -D / 2 - 0.6, 1.2, 14, 1.2, { 214, 200, 170 }, "Concrete")
 		if not opts.noShop then
 			shopNo = shopNo + 1
@@ -168,41 +209,71 @@ function Stachus.plan(cfg)
 			put("LadenSchrift", "sign", 0, Y0 + 11.3, -D / 2 - 0.8, len - 0.8, 1.7, 0.1, { 0, 0, 0 }, "SmoothPlastic", { text = { s = name, color = burger and { 255, 208, 40 } or { 244, 238, 220 } } })
 			put("Markise", "trim", 0, Y0 + 9.6, -D / 2 - 1.4, len - 0.4, 0.3, 2.6, burger and { 255, 208, 40 } or AWN[shopNo % #AWN + 1], "Fabric", { pitch = 14 })
 		end
-		put("EGFensterAussen", "glass", 0, Y0 + 6, D / 2 + 0.15, len - 1.6, 8, 0.3, GLASS, "Glass", { tag = "HouseWindow", lit = false })
+		for _, u in ipairs({ -len * 0.25, len * 0.25 }) do bay(put, "B", D / 2, u, Y0 + 7.2, 3.2, 8.6, true) end
 	end
-	-- Endturm: breiter Block mit 6 Geschossen und gerundetem Dach (ohne Stufen und Kanten)
-	local ROOF = { 96, 58, 56 }
-	local function tower(x, z, psi, Wt, endSide)
-		local put = frame(x, z, psi)
+	-- Facettenkuppel: Ring aus 16 Punkten (abgerundetes Quadrat) schrumpft in vier Stufen zur Spitze; alle Flächen sind Dreiecke aus Keilen
+	local ROOFA, ROOFB, GOLD = { 84, 128, 112 }, { 70, 112, 98 }, { 226, 184, 72 }
+	local function dome(put, W, y0, a, b, rise)
+		local N = 16
+		local rings = {}
+		for _, phi in ipairs({ 0, 32, 60, 80 }) do
+			local sc, h, pts = math.cos(math.rad(phi)), rise * math.sin(math.rad(phi)), {}
+			for k = 0, N - 1 do
+				local t = 2 * math.pi * k / N
+				local c, sn = math.cos(t), math.sin(t)
+				pts[#pts + 1] = { sc * a * (c < 0 and -1 or 1) * math.abs(c) ^ 0.5, y0 + h, sc * b * (sn < 0 and -1 or 1) * math.abs(sn) ^ 0.5 }
+			end
+			rings[#rings + 1] = pts
+		end
+		local apex = { 0, y0 + rise, 0 }
+		local function face(p1, p2, p3, col)
+			local hint = { (p1[1] + p2[1] + p3[1]) / 3, (p1[2] + p2[2] + p3[2]) / 3 - (y0 - rise * 0.5), (p1[3] + p2[3] + p3[3]) / 3 }
+			wtri(W, "Kuppel", "roof", p1, p2, p3, 0.8, col, "Metal", hint)
+		end
+		for i = 1, #rings - 1 do
+			for k = 1, N do
+				local k2 = k % N + 1
+				local col = ((i + k) % 2 == 0) and ROOFA or ROOFB
+				face(rings[i][k], rings[i][k2], rings[i + 1][k2], col)
+				face(rings[i][k], rings[i + 1][k2], rings[i + 1][k], col)
+			end
+		end
+		local top = rings[#rings]
+		for k = 1, N do face(top[k], top[k % N + 1], apex, (k % 2 == 0) and ROOFA or ROOFB) end
+		local fy = y0 + rise - 0.3 -- Spitze aus sechs Dreiecken
+		for k = 0, 5 do
+			local t0, t1 = math.pi * k / 3, math.pi * (k + 1) / 3
+			local p1, p2, p3 = { 1.1 * math.cos(t0), fy, 1.1 * math.sin(t0) }, { 1.1 * math.cos(t1), fy, 1.1 * math.sin(t1) }, { 0, fy + 6.5, 0 }
+			wtri(W, "KuppelSpitze", "roof", p1, p2, p3, 0.4, GOLD, "Metal", { (p1[1] + p2[1]) / 2, fy + 1, (p1[3] + p2[3]) / 2 })
+		end
+	end
+	-- Eckturm: quadratischer Block (alle vier Seiten gleich lang, gleiche Fenster) mit Facettenkuppel
+	local function tower(x, z, psi, Wt)
+		local put, Wf = frame(x, z, psi)
 		local Ht = H + 12
 		stats.towers = stats.towers + 1
 		put("Turm", "body", 0, Y0 + Ht / 2, 0, Wt, Ht, D, SAND2, "SmoothPlastic", { collide = true })
-		put("TurmSockel", "trim", 0, Y0 + 1.2, -D / 2 - 0.25, Wt, 2.4, 0.5, { 140, 136, 130 }, "Concrete")
-		put("TurmKranz", "trim", 0, Y0 + Ht - 0.8, 0, Wt + 1.4, 1.6, D + 0.8, { 244, 236, 214 }, "Concrete")
-		for k = 1, 5 do put("TurmGesims", "trim", 0, Y0 + 14 + 12 * (k - 1), -D / 2 - 0.4, Wt, 0.7, 0.8, { 214, 200, 170 }, "Concrete") end
-		for k = 1, 5 do
-			local yb = Y0 + 14 + 12 * (k - 1)
-			for _, lx in ipairs({ -8, 0, 8 }) do
-				put("TurmFenster", "glass", lx, yb + 6, -D / 2 - 0.15, 3.8, 6.4, 0.3, rng() < 0.3 and GLASS_LIT or GLASS, "Glass", { tag = "HouseWindow", lit = false })
-				put("TurmFensterAussen", "glass", lx, yb + 6, D / 2 + 0.15, 3.8, 6.4, 0.3, rng() < 0.3 and GLASS_LIT or GLASS, "Glass", { tag = "HouseWindow", lit = false })
+		put("TurmKranz", "trim", 0, Y0 + Ht - 0.8, 0, Wt + 1.4, 1.6, D + 1.4, { 244, 236, 214 }, "Concrete")
+		for _, face in ipairs({ "F", "B", "L", "R" }) do
+			local half = (face == "F" or face == "B") and D / 2 or Wt / 2
+			local len = (face == "F" or face == "B") and Wt or D
+			facebox(put, face, half, "TurmSockel", "trim", 0, Y0 + 1.2, 0.25, len, 2.4, 0.5, { 140, 136, 130 }, "Concrete")
+			for k = 1, 5 do facebox(put, face, half, "TurmGesims", "trim", 0, Y0 + 14 + 12 * (k - 1), 0.4, len, 0.7, 0.8, { 214, 200, 170 }, "Concrete") end
+			for _, u in ipairs({ -len / 2 + 0.6, len / 2 - 0.6 }) do facebox(put, face, half, "Lisene", "trim", u, Y0 + 2.4 + (Ht - 3.6) / 2, 0.3, 1.2, Ht - 3.6, 0.6, TRIM, "Concrete") end
+			for k = 1, 5 do
+				for _, u in ipairs({ -len / 3, 0, len / 3 }) do bay(put, face, half, u, Y0 + 14 + 12 * (k - 1) + 6, 2.8, 6.4, rng() < 0.3) end
 			end
-			if endSide then
-				for _, lz in ipairs({ -10, 0, 10 }) do put("TurmFensterStirn", "glass", endSide * (Wt / 2 + 0.15), yb + 6, lz, 0.3, 6.4, 3.8, rng() < 0.3 and GLASS_LIT or GLASS, "Glass", { tag = "HouseWindow", lit = false }) end
-			end
+			for _, u in ipairs({ -len / 3, 0, len / 3 }) do bay(put, face, half, u, Y0 + 7.2, 3.6, 8.6, true) end
 		end
-		for _, lx in ipairs({ -8, 0, 8 }) do put("TurmEG", "glass", lx, Y0 + 6, -D / 2 - 0.15, 5.6, 8, 0.3, GLASS, "Glass", { tag = "HouseWindow", lit = true }) end
-		local rise = 10
-		-- gerundetes Tonnendach: liegender Halb-Ellipsenzylinder (Achse entlang der Tiefe) über dem ganzen Turm; die untere Hälfte steckt im Mauerwerk
-		put("Rundach", "roof", 0, Y0 + Ht, 0, D, 2 * rise, Wt, ROOF, "Metal", { shape = "Cylinder", yaw = 90 })
-		put("Turmkugel", "roof", 0, Y0 + Ht + rise + 1, 0, 2.2, 2.2, 2.2, { 226, 184, 72 }, "Metal", { shape = "Ball" })
+		dome(put, Wf, Y0 + Ht, Wt / 2, D / 2, 14)
 	end
-	local TW = 26 -- Breite der Endtürme
+	local TW = D -- Eckturm: Grundfläche quadratisch (Breite = Tiefe)
 	local zN = S.rowN -- Mittellinie der Nordzeile; die Südzeile liegt spiegelbildlich zur Platzmitte
 	local zS = 2 * cz - zN
-	local xW = S.x0 + D / 2 -- Mittellinie der Westzeile
+	local xW = S.x0 + D / 2 + 1.6 -- Mittellinie der Westzeile (1,6 Abstand zur Platzgrenze für Gesimse und Fensterrahmen der Rückseite)
 	local idx = 0
-	local function rowEW(z, psi, side, burgerAt) -- Zeile von der Platzkante x0 bis zum Ostende, am Ende ein Turm
-		local xa, xb = S.x0 + 0.7, S.eastEnd - 0.7
+	local function rowEW(z, psi, burgerAt) -- Zeile von der Platzkante x0 bis zum Eckturm am Ostende
+		local xa, xb = S.x0 + 2.3, S.eastEnd - TW - 0.7
 		local m = math.floor((xb - xa) / S.seg + 0.5)
 		local Lr = (xb - xa) / m
 		for k = 1, m do
@@ -210,23 +281,23 @@ function Stachus.plan(cfg)
 			segment(xa + (k - 0.5) * Lr, z, psi, Lr, idx, { burger = burgerAt and (k == burgerAt or k == burgerAt + 1) })
 			if k == math.floor(m / 2) then roofSigns[#roofSigns + 1] = { x = xa + (k - 0.5) * Lr, z = z, psi = psi } end
 		end
-		tower(S.eastEnd - TW / 2 - 0.7, z, psi, TW, side)
+		tower(S.eastEnd - TW / 2 - 0.7, z, psi, TW)
 	end
-	rowEW(zN, 180, -1, 11)
-	rowEW(zS, 0, 1, nil)
-	do -- Westzeile zwischen den beiden Zeilen, Lücke fürs Karlstor, daneben je ein Turm
-		local za, zb = zN + D / 2, zS - D / 2
-		local m = math.floor((zb - za) / S.seg + 0.5)
-		local Lr = (zb - za) / m
-		for k = 1, m do
-			local z = za + (k - 0.5) * Lr
-			if math.abs(z - cz) >= S.gate + Lr * 0.1 then
+	rowEW(zN, 180, 10)
+	rowEW(zS, 0, nil)
+	do -- Westzeile: zwischen Nord- und Südzeile je ein Stück bis zum Eckturm neben dem Karlstor
+		local function run(za, zb)
+			local m = math.max(1, math.floor((zb - za) / S.seg + 0.5))
+			local Lr = (zb - za) / m
+			for k = 1, m do
 				idx = idx + 1
-				segment(xW, z, 270, Lr, idx, {})
+				segment(xW, za + (k - 0.5) * Lr, 270, Lr, idx, {})
 			end
 		end
-		tower(xW, cz - S.gate - TW / 2, 270, TW, nil)
-		tower(xW, cz + S.gate + TW / 2, 270, TW, nil)
+		run(zN + D / 2, cz - S.gate - TW)
+		run(cz + S.gate + TW, zS - D / 2)
+		tower(xW, cz - S.gate - TW / 2, 270, TW)
+		tower(xW, cz + S.gate + TW / 2, 270, TW)
 	end
 	-- Dachschrift OSRUM auf beiden Flügeln
 	for _, rs in ipairs(roofSigns) do
@@ -237,49 +308,85 @@ function Stachus.plan(cfg)
 		put("SchriftOSRUM", "sign", 0, base + 7.5, -4.5, 31, 5.4, 0.2, { 0, 0, 0 }, "SmoothPlastic", { text = { s = "OSRUM", color = { 250, 244, 236 } } })
 	end
 
-	-- Karlstor (so hoch wie die Flügel, Zinnen bis zur Traufe): Mittelbau mit Bogendurchgang zwischen zwei Zinnentürmen; Front (lz < 0) zum Brunnen
+	-- Karlstor (nach Foto): Mittelbau mit hohem Spitzbogen zwischen zwei Zinnentürmen mit je einem kleineren Spitzbogen-Durchgang; Bogenleisten, Wappen,
+	-- Schrifttafeln, Fenster mit Gewände. Die Bögen sind aus Dreiecken (Keilen) gebaut, keine Treppenstufen. Front (lz < 0) zum Brunnen.
 	do
 		local gx, gz = xW, cz
-		local put = frame(gx, gz, 270)
+		local put, Wf = frame(gx, gz, 270)
 		local GD = D - 1.6
 		local WALL, WALL2 = { 238, 236, 228 }, { 226, 222, 210 }
 		local TT, MT = H - 2.2, H - 6.2 -- Mauerkrone Türme / Mittelbau (Zinnen setzen 2,2 obendrauf)
-		for _, sd in ipairs({ -1, 1 }) do
-			put("TorTurm", "body", sd * 21, Y0 + TT / 2, 0, 18, TT, GD, WALL, "SmoothPlastic", { collide = true })
-			put("TorTurmGesims", "trim", sd * 21, Y0 + TT - 1, 0, 19.2, 1.4, GD + 1.2, WALL2, "Concrete")
-			for _, wz in ipairs({ -GD / 2 - 0.15, GD / 2 + 0.15 }) do
-				put("TorSeitenbogen", "trim", sd * 21, Y0 + 6, wz, 6, 12, 0.3, { 60, 56, 52 }, "SmoothPlastic")
-				put("TorSeitenbogen", "trim", sd * 21, Y0 + 12, wz, 4.2, 4.2, 0.3, { 60, 56, 52 }, "SmoothPlastic", { roll = 45 })
-				for _, wy in ipairs({ 26, 40, 52 }) do put("TorFenster", "glass", sd * 21, Y0 + wy, wz, 2.6, 5, 0.3, GLASS, "Glass", { tag = "HouseWindow", lit = false }) end
-				put("TorTurmStreifen", "trim", sd * 21, Y0 + 18, wz, 19, 0.8, 0.5, WALL2, "Concrete")
+		local function archPts(hw, ySpring, n) -- Spitzbogen aus zwei Kreisbögen (Radius = Breite): Punkte von links nach rechts, y relativ zum Pflaster
+			local R, pts = 2 * hw, {}
+			for k = 0, n do
+				local th = math.rad(180 - 60 * k / n)
+				pts[#pts + 1] = { hw + R * math.cos(th), ySpring + R * math.sin(th) }
+			end
+			for k = n - 1, 0, -1 do pts[#pts + 1] = { -pts[k + 1][1], pts[k + 1][2] } end
+			return pts
+		end
+		-- Mauermasse um einen Durchgang: Pfeiler links/rechts bis zur Oberkante, darüber Streifen aus Rechteck und Dreieck entlang des Bogens
+		local function archWall(cxm, hw, ySpring, xl, xr, top, n)
+			put("TorMauer", "body", (xl + cxm - hw) / 2, Y0 + top / 2, 0, cxm - hw - xl, top, GD, WALL, "SmoothPlastic", { collide = true })
+			put("TorMauer", "body", (cxm + hw + xr) / 2, Y0 + top / 2, 0, xr - cxm - hw, top, GD, WALL, "SmoothPlastic", { collide = true })
+			local pts = archPts(hw, ySpring, n)
+			for k = 1, #pts - 1 do
+				local a, b = pts[k], pts[k + 1]
+				local xa, xb = cxm + a[1], cxm + b[1]
+				local yhi = math.max(a[2], b[2])
+				if top > yhi then put("TorMauer", "body", (xa + xb) / 2, Y0 + (yhi + top) / 2, 0, xb - xa + 0.02, top - yhi, GD, WALL, "SmoothPlastic", { collide = true }) end
+				local third = (a[2] < b[2]) and { xa, Y0 + b[2], 0 } or { xb, Y0 + a[2], 0 }
+				wtri(Wf, "TorMauer", "body", { xa, Y0 + a[2], 0 }, { xb, Y0 + b[2], 0 }, third, GD, WALL, "SmoothPlastic", nil, { collide = true })
 			end
 		end
-		for _, sd in ipairs({ -1, 1 }) do -- Pfeiler beidseits des Durchgangs (|lx| 6 bis 12)
-			put("TorPfeiler", "body", sd * 9, Y0 + MT / 2, 0, 6, MT, GD, WALL, "SmoothPlastic", { collide = true })
+		-- Bogenleiste (Archivolte) um den Durchgang, vorn und hinten
+		local function moulding(cxm, hw, ySpring, n, band)
+			local inner, outer = archPts(hw, ySpring, n), archPts(hw + band, ySpring, n)
+			for _, fz in ipairs({ -1, 1 }) do
+				local zz = fz * (GD / 2 + 0.25)
+				for k = 1, #inner - 1 do
+					local p1, p2 = { cxm + inner[k][1], Y0 + inner[k][2], zz }, { cxm + inner[k + 1][1], Y0 + inner[k + 1][2], zz }
+					local q1, q2 = { cxm + outer[k][1], Y0 + outer[k][2], zz }, { cxm + outer[k + 1][1], Y0 + outer[k + 1][2], zz }
+					wtri(Wf, "TorLeiste", "trim", p1, p2, q1, 0.5, WALL2, "Concrete", { 0, 0, fz })
+					wtri(Wf, "TorLeiste", "trim", p2, q2, q1, 0.5, WALL2, "Concrete", { 0, 0, fz })
+				end
+				for _, sd in ipairs({ -1, 1 }) do put("TorLeiste", "trim", cxm + sd * (hw + band / 2), Y0 + ySpring / 2, zz, band, ySpring, 0.5, WALL2, "Concrete") end
+			end
 		end
-		local rr, spring, m = 6, 12, 12 -- Bogen: Halbkreis
-		local w = 2 * rr / m
-		for i = 1, m do
-			local xc = -rr + (i - 0.5) * w
-			local bottom = spring + math.sqrt(math.max(0, rr * rr - xc * xc))
-			put("TorBogen", "body", xc, Y0 + (bottom + MT) / 2, 0, w + 0.05, MT - bottom, GD, WALL, "SmoothPlastic", { collide = true })
+		-- Mittelbau mit hohem Spitzbogen, Türme mit kleineren Durchgängen
+		archWall(0, 7.5, 22, -12, 12, MT, 9)
+		moulding(0, 7.5, 22, 9, 1.4)
+		for _, sd in ipairs({ -1, 1 }) do
+			archWall(sd * 21, 3.5, 11, sd * 21 - 9, sd * 21 + 9, TT, 6)
+			moulding(sd * 21, 3.5, 11, 6, 0.9)
+			put("TorTurmGesims", "trim", sd * 21, Y0 + TT - 1, 0, 19.2, 1.4, GD + 1.2, WALL2, "Concrete")
+			put("TorTurmStreifen", "trim", sd * 21, Y0 + 22, 0, 19, 0.8, GD + 1.0, WALL2, "Concrete")
+			for _, fz in ipairs({ -1, 1 }) do
+				for _, wy in ipairs({ 30, 41, 51 }) do bay(put, fz < 0 and "F" or "B", GD / 2, sd * 21, Y0 + wy, 2.2, 4.4, false) end
+				local zz = fz * (GD / 2 + 0.3)
+				put("TorTafel", "trim", sd * 27.6, Y0 + 30, zz, 4.2, 6, 0.5, { 214, 206, 190 }, "Concrete")
+				put("TorTafelSchrift", "sign", sd * 27.6, Y0 + 30, zz + fz * 0.3, 3.6, 1.1, 0.1, { 0, 0, 0 }, "SmoothPlastic", { yaw = fz < 0 and 0 or 180, text = { s = "ANNO 1302", color = { 90, 86, 80 } } })
+			end
 		end
-		for _, fz in ipairs({ -GD / 2 - 0.3, GD / 2 + 0.3 }) do
-			for _, sd in ipairs({ -1, 1 }) do put("TorBogenLeiste", "trim", sd * 6.5, Y0 + 7, fz, 1, 14, 0.6, WALL2, "Concrete") end
-			put("TorBogenLeiste", "trim", 0, Y0 + 18.8, fz, 1.6, 2, 0.6, WALL2, "Concrete")
-			put("TorUhr", "sign", 0, Y0 + MT - 16, fz, 0.4, 7, 7, { 250, 246, 236 }, "SmoothPlastic", { shape = "Cylinder", yaw = 90 })
-			put("TorUhrRand", "trim", 0, Y0 + MT - 16, fz + (fz < 0 and -0.1 or 0.1), 0.2, 8, 8, { 60, 56, 52 }, "Metal", { shape = "Cylinder", yaw = 90 })
-			put("TorWappen", "trim", -9, Y0 + MT - 16, fz, 3, 4, 0.3, { 70, 110, 190 }, "SmoothPlastic")
-			put("TorWappen", "trim", 9, Y0 + MT - 16, fz, 3, 4, 0.3, { 220, 220, 226 }, "SmoothPlastic")
+		for _, fz in ipairs({ -1, 1 }) do
+			local zz = fz * (GD / 2 + 0.35)
+			for _, sd in ipairs({ -1, 1 }) do -- Wappen in den Zwickeln neben dem Hauptbogen
+				local u, wy = sd * 9.9, Y0 + 30
+				local col = sd < 0 and { 70, 110, 190 } or { 220, 220, 226 }
+				put("TorWappen", "trim", u, wy, zz, 3.4, 3.4, 0.5, col, "SmoothPlastic")
+				wtri(Wf, "TorWappen", "trim", { u - 1.7, wy - 1.7, zz }, { u + 1.7, wy - 1.7, zz }, { u, wy - 4.2, zz }, 0.5, col, "SmoothPlastic", { 0, 0, fz })
+				put("TorWappenKreuz", "trim", u, wy, zz + fz * 0.3, 0.6, 3.0, 0.2, { 190, 150, 50 }, "Metal")
+			end
+			put("TorSchrift", "sign", 0, Y0 + 42, fz * (GD / 2 + 0.4), 12, 1.6, 0.1, { 0, 0, 0 }, "SmoothPlastic", { yaw = fz < 0 and 0 or 180, text = { s = "KARLSTOR", color = { 90, 86, 80 } } })
 		end
 		put("TorMittelGesims", "trim", 0, Y0 + MT - 0.8, 0, 26, 1.6, GD + 1.2, WALL2, "Concrete")
 		-- Zinnen auf Mittelbau und Türmen
 		local function merlons(lx0, lx1, y)
 			local len = lx1 - lx0
 			local k = math.max(2, math.floor(len / 3.6))
-			for i = 1, k do
+			for q = 1, k do
 				for _, fz in ipairs({ -GD / 2 + 1, GD / 2 - 1 }) do
-					put("Zinne", "trim", lx0 + (i - 0.5) * len / k, y + 1.1, fz, len / k * 0.55, 2.2, 1.6, WALL, "Concrete", { collide = true })
+					put("Zinne", "trim", lx0 + (q - 0.5) * len / k, y + 1.1, fz, len / k * 0.55, 2.2, 1.6, WALL, "Concrete", { collide = true })
 					stats.merlons = stats.merlons + 1
 				end
 			end
@@ -290,62 +397,55 @@ function Stachus.plan(cfg)
 		merlons(-12, 12, Y0 + MT)
 		merlons(-30, -12, Y0 + TT)
 		merlons(12, 30, Y0 + TT)
-		for _, fz in ipairs({ -GD / 2 - 0.4, GD / 2 + 0.4 }) do
-			put("TorSchrift", "sign", 0, Y0 + MT - 5, fz, 12, 1.6, 0.1, { 0, 0, 0 }, "SmoothPlastic", { yaw = fz < 0 and 0 or 180, text = { s = "KARLSTOR", color = { 90, 86, 80 } } })
-		end
 	end
 
 	-- U-Bahn-Abgänge (nach Foto): weißer Betonrahmen, in der Mitte eine Treppe zwischen zwei Rolltreppen, Glasgeländer, Pylon mit U-Schild;
-	-- dir = +1: der Abstieg führt nach Süden (Zugang am Nordende z0), dir = -1: nach Norden (Zugang am Südende z1)
+	-- der Zugang liegt am Westende (zum Brunnen), die Treppe führt nach Osten in Richtung Taxistand nach unten (lokal: lz = Abstand vom Zugang, lx quer)
 	local CONC, STEEL, UBLUE, SGREEN, WHITE = { 226, 224, 218 }, { 60, 64, 70 }, { 0, 94, 184 }, { 0, 150, 70 }, { 255, 255, 255 }
 	for pi, U in ipairs(pits) do
-		local len, wd = U.z1 - U.z0, U.x1 - U.x0
-		local ux = (U.x0 + U.x1) / 2
+		local len, wd = U.x1 - U.x0, U.z1 - U.z0
+		local put = frame(U.x0, (U.z0 + U.z1) / 2, 90)
 		local nSteps, landing = 14, 6
 		local rise, run = U.depth / nSteps, (len - landing) / nSteps
 		local bottom = 1 - U.depth
-		local function zAt(t) return U.dir > 0 and (U.z0 + t) or (U.z1 - t) end -- t = Abstand vom Zugang
 		local lanes = { { -4.6, 3.8, { 70, 74, 80 }, "Metal" }, { 0, 4.8, { 168, 166, 160 }, "Granite" }, { 4.6, 3.8, { 70, 74, 80 }, "Metal" } }
 		for k = 1, nSteps do
 			local t = 1 - k * rise
 			for _, ln in ipairs(lanes) do
-				add("UBahnStufe", "plaza", ux + ln[1], (t - 12) / 2, zAt((k - 0.5) * run), ln[2], t + 12, run, ln[3], ln[4], { collide = true })
+				put("UBahnStufe", "plaza", ln[1], (t - 12) / 2, (k - 0.5) * run, ln[2], t + 12, run, ln[3], ln[4], { collide = true })
 			end
 		end
-		add("UBahnPodest", "plaza", ux, (bottom - 12) / 2, zAt(len - landing / 2), wd - 2.4, bottom + 12, landing, { 150, 148, 144 }, "Granite", { collide = true })
+		put("UBahnPodest", "plaza", 0, (bottom - 12) / 2, len - landing / 2, wd - 2.4, bottom + 12, landing, { 150, 148, 144 }, "Granite", { collide = true })
 		local slope = math.sqrt((len - landing) ^ 2 + U.depth ^ 2)
-		local pitch = U.dir * math.deg(math.atan2(U.depth, len - landing))
+		local pitch = math.deg(math.atan2(U.depth, len - landing))
 		for _, lx in ipairs({ -7.2, -2.4, 2.4, 7.2 }) do -- Handläufe (sinken mit der Treppe)
-			add("UBahnHandlauf", "plaza", ux + lx, 1 - U.depth / 2 + 2.6, zAt((len - landing) / 2), 0.3, 0.3, slope, STEEL, "Metal", { pitch = pitch })
+			put("UBahnHandlauf", "plaza", lx, 1 - U.depth / 2 + 2.6, (len - landing) / 2, 0.3, 0.3, slope, STEEL, "Metal", { pitch = pitch })
 		end
 		for _, sd in ipairs({ -1, 1 }) do -- Seitenwände (Betonrahmen) bis 1,6 über das Pflaster
-			add("UBahnWand", "plaza", ux + sd * (wd / 2 - 0.6), -5.2 + 0.8, (U.z0 + U.z1) / 2, 1.2, 13.6 + 1.6, len, CONC, "Concrete", { collide = true })
+			put("UBahnWand", "plaza", sd * (wd / 2 - 0.6), -5.2 + 0.8, len / 2, 1.2, 13.6 + 1.6, len, CONC, "Concrete", { collide = true })
 			for k = 0, 5 do -- Glasgeländer auf dem Rahmen
-				add("UBahnGlas", "glass", ux + sd * (wd / 2 - 0.6), 3.2, U.z0 + (k + 0.5) * len / 6, 0.2, 1.8, len / 6 - 0.3, { 190, 220, 232 }, "Glass", { collide = false, transparency = 0.5 })
+				put("UBahnGlas", "glass", sd * (wd / 2 - 0.6), 3.2, (k + 0.5) * len / 6, 0.2, 1.8, len / 6 - 0.3, { 190, 220, 232 }, "Glass", { collide = false, transparency = 0.5 })
 			end
 		end
-		-- Zugangsende: schräg abfallender Rahmen (Rampe aus Beton) und Pylon; Gegenende: Wand mit Portal und Schild
-		local ez, wz = zAt(0), zAt(len)
-		local sdir = U.dir
+		-- Gegenende (Osten): Wand mit Portal und Schild; Gang dahinter
 		local pw, ph = 10, 8
 		for _, sd in ipairs({ -1, 1 }) do
-			add("UBahnWand", "plaza", ux + sd * (pw / 2 + (wd - pw) / 4), -5.2 + 0.8, wz - sdir * 0.6, (wd - pw) / 2, 13.6 + 1.6, 1.2, CONC, "Concrete", { collide = true })
+			put("UBahnWand", "plaza", sd * (pw / 2 + (wd - pw) / 4), -5.2 + 0.8, len - 0.6, (wd - pw) / 2, 13.6 + 1.6, 1.2, CONC, "Concrete", { collide = true })
 		end
-		add("UBahnWand", "plaza", ux, (bottom + ph + 2.4) / 2, wz - sdir * 0.6, pw, 2.4 - bottom - ph, 1.2, CONC, "Concrete", { collide = true })
-		add("UBahnSchild", "plaza", ux, 3.2, wz - sdir * 1.3, 14, 2.4, 0.3, UBLUE, "SmoothPlastic")
-		add("Schrift", "sign", ux, 3.2, wz - sdir * 1.5, 13, 1.8, 0.2, WHITE, "SmoothPlastic", { yaw = sdir > 0 and 180 or 0, text = { s = "U  S  KARLSPLATZ", color = WHITE } })
-		local sx, sz = U.x0 - 2.4, ez + sdir * -2.5
-		add("UBahnPylon", "plaza", sx, 6, sz, 0.8, 10, 0.8, { 30, 32, 36 }, "Metal", { collide = true })
-		add("UBahnU", "plaza", sx, 10.8, sz, 4, 4, 0.4, UBLUE, "SmoothPlastic")
-		add("Schrift", "sign", sx, 10.8, sz - 0.3, 3.4, 3.4, 0.2, WHITE, "SmoothPlastic", { text = { s = "U", color = WHITE } })
-		add("Schrift", "sign", sx, 10.8, sz + 0.3, 3.4, 3.4, 0.2, WHITE, "SmoothPlastic", { yaw = 180, text = { s = "U", color = WHITE } })
+		put("UBahnWand", "plaza", 0, (bottom + ph + 2.4) / 2, len - 0.6, pw, 2.4 - bottom - ph, 1.2, CONC, "Concrete", { collide = true })
+		put("UBahnSchild", "plaza", 0, 3.2, len - 1.3, 14, 2.4, 0.3, UBLUE, "SmoothPlastic")
+		put("Schrift", "sign", 0, 3.2, len - 1.5, 13, 1.8, 0.2, WHITE, "SmoothPlastic", { yaw = 0, text = { s = "U  S  KARLSPLATZ", color = WHITE } })
+		put("UBahnPylon", "plaza", -(wd / 2 + 2.4), 6, -2.5, 0.8, 10, 0.8, { 30, 32, 36 }, "Metal", { collide = true })
+		put("UBahnU", "plaza", -(wd / 2 + 2.4), 10.8, -2.5, 4, 4, 0.4, UBLUE, "SmoothPlastic")
+		put("Schrift", "sign", -(wd / 2 + 2.4), 10.8, -2.8, 3.4, 3.4, 0.2, WHITE, "SmoothPlastic", { text = { s = "U", color = WHITE } })
+		put("Schrift", "sign", -(wd / 2 + 2.4), 10.8, -2.2, 3.4, 3.4, 0.2, WHITE, "SmoothPlastic", { yaw = 180, text = { s = "U", color = WHITE } })
 		-- Gang hinter dem Portal: Boden, Decke, Wände, Rückwand, Leuchten
-		local g0, g1 = math.min(wz, wz + sdir * U.gang), math.max(wz, wz + sdir * U.gang)
-		add("UBahnGangBoden", "plaza", ux, bottom - 0.5, (g0 + g1) / 2, pw + 2, 1, g1 - g0, { 150, 148, 144 }, "Granite", { collide = true })
-		add("UBahnGangDecke", "plaza", ux, bottom + ph + 1, (g0 + g1) / 2, pw + 2, 1, g1 - g0, { 200, 200, 196 }, "Concrete", { collide = true })
-		for _, sd in ipairs({ -1, 1 }) do add("UBahnGangWand", "plaza", ux + sd * (pw / 2 + 0.5), bottom + ph / 2, (g0 + g1) / 2, 1, ph, g1 - g0, { 226, 222, 210 }, "Concrete", { collide = true }) end
-		add("UBahnGangWand", "plaza", ux, bottom + ph / 2, wz + sdir * (U.gang + 0.5), pw + 2, ph, 1, { 226, 222, 210 }, "Concrete", { collide = true })
-		for k = 1, 3 do add("UBahnLicht", "plaza", ux, bottom + ph + 0.4, wz + sdir * k * U.gang / 4, 1.2, 0.2, 3, { 255, 250, 236 }, "Neon") end
+		local g0, g1 = len, len + U.gang
+		put("UBahnGangBoden", "plaza", 0, bottom - 0.5, (g0 + g1) / 2, pw + 2, 1, g1 - g0, { 150, 148, 144 }, "Granite", { collide = true })
+		put("UBahnGangDecke", "plaza", 0, bottom + ph + 1, (g0 + g1) / 2, pw + 2, 1, g1 - g0, { 200, 200, 196 }, "Concrete", { collide = true })
+		for _, sd in ipairs({ -1, 1 }) do put("UBahnGangWand", "plaza", sd * (pw / 2 + 0.5), bottom + ph / 2, (g0 + g1) / 2, 1, ph, g1 - g0, { 226, 222, 210 }, "Concrete", { collide = true }) end
+		put("UBahnGangWand", "plaza", 0, bottom + ph / 2, g1 + 0.5, pw + 2, ph, 1, { 226, 222, 210 }, "Concrete", { collide = true })
+		for k = 1, 3 do put("UBahnLicht", "plaza", 0, bottom + ph + 0.4, len + k * U.gang / 4, 1.2, 0.2, 3, { 255, 250, 236 }, "Neon") end
 	end
 
 	-- Kugelleuchten und Platanen auf der Ostseite, Taxistand an der Leopoldstraße

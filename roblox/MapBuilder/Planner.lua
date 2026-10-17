@@ -1447,7 +1447,7 @@ local function lotDecor(h, spec)
 	-- Preis-Totem: Stahlpylon mit rotem Kopf (weißes A, ALLGUTH) und schwarzer Preistafel, an beiden Flachseiten
 	local tx, tz = l[1] + 6, sections[1] and sections[1][2] - 9 or l[2] + 20
 	W3(h, "TotemPylon", "decor", tx, 17.3, tz, 6.2, 32, 1.8, { 70, 74, 80 }, "Metal", { collide = true })
-	local fuels = { { "SUPER", "1,81", "Super" }, { "SUPER E10", "1,75", "E10" }, { "SUPER PLUS", "1,95", "SuperPlus" }, { "DIESEL", "1,69", "Diesel" }, { "AUTOGAS", "0,89", "Autogas" } }
+	local fuels = { { "SUPER", "2,29", "Super" }, { "SUPER E10", "2,23", "E10" }, { "SUPER PLUS", "2,39", "SuperPlus" }, { "DIESEL", "2,33", "Diesel" }, { "AUTOGAS", "1,09", "Autogas" } }
 	for _, sd in ipairs({ { -1, 0 }, { 1, 180 } }) do
 		local zf = tz + sd[1] * 1.0
 		W3(h, "TotemKopf", "decor", tx, 28.8, zf, 5.6, 8.6, 0.3, RED, "SmoothPlastic")
@@ -1513,15 +1513,6 @@ local function parkingLot(h, spec)
 			W3(h, "RollstuhlSchild", "decor", cx - w / 2 + 0.6, 6.2, zb - 0.8, 3.2, 3.2, 0.3, BLUE, "SmoothPlastic")
 			W3(h, "Schrift", "text", cx - w / 2 + 0.6, 6.2, zb - 1.05, 2.6, 2.6, 0.2, WHITE, "SmoothPlastic", { text = { s = "P", color = WHITE } })
 		end
-	end
-	-- Hinweis zum Ladeplatz: grünes Schild an einem Pfosten über den drei Ladeplätzen
-	local first, last
-	for i, k in ipairs(pk.kinds) do if k == "E" then first = first or i last = i end end
-	if first then
-		local ex = x0 + (first - 1) * w + (last - first + 1) * w / 2
-		W3(h, "EVSchildPfosten", "decor", ex - 5, 3.3, zf + 0.8, 0.4, 4.6, 0.4, STEEL, "Metal", { collide = true })
-		W3(h, "EVSchild", "decor", ex - 5, 6.4, zf + 0.8, 8, 2.6, 0.3, GREEN, "SmoothPlastic")
-		W3(h, "Schrift", "text", ex - 5, 6.4, zf + 0.55, 7.4, 2, 0.2, WHITE, "SmoothPlastic", { text = { s = "E-LADEN", color = WHITE } })
 	end
 end
 

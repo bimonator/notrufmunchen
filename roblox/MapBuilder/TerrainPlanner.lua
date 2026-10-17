@@ -129,8 +129,7 @@ function TerrainPlanner.plan(cfg)
 	-- U-Bahn-Abgänge am Stachus: Grube und dahinter der Gang (Wände und Decke sind Teile aus Stachus.lua)
 	for _, U in ipairs(cfg.stachus and cfg.stachus.ubahn or {}) do
 		block(ops, "Air", (U.x0 + U.x1) / 2, -3, (U.z0 + U.z1) / 2, U.x1 - U.x0, 18, U.z1 - U.z0, "ubahn")
-		local zEnd = U.dir > 0 and U.z1 + U.gang / 2 or U.z0 - U.gang / 2
-		block(ops, "Air", (U.x0 + U.x1) / 2, -5.5, zEnd, 16, 11, U.gang + 1, "ubahn")
+		block(ops, "Air", U.x1 + U.gang / 2, -5.5, (U.z0 + U.z1) / 2, U.gang + 1, 11, 16, "ubahn")
 	end
 	-- 4. Isar und Bach
 	cfg.water.isar.name, cfg.water.bach.name = "isar", "bach"

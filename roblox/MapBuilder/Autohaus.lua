@@ -4,6 +4,8 @@
 -- Bürogeschoss darüber, Werkstatt dahinter, Pylon und Fassadenschild "AUTOHAUS ISARTOR" (erfundener Name). Reine Geometrie, Teilefelder wie in den anderen Planern.
 -- Koordinaten: x = Ost, z = Süd, y = oben; alle Teile achsparallel. Text: yaw 90 = Schrift schaut nach Westen.
 
+local Geo = require(script and script.Parent.Geo or "Geo")
+
 local Autohaus = {}
 
 local WHITE, GREY, DARK, CONC, ASPHALT, GLASS, BLUE, LINE = { 240, 240, 236 }, { 150, 154, 160 }, { 70, 74, 82 }, { 196, 196, 192 }, { 84, 90, 96 }, { 150, 186, 204 }, { 24, 66, 150 }, { 240, 240, 236 }
@@ -16,7 +18,7 @@ function Autohaus.plan(cfg)
 		e = e or {}
 		parts[#parts + 1] = {
 			name = name, kind = kind, size = { r3(sx), r3(sy), r3(sz) }, pos = { r3(x), r3(y), r3(z) }, yaw = e.yaw or 0, pitch = e.pitch or 0, roll = e.roll,
-			color = color, material = mat, collide = e.collide == true, shape = e.shape, text = e.text, tag = e.tag, lit = e.lit, attrs = e.attrs, transparency = e.transparency,
+			color = color, material = mat, collide = e.collide == true, shape = e.shape, text = e.text, tag = e.tag, lit = e.lit, attrs = e.attrs, transparency = e.transparency, wedge = e.wedge,
 		}
 	end
 	local function disc(name, x, y, z, h, d, color, mat, collide) -- stehende Scheibe
@@ -42,7 +44,7 @@ function Autohaus.plan(cfg)
 		for _, xx in ipairs({ x, x + 16 }) do add("Boxenlinie", "dash", xx, Y + 0.1, (zW1 + 4 + zS1 - 2) / 2, 0.3, 0.2, zS1 - 2 - zW1 - 4, LINE, "SmoothPlastic") end
 	end
 	for _, z in ipairs({ zc - 14, zc, zc + 14 }) do disc("Drehteller", bx - 6, Y + 0.25, z, 0.5, 11, WHITE, "SmoothPlastic", true) end
-	for _, z in ipairs({ A.z0 + 0.4, A.z1 - 0.4 }) do add("Zaun", "fence", (A.x0 + bx) / 2, Y + 0.7, z, bx - A.x0, 1.4, 0.2, DARK, "Metal") end
+	for _, z in ipairs({ A.z0 + 0.4 }) do add("Zaun", "fence", (A.x0 + bx) / 2, Y + 0.7, z, bx - A.x0, 1.4, 0.2, DARK, "Metal") end
 
 	-- Showroom: Glasfront nach Westen und Süden, massive Nord- und Ostwand, Dachplatte (Parkdeck)
 	local H = 12
@@ -165,6 +167,61 @@ function Autohaus.plan(cfg)
 		add("AutohausStamm", "tree", q[1], Y + 4, q[2], 1.2, 8, 1.2, { 96, 70, 48 }, "Wood", { collide = true })
 		add("AutohausKrone", "tree", q[1], Y + 11, q[2], 9, 9, 9, { 88, 140, 70 }, "Grass", { shape = "Ball" })
 		stats.trees = stats.trees + 1
+	end
+	-- Vorfeld: das Dreieck südlich des Grundstücks (zwischen V3, Autohaus und Diagonale) gehört zum Autohaus. Kundenparkplatz in zwei Reihen mit Fahrgasse,
+	-- davor zur Straße ein Rasendreieck mit Bäumen (Kanten parallel zum Gehweg aus Keil-Dreiecken, kein Treppenrand)
+	local V = A.vorfeld
+	if V then
+		local road
+		for _, r in ipairs(cfg.roads) do if r.name == V.road then road = r end end
+		local ra, rb = road.pts[2], road.pts[3]
+		local ex = 0
+		for _, st in ipairs(cfg.profiles[road.profile].strips) do ex = math.max(ex, math.abs(st[1]), math.abs(st[2])) end
+		local dl = math.sqrt((rb[1] - ra[1]) ^ 2 + (rb[2] - ra[2]) ^ 2)
+		local rux, ruz = (rb[1] - ra[1]) / dl, (rb[2] - ra[2]) / dl
+		local rnx, rnz = ruz, -rux -- weg von der Straße nach Norden
+		local function zEdge(x) return ra[2] + (ex - (x - ra[1]) * rnx) / rnz end -- Außenkante des Gehwegs
+		local X0 = A.x0 + 4
+		local function xMax(zSouth) -- letztes Stellplatzende (Vielfaches von 8 ab X0) mit V.margin Abstand zum Gehweg
+			local x = math.min(ra[1] + (ex - (zSouth + V.margin - ra[2]) * rnz) / rnx, A.x1 - 4)
+			return X0 + math.floor((x - X0) / 8) * 8
+		end
+		local rA, rB = V.rows[1], V.rows[2]
+		local xAisle, xB, xA = xMax(rB[1]), xMax(rB[2]), xMax(rA[2]) -- Fahrgasse, Reihe B, Reihe A
+		local function plate(x0, x1, z0, z1)
+			add("Vorfeld", "plaza", (x0 + x1) / 2, Y - 0.5, (z0 + z1) / 2, x1 - x0, 1, z1 - z0, ASPHALT, "Asphalt", { collide = true })
+		end
+		plate(A.x0, xAisle, A.z1, rB[1]) -- Reihe A und Fahrgasse
+		plate(A.x0, xB, rB[1], rB[2]) -- Reihe B
+		if xA > xAisle then plate(xAisle, xA, A.z1, rA[2]) end -- Reihe A läuft hinter der Fahrgasse weiter
+		for _, row in ipairs({ { rA, xA }, { rB, xB } }) do
+			for x = X0, row[2], 8 do add("Boxenlinie", "dash", x, Y + 0.1, (row[1][1] + row[1][2]) / 2, 0.3, 0.2, row[1][2] - row[1][1], LINE, "SmoothPlastic") end
+			stats.bays = stats.bays + (row[2] - X0) / 8
+		end
+		local function lawn(p, q, r)
+			for _, w in ipairs(Geo.wedges({ p[1], Y, p[2] }, { q[1], Y, q[2] }, { r[1], Y, r[2] }, 1, { 0, 1, 0 })) do
+				add("Rasen", "decor", w.pos[1], w.pos[2], w.pos[3], w.size[1], w.size[2], w.size[3], { 84, 132, 64 }, "Grass", { wedge = w.wedge })
+			end
+		end
+		local function quad(p1, p2, p3, p4) lawn(p1, p2, p3) lawn(p1, p3, p4) end
+		local function e(x) return { x, zEdge(x) - 1.4 } end
+		local xw, xe2 = A.x0 + 2, A.x1
+		quad({ xw, rB[2] }, { xB, rB[2] }, e(xB), e(xw))
+		quad({ xB, rB[1] }, { xAisle, rB[1] }, e(xAisle), e(xB))
+		quad({ xAisle, rA[2] }, { xA, rA[2] }, e(xA), e(xAisle))
+		quad({ xA, A.z1 }, { xe2, A.z1 }, e(xe2), e(xA))
+		for _, x in ipairs(V.trees) do
+			local z = zEdge(x) - 7
+			add("AutohausStamm", "tree", x, Y + 4, z, 1.2, 8, 1.2, { 96, 70, 48 }, "Wood", { collide = true })
+			add("AutohausKrone", "tree", x, Y + 11, z, 9, 9, 9, { 88, 140, 70 }, "Grass", { shape = "Ball" })
+			stats.trees = stats.trees + 1
+		end
+		for _, x in ipairs(V.lamps) do -- zwei Leuchten in der Fahrgasse
+			local z = (rA[2] + rB[1]) / 2
+			add("LampenMast", "lamp", x, Y + 5, z, 0.5, 10, 0.5, { 40, 56, 48 }, "Metal", { collide = true })
+			add("LampenKopf", "lamp", x, Y + 10.3, z, 2.6, 0.6, 1.2, { 255, 226, 150 }, "Neon", { tag = "StreetLamp", attrs = { Lit = true } })
+			stats.lamps = stats.lamps + 1
+		end
 	end
 	return { parts = parts, stats = stats }
 end

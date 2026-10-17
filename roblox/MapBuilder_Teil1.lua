@@ -105,6 +105,42 @@ local dx, dz = px - p.pos[1], pz - p.pos[3]
 local lx, lz = dx * c - dz * s, dx * s + dz * c -- Umkehrung der Drehung
 return math.abs(lx) <= p.size[1] / 2 - margin and math.abs(lz) <= p.size[3] / 2 - margin
 end
+function Geo.wedges(p1, p2, p3, thick, hint)
+local P = { p1, p2, p3 }
+local best, bi = -1, 1
+for i = 1, 3 do
+local a, b = P[i], P[i % 3 + 1]
+local l = (a[1] - b[1]) ^ 2 + (a[2] - b[2]) ^ 2 + (a[3] - b[3]) ^ 2
+if l > best then best, bi = l, i end
+end
+local a, b, c = P[bi], P[bi % 3 + 1], P[(bi + 1) % 3 + 1]
+local bx, by, bz = b[1] - a[1], b[2] - a[2], b[3] - a[3]
+local bl = math.sqrt(bx * bx + by * by + bz * bz)
+if bl < 0.05 then return {} end
+bx, by, bz = bx / bl, by / bl, bz / bl
+local t = (c[1] - a[1]) * bx + (c[2] - a[2]) * by + (c[3] - a[3]) * bz
+local f = { a[1] + bx * t, a[2] + by * t, a[3] + bz * t }
+local hx, hy, hz = c[1] - f[1], c[2] - f[2], c[3] - f[3]
+local hl = math.sqrt(hx * hx + hy * hy + hz * hz)
+if hl < 0.03 then return {} end
+hx, hy, hz = hx / hl, hy / hl, hz / hl
+local out = {}
+for _, leg in ipairs({ { -1, t }, { 1, bl - t } }) do
+local l1 = leg[2]
+if l1 > 0.03 then
+local d = { leg[1] * bx, leg[1] * by, leg[1] * bz } -- vom Fußpunkt zur Ecke der Grundseite
+local ey, ez = d, { -hx, -hy, -hz }
+local n = { ey[2] * ez[3] - ey[3] * ez[2], ey[3] * ez[1] - ey[1] * ez[3], ey[1] * ez[2] - ey[2] * ez[1] } -- Normale = ey x ez
+local sh = 0
+if hint then sh = ((n[1] * hint[1] + n[2] * hint[2] + n[3] * hint[3]) > 0) and -thick / 2 or thick / 2 end
+out[#out + 1] = {
+pos = { f[1] + d[1] * l1 / 2 + hx * hl / 2 + n[1] * sh, f[2] + d[2] * l1 / 2 + hy * hl / 2 + n[2] * sh, f[3] + d[3] * l1 / 2 + hz * hl / 2 + n[3] * sh },
+size = { thick, l1, hl }, wedge = { ey, ez },
+}
+end
+end
+return out
+end
 return Geo
 
 end)()
@@ -159,8 +195,8 @@ C.roads = {
 { name = "V2", profile = "raster57", pts = { { -235, 30 }, { -235, -472 } } },
 { name = "H1", profile = "raster57", pts = { { -661, -285 }, { 0, -285 } } },
 { name = "H2", profile = "raster57", pts = { { -661, 30 }, { -61, 30 } } },
-{ name = "Diagonale", profile = "std48", pts = { { 61, 30 }, { 290, 36 }, { 455, -77 }, { 605, -212 }, { 770, -347 }, { 790, -472 } } },
-{ name = "Isarspange", profile = "std48", pts = { { 455, -77 }, { 700, -60 }, { 780, -40 }, { 1012, 3 }, { 1030, 70 }, { 1055, 140 }, { 1110, 190 }, { 1176, 210 } } },
+{ name = "Diagonale", profile = "std48", pts = { { 61, 30 }, { 290, 36 }, { 455, -77 }, { 605, -212 }, { 770, -347 }, { 790, -472 } }, lampSpacing = 128 },
+{ name = "Isarspange", profile = "std48", pts = { { 455, -77 }, { 700, -60 }, { 780, -40 }, { 1012, 3 }, { 1030, 70 }, { 1055, 140 }, { 1110, 190 }, { 1176, 210 } }, lampSpacing = 128 },
 { name = "V3", profile = "std48", pts = { { 300, -472 }, { 300, 32 } } },
 { name = "IsarAllee", profile = "allee", pts = { { 1072.5, -472 }, { 1012, 3 } } },
 { name = "Maximilianstrasse", profile = "std48", pts = { { 395, 410 }, { 395, 298 }, { 906, 298 } } }, -- vom Ring über die Maximilianbrücke zum Friedensengel-Oval
@@ -186,12 +222,14 @@ C.busstops = {
 }
 C.bay = { length = 16, width = 9 }
 C.tankstelle = { lot = { 57, -336, 180, -150 }, gaps = { { -262, -218 }, { -196, -152 } }, parking = { x0 = 96, zBack = -152, depth = 16, w = 8, kinds = { "H", "E", "E", "E", "N", "N", "N", "N", "N", "N" } } } -- parking: Stellplatzreihe im Südteil (H Behinderte, E Ladeplatz, N normal)
-C.autohaus = { x0 = 332, z0 = -196, x1 = 442, z1 = -116, frontX = 394, showroom = { -170, -122 }, werkstatt = { -196, -170 } }
+C.autohaus = { x0 = 332, z0 = -196, x1 = 442, z1 = -116, frontX = 394, showroom = { -170, -122 }, werkstatt = { -196, -170 },
+vorfeld = { road = "Diagonale", margin = 5, rows = { { -114, -98 }, { -80, -64 } }, zMax = -20, trees = { 352, 372, 396, 420, 438 }, lamps = { 372, 404 } } }
 C.driveways = {}
 for _, g in ipairs(C.tankstelle.gaps) do C.driveways[#C.driveways + 1] = { x0 = 43, x1 = 57, z0 = g[1] - 3, z1 = g[2] + 3 } end
 C.einfahrten = {
 { name = "Autohaus-Werkstatt", x0 = 314, z0 = -190, x1 = 332, z1 = -176, dir = "E" }, -- V3, Ostseite
 { name = "Autohaus-Kunden", x0 = 314, z0 = -146, x1 = 332, z1 = -130, dir = "E" },
+{ name = "Autohaus-Vorfeld", x0 = 314, z0 = -97, x1 = 332, z1 = -81, dir = "E" },
 { name = "Krankenhaus-Notaufnahme", x0 = 314, z0 = -356, x1 = 340, z1 = -340, dir = "E" },
 { name = "Prinz-Eins-Parkplatz", x0 = 409, z0 = 358, x1 = 436, z1 = 374, dir = "E" }, -- Maximilianstraße, Ostseite
 { name = "Kaffeehaus-Parkplatz", x0 = 150, z0 = 384, x1 = 166, z1 = 396, dir = "N" }, -- Ring Süd
@@ -331,7 +369,7 @@ end
 C.stachus = { x0 = -215, z0 = 60, x1 = -55, z1 = 386, cx = -116, cz = 225, depth = 39, floors = 5, basin = 40, gate = 30, seg = 8.4,
 rowN = 86.5, eastEnd = -83, -- Nordzeile Mittellinie z (bündig mit dem Neuen Rathaus), Ostende aller Zeilen
 taxi = { x = -38.5, z0 = 98, len = 16, n = 8 },
-ubahn = { { x0 = -104, x1 = -88, z0 = 298, z1 = 330, dir = 1, gang = 14, depth = 10.5 }, { x0 = -104, x1 = -88, z0 = 120, z1 = 152, dir = -1, gang = 14, depth = 10.5 } } } -- Gruben spiegelbildlich zur Brunnenmitte
+ubahn = { { x0 = -112, x1 = -80, z0 = 306, z1 = 322, gang = 14, depth = 10.5 }, { x0 = -112, x1 = -80, z0 = 128, z1 = 144, gang = 14, depth = 10.5 } } } -- Gruben spiegelbildlich zur Brunnenmitte; Zugang im Westen, Treppe fällt nach Osten (Richtung Taxistand) ab
 C.marienplatz = {
 plaza = { x0 = -632, z0 = 60, x1 = -215, z1 = 326 }, -- bis zur Häuserzeile Süd (Block M_MarienplatzSued)
 rathaus = { x0 = -355, z0 = 66, x1 = -215, z1 = 106 },
@@ -1640,7 +1678,7 @@ if sections[1] then gateSign(sections[1][2] - 1, "AUSFAHRT") end -- am Südende 
 if sections[2] then gateSign(sections[2][2] - 1, "EINFAHRT") end -- vor der südlichen Einfahrt
 local tx, tz = l[1] + 6, sections[1] and sections[1][2] - 9 or l[2] + 20
 W3(h, "TotemPylon", "decor", tx, 17.3, tz, 6.2, 32, 1.8, { 70, 74, 80 }, "Metal", { collide = true })
-local fuels = { { "SUPER", "1,81", "Super" }, { "SUPER E10", "1,75", "E10" }, { "SUPER PLUS", "1,95", "SuperPlus" }, { "DIESEL", "1,69", "Diesel" }, { "AUTOGAS", "0,89", "Autogas" } }
+local fuels = { { "SUPER", "2,29", "Super" }, { "SUPER E10", "2,23", "E10" }, { "SUPER PLUS", "2,39", "SuperPlus" }, { "DIESEL", "2,33", "Diesel" }, { "AUTOGAS", "1,09", "Autogas" } }
 for _, sd in ipairs({ { -1, 0 }, { 1, 180 } }) do
 local zf = tz + sd[1] * 1.0
 W3(h, "TotemKopf", "decor", tx, 28.8, zf, 5.6, 8.6, 0.3, RED, "SmoothPlastic")
@@ -1700,14 +1738,6 @@ W3(h, "RollstuhlSchildPfosten", "decor", cx - w / 2 + 0.6, 3.3, zb - 0.8, 0.4, 4
 W3(h, "RollstuhlSchild", "decor", cx - w / 2 + 0.6, 6.2, zb - 0.8, 3.2, 3.2, 0.3, BLUE, "SmoothPlastic")
 W3(h, "Schrift", "text", cx - w / 2 + 0.6, 6.2, zb - 1.05, 2.6, 2.6, 0.2, WHITE, "SmoothPlastic", { text = { s = "P", color = WHITE } })
 end
-end
-local first, last
-for i, k in ipairs(pk.kinds) do if k == "E" then first = first or i last = i end end
-if first then
-local ex = x0 + (first - 1) * w + (last - first + 1) * w / 2
-W3(h, "EVSchildPfosten", "decor", ex - 5, 3.3, zf + 0.8, 0.4, 4.6, 0.4, STEEL, "Metal", { collide = true })
-W3(h, "EVSchild", "decor", ex - 5, 6.4, zf + 0.8, 8, 2.6, 0.3, GREEN, "SmoothPlastic")
-W3(h, "Schrift", "text", ex - 5, 6.4, zf + 0.55, 7.4, 2, 0.2, WHITE, "SmoothPlastic", { text = { s = "E-LADEN", color = WHITE } })
 end
 end
 local function parkingArea(h, r)

@@ -126,4 +126,44 @@ function Geo.inPart(px, pz, p, margin)
 	return math.abs(lx) <= p.size[1] / 2 - margin and math.abs(lz) <= p.size[3] / 2 - margin
 end
 
+-- Dreieck im Raum aus zwei rechtwinkligen Keilen (Part-Shape Wedge): p1, p2, p3 = { x, y, z }, thick = Dicke senkrecht zur Dreiecksebene.
+-- hint (optional, Vektor { x, y, z }) = Richtung der Außenseite: die Dreiecksfläche liegt genau auf der Ebene, die Dicke geht nach innen; ohne hint ist die Dicke zentriert.
+-- Liefert Teile { pos, size, wedge = { ey, ez } }: Größe = (Dicke, Länge ey, Länge ez), das Koordinatensystem des Keils ist (ey x ez, ey, ez).
+function Geo.wedges(p1, p2, p3, thick, hint)
+	local P = { p1, p2, p3 }
+	local best, bi = -1, 1
+	for i = 1, 3 do
+		local a, b = P[i], P[i % 3 + 1]
+		local l = (a[1] - b[1]) ^ 2 + (a[2] - b[2]) ^ 2 + (a[3] - b[3]) ^ 2
+		if l > best then best, bi = l, i end
+	end
+	local a, b, c = P[bi], P[bi % 3 + 1], P[(bi + 1) % 3 + 1]
+	local bx, by, bz = b[1] - a[1], b[2] - a[2], b[3] - a[3]
+	local bl = math.sqrt(bx * bx + by * by + bz * bz)
+	if bl < 0.05 then return {} end
+	bx, by, bz = bx / bl, by / bl, bz / bl
+	local t = (c[1] - a[1]) * bx + (c[2] - a[2]) * by + (c[3] - a[3]) * bz
+	local f = { a[1] + bx * t, a[2] + by * t, a[3] + bz * t }
+	local hx, hy, hz = c[1] - f[1], c[2] - f[2], c[3] - f[3]
+	local hl = math.sqrt(hx * hx + hy * hy + hz * hz)
+	if hl < 0.03 then return {} end
+	hx, hy, hz = hx / hl, hy / hl, hz / hl
+	local out = {}
+	for _, leg in ipairs({ { -1, t }, { 1, bl - t } }) do
+		local l1 = leg[2]
+		if l1 > 0.03 then
+			local d = { leg[1] * bx, leg[1] * by, leg[1] * bz } -- vom Fußpunkt zur Ecke der Grundseite
+			local ey, ez = d, { -hx, -hy, -hz }
+			local n = { ey[2] * ez[3] - ey[3] * ez[2], ey[3] * ez[1] - ey[1] * ez[3], ey[1] * ez[2] - ey[2] * ez[1] } -- Normale = ey x ez
+			local sh = 0
+			if hint then sh = ((n[1] * hint[1] + n[2] * hint[2] + n[3] * hint[3]) > 0) and -thick / 2 or thick / 2 end
+			out[#out + 1] = {
+				pos = { f[1] + d[1] * l1 / 2 + hx * hl / 2 + n[1] * sh, f[2] + d[2] * l1 / 2 + hy * hl / 2 + n[2] * sh, f[3] + d[3] * l1 / 2 + hz * hl / 2 + n[3] * sh },
+				size = { thick, l1, hl }, wedge = { ey, ez },
+			}
+		end
+	end
+	return out
+end
+
 return Geo

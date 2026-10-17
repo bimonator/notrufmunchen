@@ -20,8 +20,8 @@ local function buildPart(spec, origin)
 	p.Name = spec.name
 	p.Anchored = true
 	p.Size = Vector3.new(spec.size[1], spec.size[2], spec.size[3])
-	if spec.wedge then -- flaches Dreieck: Keil mit dem Dreieck in der Draufsicht; y-Achse = erster Schenkel, z-Achse = zweiter Schenkel (rechter Winkel bei -y/+z)
-		local ey, ez = Vector3.new(spec.wedge[1][1], 0, spec.wedge[1][2]), Vector3.new(spec.wedge[2][1], 0, spec.wedge[2][2])
+	if spec.wedge then -- Dreieck aus Keilen (Geo.wedges): y-Achse = erster Schenkel, z-Achse = zweiter Schenkel (rechter Winkel bei -y/+z), x-Achse = Normale
+		local ey, ez = Vector3.new(spec.wedge[1][1], spec.wedge[1][2], spec.wedge[1][3]), Vector3.new(spec.wedge[2][1], spec.wedge[2][2], spec.wedge[2][3])
 		p.CFrame = CFrame.fromMatrix(origin + Vector3.new(spec.pos[1], spec.pos[2], spec.pos[3]), ey:Cross(ez), ey, ez)
 		p.Shape = Enum.PartType.Wedge
 	else
@@ -149,7 +149,7 @@ function Builder.paveUnder(specs, origin, nearGrass)
 			local ux, uz = math.cos(r), -math.sin(r) -- lokale x-Achse in der Draufsicht (lokale z-Achse: (sin, cos))
 			local hx, hz = s.size[1] / 2 + 1, s.size[3] / 2 + 1
 			if s.wedge then -- Dreieck: Rechteck aus den beiden Schenkeln
-				ux, uz = s.wedge[1][1], s.wedge[1][2]
+				ux, uz = s.wedge[1][1], s.wedge[1][3]
 				hx, hz = s.size[2] / 2 + 1, s.size[3] / 2 + 1
 			end
 			local cx, cz = origin.X + s.pos[1], origin.Z + s.pos[3]

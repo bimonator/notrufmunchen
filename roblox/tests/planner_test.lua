@@ -273,14 +273,14 @@ do
 		if p.name == "BehindertenStellplatz" then handi = handi + 1 end
 		if p.tag == "EVCharger" then chargers = chargers + 1 end
 		if p.name == "StellplatzLinie" then lines = lines + 1 end
-		if p.name == "EVSchild" or p.name == "RollstuhlSchild" then signs = signs + 1 end
+		if p.name == "RollstuhlSchild" then signs = signs + 1 end
 		if p.name == "StellplatzLinie" or p.name == "EVStellplatz" or p.name == "BehindertenStellplatz" or p.name == "EVSaeule" then
 			check(p.pos[3] - p.size[3] / 2 >= lot.canopy[4] + 20 and p.pos[3] + p.size[3] / 2 <= lot.lot[4] and p.pos[1] - p.size[1] / 2 >= lot.lot[1] + 20 and p.pos[1] + p.size[1] / 2 <= lot.lot[3], "Parkplatz: " .. p.name .. " liegt nicht im Südteil des Grundstücks")
 		end
 		check(string.sub(p.name, 1, 2) ~= "EV" or (p.name ~= "EVDach" and p.name ~= "EVPfosten" and p.name ~= "EVBlende"), "Ladeplätze dürfen keine Überdachung haben")
 	end
 	check(kindsN.H == 1 and kindsN.E == 3 and kindsN.N == 6, "Plätze nach Art: " .. kindsN.H .. "/" .. kindsN.E .. "/" .. kindsN.N)
-	check(stalls == 3 and handi == 1 and chargers == 3 and lines == #pk.kinds + 1 and signs == 2, "Parkplätze: Ladeplätze " .. stalls .. ", Behinderten " .. handi .. ", Säulen " .. chargers .. ", Linien " .. lines .. ", Schilder " .. signs)
+	check(stalls == 3 and handi == 1 and chargers == 3 and lines == #pk.kinds + 1 and signs == 1, "Parkplätze: Ladeplätze " .. stalls .. ", Behinderten " .. handi .. ", Säulen " .. chargers .. ", Linien " .. lines .. ", Schilder " .. signs)
 	local offices = 0
 	for _, sp in ipairs(Specials) do if sp.style == "buero" then offices = offices + 1 end end
 	check(offices == 3, "Hintergrundgebäude " .. offices)
@@ -571,7 +571,7 @@ do
 	check(outside == 0, "Stachus: " .. outside .. " Teile außerhalb der Platzfläche")
 	check(passage == 0, "Karlstor: Durchgang blockiert")
 	check(texts["OSRUM"] == 2 and (texts["McDonnell's"] or 0) >= 2 and texts["KARLSTOR"] == 2 and texts["TAXI"] == S.taxi.n + 2, "Stachus: Schriften OSRUM/McDonnell's/KARLSTOR/TAXI unvollständig")
-	check(st.segs >= 44 and st.jets >= 48 and st.merlons >= 30 and st.taxis == 8 and st.towers == 4 and st.pits == 2 and st.lamps >= 6 and st.trees == 8, string.format("Stachus: segs %d jets %d zinnen %d taxis %d tuerme %d gruben %d lampen %d baeume %d", st.segs, st.jets, st.merlons, st.taxis, st.towers, st.pits, st.lamps, st.trees))
+	check(st.segs >= 30 and st.jets >= 48 and st.merlons >= 30 and st.taxis == 8 and st.towers == 4 and st.pits == 2 and st.lamps >= 6 and st.trees == 8, string.format("Stachus: segs %d jets %d zinnen %d taxis %d tuerme %d gruben %d lampen %d baeume %d", st.segs, st.jets, st.merlons, st.taxis, st.towers, st.pits, st.lamps, st.trees))
 	check(#plan.parts > 2000 and #plan.parts < 9000, "Stachus: Teile " .. #plan.parts)
 	-- Wings enden vor der Straße, Tor liegt zwischen den Flügeln (West), keine Sonderbauten im Platz
 	for _, sp in ipairs(Specials) do
@@ -606,7 +606,7 @@ do
 		local hx, hz = p.size[1] / 2, p.size[3] / 2
 		if (p.yaw or 0) % 180 == 90 then hx, hz = hz, hx end -- um 90 Grad gedrehte Teile (Schrift nach Westen)
 		if p.roll == nil or p.roll == 90 or p.name == "Treppenwange" then
-			if p.pos[1] - hx < A.x0 - 0.5 or p.pos[1] + hx > A.x1 + 0.5 or p.pos[3] - hz < A.z0 - 0.5 or p.pos[3] + hz > A.z1 + 0.5 then
+			if p.pos[1] - hx < A.x0 - 0.5 or p.pos[1] + hx > A.x1 + 0.5 or p.pos[3] - hz < A.z0 - 0.5 or p.pos[3] + hz > (A.vorfeld and A.vorfeld.zMax or A.z1) + 0.5 then
 				if p.name ~= "Treppenwange" then outside = outside + 1 print("Autohaus außerhalb: " .. p.name .. " " .. p.pos[1] .. "," .. p.pos[3]) end
 			end
 		end
@@ -615,6 +615,18 @@ do
 		check(not string.find(string.lower(p.name), "auto$") and p.name ~= "Fahrzeug" and p.tag ~= "VehicleSpawn", "Autohaus: Fahrzeuge sind noch nicht gewünscht")
 	end
 	check(outside == 0, "Autohaus: " .. outside .. " Teile außerhalb des Grundstücks")
+	-- Vorfeld: Platten und Keil-Dreiecke liegen nicht in der Diagonale (Fahrbahn plus Gehweg)
+	local nV, nR = 0, 0
+	for _, p in ipairs(plan.parts) do
+		if p.name == "Vorfeld" or p.name == "Rasen" then
+			if p.name == "Rasen" then nR = nR + 1 else nV = nV + 1 end
+			for _, c in ipairs({ { 0, 0 }, { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 } }) do
+				local x, z = p.pos[1] + c[1] * (p.wedge and 0 or p.size[1] / 2), p.pos[3] + c[2] * (p.wedge and 0 or p.size[3] / 2)
+				check(roadAt(x, z) == nil, string.format("Autohaus-Vorfeld: %s bei (%.0f,%.0f) liegt in einer Straße", p.name, x, z))
+			end
+		end
+	end
+	check(nV == 3 and nR >= 8, "Autohaus-Vorfeld: Platten " .. nV .. ", Rasenteile " .. nR)
 	for _, c in ipairs({ { A.x0, A.z0 }, { A.x1, A.z0 }, { A.x0, A.z1 }, { A.x1, A.z1 }, { (A.x0 + A.x1) / 2, A.z1 } }) do
 		check(roadAt(c[1], c[2]) == nil, string.format("Autohaus: Grundstücksecke (%d,%d) liegt in einer Straße", c[1], c[2]))
 	end

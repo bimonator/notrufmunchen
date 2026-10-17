@@ -66,8 +66,8 @@ C.roads = {
 	{ name = "V2", profile = "raster57", pts = { { -235, 30 }, { -235, -472 } } },
 	{ name = "H1", profile = "raster57", pts = { { -661, -285 }, { 0, -285 } } },
 	{ name = "H2", profile = "raster57", pts = { { -661, 30 }, { -61, 30 } } },
-	{ name = "Diagonale", profile = "std48", pts = { { 61, 30 }, { 290, 36 }, { 455, -77 }, { 605, -212 }, { 770, -347 }, { 790, -472 } } },
-	{ name = "Isarspange", profile = "std48", pts = { { 455, -77 }, { 700, -60 }, { 780, -40 }, { 1012, 3 }, { 1030, 70 }, { 1055, 140 }, { 1110, 190 }, { 1176, 210 } } },
+	{ name = "Diagonale", profile = "std48", pts = { { 61, 30 }, { 290, 36 }, { 455, -77 }, { 605, -212 }, { 770, -347 }, { 790, -472 } }, lampSpacing = 128 },
+	{ name = "Isarspange", profile = "std48", pts = { { 455, -77 }, { 700, -60 }, { 780, -40 }, { 1012, 3 }, { 1030, 70 }, { 1055, 140 }, { 1110, 190 }, { 1176, 210 } }, lampSpacing = 128 },
 	{ name = "V3", profile = "std48", pts = { { 300, -472 }, { 300, 32 } } },
 	-- Isar-Allee: gerade, parallel zur (geraden) Isar am Ostufer; Mittellinie 127,5 Studs östlich der Isar-Mitte, endet am Knick der Isarspange
 	{ name = "IsarAllee", profile = "allee", pts = { { 1072.5, -472 }, { 1012, 3 } } },
@@ -107,7 +107,9 @@ C.bay = { length = 16, width = 9 }
 -- Vor den Einfahrten gibt es keine Parkbuchten und die Laternen stehen nicht im Weg (siehe driveways).
 C.tankstelle = { lot = { 57, -336, 180, -150 }, gaps = { { -262, -218 }, { -196, -152 } }, parking = { x0 = 96, zBack = -152, depth = 16, w = 8, kinds = { "H", "E", "E", "E", "N", "N", "N", "N", "N", "N" } } } -- parking: Stellplatzreihe im Südteil (H Behinderte, E Ladeplatz, N normal)
 -- Autohaus (Autohaus.lua): Grundstück östlich der V3, nördlich der Diagonale; Westwand bei frontX, Showroom und Werkstatt als z-Bereiche (Nord nach Süd)
-C.autohaus = { x0 = 332, z0 = -196, x1 = 442, z1 = -116, frontX = 394, showroom = { -170, -122 }, werkstatt = { -196, -170 } }
+C.autohaus = { x0 = 332, z0 = -196, x1 = 442, z1 = -116, frontX = 394, showroom = { -170, -122 }, werkstatt = { -196, -170 },
+	-- Vorfeld im Dreieck südlich (bis zum Gehweg der Diagonale): Stellplatzreihen als z-Bereiche, margin = Rasenstreifen zum Gehweg, trees/lamps = x-Lagen
+	vorfeld = { road = "Diagonale", margin = 5, rows = { { -114, -98 }, { -80, -64 } }, zMax = -20, trees = { 352, 372, 396, 420, 438 }, lamps = { 372, 404 } } }
 C.driveways = {}
 for _, g in ipairs(C.tankstelle.gaps) do C.driveways[#C.driveways + 1] = { x0 = 43, x1 = 57, z0 = g[1] - 3, z1 = g[2] + 3 } end
 
@@ -116,6 +118,7 @@ for _, g in ipairs(C.tankstelle.gaps) do C.driveways[#C.driveways + 1] = { x0 = 
 C.einfahrten = {
 	{ name = "Autohaus-Werkstatt", x0 = 314, z0 = -190, x1 = 332, z1 = -176, dir = "E" }, -- V3, Ostseite
 	{ name = "Autohaus-Kunden", x0 = 314, z0 = -146, x1 = 332, z1 = -130, dir = "E" },
+	{ name = "Autohaus-Vorfeld", x0 = 314, z0 = -97, x1 = 332, z1 = -81, dir = "E" },
 	{ name = "Krankenhaus-Notaufnahme", x0 = 314, z0 = -356, x1 = 340, z1 = -340, dir = "E" },
 	{ name = "Prinz-Eins-Parkplatz", x0 = 409, z0 = 358, x1 = 436, z1 = 374, dir = "E" }, -- Maximilianstraße, Ostseite
 	{ name = "Kaffeehaus-Parkplatz", x0 = 150, z0 = 384, x1 = 166, z1 = 396, dir = "N" }, -- Ring Süd
@@ -296,7 +299,7 @@ end
 C.stachus = { x0 = -215, z0 = 60, x1 = -55, z1 = 386, cx = -116, cz = 225, depth = 39, floors = 5, basin = 40, gate = 30, seg = 8.4,
 	rowN = 86.5, eastEnd = -83, -- Nordzeile Mittellinie z (bündig mit dem Neuen Rathaus), Ostende aller Zeilen
 	taxi = { x = -38.5, z0 = 98, len = 16, n = 8 },
-	ubahn = { { x0 = -104, x1 = -88, z0 = 298, z1 = 330, dir = 1, gang = 14, depth = 10.5 }, { x0 = -104, x1 = -88, z0 = 120, z1 = 152, dir = -1, gang = 14, depth = 10.5 } } } -- Gruben spiegelbildlich zur Brunnenmitte
+	ubahn = { { x0 = -112, x1 = -80, z0 = 306, z1 = 322, gang = 14, depth = 10.5 }, { x0 = -112, x1 = -80, z0 = 128, z1 = 144, gang = 14, depth = 10.5 } } } -- Gruben spiegelbildlich zur Brunnenmitte; Zugang im Westen, Treppe fällt nach Osten (Richtung Taxistand) ab
 
 -- Marienplatz (Südwest-Viertel): gepflasterter Platz, Neues Rathaus am Nordrand (Front nach Süden bei z1), Mariensäule, U-Bahn-Abgang vor dem Rathaus
 -- (Treppe fällt nach Norden auf depth ab, dahinter ein kurzer Gang), Frauenkirche im Nordwesten (landmarks.frauenkirche).

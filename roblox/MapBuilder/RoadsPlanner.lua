@@ -53,7 +53,7 @@ local function tri(parts, name, p1, p2, p3, top, thick, color, material)
 		if l1 > 0.03 then
 			local dx, dz = leg[2] * bx, leg[2] * bz -- Richtung vom Fußpunkt zur Ecke
 			part(parts, name, "corner", fx + dx * l1 / 2 + hx * hl / 2, top - thick / 2, fz + dz * l1 / 2 + hz * hl / 2, thick, l1, hl, 0, color, material,
-				{ wedge = { { dx, dz }, { -hx, -hz } } })
+				{ wedge = { { dx, 0, dz }, { -hx, 0, -hz } } })
 		end
 	end
 end
@@ -250,8 +250,8 @@ function RoadsPlanner.plan(cfg)
 			if CUT[kind] then cuts = crossCuts(segs, seg, sx, sz, L, 0.05) end
 			if kind == "walk" then
 				local so = mid > 0 and 1 or -1
-				if seg.outerA == so then cuts[#cuts + 1] = { -1, seg.extA } end -- Außenseite von Knicken: Gehweg endet am Knickpunkt, eine Rundung schließt an
-				if seg.outerB == so then cuts[#cuts + 1] = { L - seg.extB, L + 1 } end
+				if seg.outerA == so then cuts[#cuts + 1] = { -1, 0 } end -- Außenseite von Knicken: Gehweg endet am Knickpunkt, eine Rundung schließt an
+				if seg.outerB == so then cuts[#cuts + 1] = { L, L + 1 } end
 				for _, k in ipairs(curves) do
 					if k.arm.cut and k.arm.road == seg.road.name and (nx * k.sx + nz * k.sz) * mid > 0 and math.abs(math.abs(mid) - (k.arm.d0 + k.arm.d1) / 2) < 0.5 then
 						local qx, qz = k.world(k.aStart, 0)
@@ -430,7 +430,10 @@ function RoadsPlanner.plan(cfg)
 	for i = 1, #segs do
 		for j = i + 1, #segs do
 			local A, B = segs[i], segs[j]
-			if A.road ~= B.road and not A.prof.core and not B.prof.core then
+			-- Knick einer Straße: aufeinanderfolgende Segmente (Winkel ab etwa 30 Grad); auf der Innenseite fehlt sonst die Gehwegecke
+			local bend = A.road == B.road and A.nextDir ~= nil and math.abs(A.ax + A.ux * A.len - B.ax) < 0.01 and math.abs(A.az + A.uz * A.len - B.az) < 0.01
+				and math.abs(A.ux * B.uz - A.uz * B.ux) >= 0.5
+			if (A.road ~= B.road or bend) and not A.prof.core and not B.prof.core then
 				local ta = isect(A.ax, A.az, A.ux, A.uz, B.ax, B.az, B.ux, B.uz)
 				local tb = isect(B.ax, B.az, B.ux, B.uz, A.ax, A.az, A.ux, A.uz)
 				if ta and tb and ta > -0.5 and ta < A.len + 0.5 and tb > -0.5 and tb < B.len + 0.5 then

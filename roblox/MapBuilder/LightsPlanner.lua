@@ -106,14 +106,15 @@ function LightsPlanner.plan(cfg, roadPlan)
 			local nx, nz = -seg.uz, seg.ux
 			for _, side in ipairs({ -1, 1 }) do
 				local off = side * (roadHalf + L.inset)
-				local t = L.spacing / 2
+				local sp = seg.road.lampSpacing or L.spacing -- Straßen mit lampSpacing: weniger Laternen, abwechselnd links und rechts
+				local t = seg.road.lampSpacing and (side > 0 and sp / 2 or sp) or sp / 2
 				while t < seg.len do
 					local x, z = seg.ax + seg.ux * t + nx * off, seg.az + seg.uz * t + nz * off
 					if onWalk(walks, x, z) and not inDriveway(cfg, x, z) then
 						lamp(parts, x, z, -nx * side, -nz * side, L.height)
 						stats.lamps = stats.lamps + 1
 					end
-					t = t + L.spacing
+					t = t + sp
 				end
 			end
 		end

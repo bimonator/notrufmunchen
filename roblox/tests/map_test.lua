@@ -614,7 +614,11 @@ do
 		for _, p in ipairs(list) do if p.name == name then n = n + 1 end end
 		return n
 	end
-	check(cnt(g, "Kanalmauer") == 4 and cnt(g, "Plateau") == 1 and cnt(g, "Kanalstufe") == 4 and cnt(g, "Holzstufe") == 3 and cnt(g, "Wellenkamm") == 1 and cnt(g, "Wellenzug") == 2 and cnt(g, "Gischt") == 0, "Eisbach: Kanal/Plateau/Stufen/Wellenzug unvollständig (keine Gischt-Kugeln)")
+	check(cnt(g, "Kanalmauer") == 4 and cnt(g, "Plateau") == 1 and cnt(g, "StegWest") == 1 and cnt(g, "Kanalstufe") == 2 and cnt(g, "Holzstufe") == 3 and cnt(g, "Wellenhang") == 1 and cnt(g, "Wellenflanke") == 1 and cnt(g, "Wellenkrone") == 2 and cnt(g, "Gischt") == 0, "Eisbach: Kanal/Stege/Stufen/Welle unvollständig (keine Gischt-Kugeln)")
+	check(cnt(g, "RettungsringSegment") == 32 and cnt(g, "RettungsringTafel") == 2, "Rettungsringe: Segmente/Tafeln")
+	for _, p in ipairs(g) do
+		if p.kind == "wave" then check(p.shape == nil, "Eisbachwelle: keine Zylinder/Kegel (" .. p.name .. ")") end
+	end
 	check(cnt(parts, "EisbachPfeiler") == 1 and cnt(parts, "EisbachBogen") >= 24 and cnt(parts, "EisbachRosette") == 6 and cnt(parts, "EisbachBruestung") == 2 and cnt(parts, "EisbachPfosten") == 4, "Eisbachbrücke: Bögen/Rosetten unvollständig")
 	for _, p in ipairs(g) do
 		if p.name == "Kanalmauer" then
