@@ -19,6 +19,7 @@ local Stachus = require(script and script.Parent.Stachus or "Stachus")
 local Autohaus = require(script and script.Parent.Autohaus or "Autohaus")
 local Werkstatt = require(script and script.Parent.Werkstatt or "Werkstatt")
 local Anlagen = require(script and script.Parent.Anlagen or "Anlagen")
+local Tram = require(script and script.Parent.Tram or "Tram")
 local Garden = require(script and script.Parent.Garden or "Garden")
 local TerrainPlanner = require(script and script.Parent.TerrainPlanner or "TerrainPlanner")
 local WallPlanner = require(script and script.Parent.WallPlanner or "WallPlanner")
@@ -236,6 +237,19 @@ local STEPS = {
 		local st = plan.stats
 		return string.format("%d Anlagen, %d Teile, %d Rasen-Blöcke, %d Bäume, %d Bänke, %d Leuchten, %d Büsche, %d Findlinge", st.areas, #plan.parts, #ops, st.trees, st.benches, st.lamps, st.bushes, st.rocks)
 	end,
+	tram = function(opts, origin) -- Gleise, Haltestellen und die blaue Bahn; mit opts.tramSource legt der Schritt auch das Fahr-Script TramSteuerung an
+		local plan = Tram.plan(Config)
+		local folder = Builder.container("Tram")
+		Builder.build(plan, folder, origin)
+		Builder.buildParts(plan.parts, folder, origin)
+		local script = ""
+		if opts.tramSource then
+			Builder.installScript("TramSteuerung", opts.tramSource)
+			script = ", Script TramSteuerung angelegt"
+		end
+		local st = plan.stats
+		return string.format("%d Teile (Strecke %.0f Studs, %d Halte), Wagen %d Teile, %d Sitze%s", #plan.parts, st.len, st.stops, #plan.houses[1].parts + #plan.houses[2].parts, st.seats, script)
+	end,
 	werkstatt = function(opts, origin)
 		local plan = Werkstatt.plan(Config)
 		Builder.buildParts(plan.parts, Builder.container("Werkstatt"), origin)
@@ -305,7 +319,7 @@ local STEPS = {
 	end,
 }
 
-BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "stachus", "autohaus", "werkstatt", "anlagen", "gardens", "pave", "houses", "skyline", "bus", "wall" }
+BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "stachus", "autohaus", "werkstatt", "anlagen", "gardens", "pave", "houses", "skyline", "bus", "tram", "wall" }
 
 -- Nach dem Terrain: echte Bodenhöhe messen (alles weitere wird daran ausgerichtet) und prüfen, ob Wasser da ist.
 local function afterTerrain(base)

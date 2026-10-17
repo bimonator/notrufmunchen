@@ -8,6 +8,7 @@ local Blocks = M.Blocks
 local Specials = M.Specials
 local Werkstatt = M.Werkstatt
 local Anlagen = M.Anlagen
+local Tram = M.Tram
 local RoadsPlanner = (function()
 local Geo = Geo
 local RoadsPlanner = {}

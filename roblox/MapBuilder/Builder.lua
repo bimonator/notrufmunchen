@@ -244,14 +244,18 @@ end
 
 -- Ordner Workspace.Map.<path...>; ein vorhandener letzter Ordner wird ersetzt (Neu-Bauen möglich).
 -- Legt das Ampel-Skript in ServerScriptService an (Plugin darf Source setzen), ersetzt ein vorhandenes
-function Builder.installController(source)
+function Builder.installScript(name, source)
 	local sss = game:GetService("ServerScriptService")
-	local old = sss:FindFirstChild("AmpelSteuerung")
+	local old = sss:FindFirstChild(name)
 	if old then old:Destroy() end
 	local script = Instance.new("Script")
-	script.Name = "AmpelSteuerung"
+	script.Name = name
 	script.Source = source
 	script.Parent = sss
+end
+
+function Builder.installController(source)
+	Builder.installScript("AmpelSteuerung", source)
 end
 
 function Builder.container(...)

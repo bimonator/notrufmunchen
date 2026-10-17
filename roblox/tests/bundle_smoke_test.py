@@ -107,8 +107,9 @@ lua.execute("clicked()")
 assert lua.eval("game:GetService('ServerScriptService'):FindFirstChild('AmpelSteuerung') ~= nil"), "Plugin legt kein Ampel-Skript an"
 assert "Ampel.start()" in lua.eval("game:GetService('ServerScriptService'):FindFirstChild('AmpelSteuerung').Source")
 lua.execute("clicked()")
-assert lua.eval("count(game:GetService('ServerScriptService'), 'Script')") == 1, "Ampel-Skript doppelt"
-print("Plugin-Test bestanden (Knopf, Ampel-Skript einmalig)")
+assert lua.eval("count(game:GetService('ServerScriptService'), 'Script')") == 2, "Ampel- oder Tram-Skript doppelt (erwartet: je eins)"
+assert lua.eval("game:GetService('ServerScriptService'):FindFirstChild('TramSteuerung') ~= nil"), "Plugin legt kein Tram-Skript an"
+print("Plugin-Test bestanden (Knopf, Ampel- und Tram-Skript einmalig)")
 
 # Modul-Bundle (für MCP/Skripte): require liefert run(), nur ein Schritt lässt sich bauen
 lua = new_runtime()
@@ -117,4 +118,7 @@ with open(os.path.join(here, "..", "MapBuilder_Modul.lua"), encoding="utf-8") as
 assert lua.eval("type(MB.run) == 'function' and type(MB.AMPEL_SOURCE) == 'string' and #MB.order >= 10"), "Modul liefert run/AMPEL_SOURCE nicht"
 lua.execute("MB.run({ steps = { 'bus' }, controllerSource = MB.AMPEL_SOURCE })")
 assert lua.eval("count(workspace_, 'Part')") > 150, "Modul: Schritt bus hat nichts gebaut"
-print("Modul-Test bestanden (require, einzelner Schritt)")
+lua.execute("MB.run({ steps = { 'tram' } })")
+assert lua.eval("game:GetService('ServerScriptService'):FindFirstChild('TramSteuerung') ~= nil"), "Modul: Schritt tram legt TramSteuerung nicht an"
+assert "Heartbeat" in lua.eval("game:GetService('ServerScriptService'):FindFirstChild('TramSteuerung').Source"), "Modul: TramSteuerung ohne Fahrschleife"
+print("Modul-Test bestanden (require, einzelner Schritt, Tram-Skript)")

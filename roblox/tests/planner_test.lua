@@ -830,3 +830,97 @@ do
 	check(#plan.parts > 700 and #plan.parts < 6000, "Anlagen: Teile " .. #plan.parts)
 	print(string.format("Anlagen: %d Teile (%d Bäume, %d Bänke, %d Leuchten, %d Büsche, %d Findlinge, %d Rasenblöcke)", #plan.parts, nTrees, plan.stats.benches, plan.stats.lamps, plan.stats.bushes, plan.stats.rocks, #ops))
 end
+
+-- ===== Tram: Strecke auf der Fahrbahn, Halte, Wagen =====
+do
+	local Config = require("Config")
+	local RoadsPlanner = require("RoadsPlanner")
+	local Tram = require("Tram")
+	local Geo = require("Geo")
+	local T = Config.tram
+	local segs = RoadsPlanner.segments(Config)
+	-- Art des Querstreifens (road, median, walk, ...) an der Stelle; "road"/"median" haben Vorrang, nil = außerhalb aller Straßen
+	local function kindAt(x, z)
+		local found
+		for _, sg in ipairs(segs) do
+			local rc = sg.rect
+			local dx, dz = x - rc.ax, z - rc.az
+			local a, b = dx * rc.ux + dz * rc.uz, dx * rc.nx + dz * rc.nz
+			if a > rc.s0 and a < rc.s1 and math.abs(b) < rc.w then
+				for _, st in ipairs(sg.prof.strips) do
+					if b >= st[1] and b <= st[2] then
+						if st[3] == "road" or st[3] == "median" then return st[3] end
+						found = found or st[3]
+					end
+				end
+			end
+		end
+		return found
+	end
+	local plan = Tram.plan(Config)
+	local path = plan.path
+	check(plan.stats.len > 3000 and plan.stats.len < 3400, "Tram: Streckenlänge " .. plan.stats.len)
+	-- Gleisbett (Mitte und beide Kanten) liegt überall auf Fahrbahn oder Mittelstreifen
+	local bad = 0
+	for i = 1, #path.pts do
+		local a, b = path.pts[math.max(1, i - 1)], path.pts[math.min(#path.pts, i + 1)]
+		local ux, uz = Geo.dir(a.x, a.z, b.x, b.z)
+		local p = path.pts[i]
+		for _, o in ipairs({ -T.bed / 2, 0, T.bed / 2 }) do
+			local k = kindAt(p.x - uz * o, p.z + ux * o)
+			if k ~= "road" and k ~= "median" then
+				bad = bad + 1
+				if bad <= 6 then print(string.format("Tram: Gleisbett bei s=%.0f (%.1f,%.1f) quer %.1f liegt auf %s", p.s, p.x, p.z, o, tostring(k))) end
+			end
+		end
+	end
+	check(bad == 0, "Tram: " .. bad .. " Gleisbett-Punkte außerhalb der Fahrbahn")
+	-- Halte: auf der Strecke, gerade Strecke 22 Studs davor und dahinter, Bahnsteig-Ecken auf der Fahrbahn
+	check(plan.stats.stops == 7 and #plan.stops == 7, "Tram: Halte " .. plan.stats.stops)
+	for i, st in ipairs(plan.stops) do
+		check(st.off < 0.3, string.format("Tram: Halt %s liegt %.1f neben der Strecke", st.name, st.off))
+		for _, ds in ipairs({ -22, 22 }) do
+			local x, z = Tram.at(path, st.s + ds)
+			local dev = math.abs((x - st.x) * (-st.uz) + (z - st.z) * st.ux)
+			check(dev < 0.3, string.format("Tram: Halt %s: Strecke ist bei %+d nicht gerade (%.1f)", st.name, ds, dev))
+		end
+		local P = T.platform
+		local fx, fz = st.side * st.ux, st.side * st.uz
+		for _, lx in ipairs({ -P.len / 2, P.len / 2 }) do
+			for _, lz in ipairs({ P.off, P.off + P.w }) do
+				local k = kindAt(st.x + lx * fx - lz * fz, st.z + lx * fz + lz * fx)
+				check(k == "road", string.format("Tram: Bahnsteig %s: Ecke (%d,%d) liegt auf %s", st.name, lx, lz, tostring(k)))
+			end
+		end
+		if i > 1 then check(st.s - plan.stops[i - 1].s > P.len, "Tram: Halte " .. st.name .. " zu dicht") end
+	end
+	check(plan.stops[1].s > 25 and path.len - plan.stops[#plan.stops].s > 25, "Tram: Endhalte brauchen Platz bis zum Streckenende")
+	-- Wagen: zwei Hälften mit Wagenboden, 16 Sitzmarken, Fahrdaten am Vorderwagen
+	check(#plan.houses == 2 and plan.stats.seats == 16, "Tram: Wagen " .. #plan.houses .. ", Sitze " .. plan.stats.seats)
+	local nBody, doors = 0, 0
+	for _, h in ipairs(plan.houses) do
+		for _, p in ipairs(h.parts) do
+			if p.name == "Body" then nBody = nBody + 1 end
+			if p.name == "Einstieg" then doors = doors + 1 end
+			check(not p.collide, "Tram: Wagenteil kollidiert: " .. p.name)
+		end
+		check(h.parts[1].name == "Body", "Tram: erstes Wagenteil muss Body sein")
+	end
+	check(nBody == 2 and doors == 4, "Tram: Body " .. nBody .. ", Einstiege " .. doors)
+	local A = plan.houses[1].parts[1].attrs
+	local nr, ns = 0, 0
+	for _ in string.gmatch(A.Route, "[^;]+;") do nr = nr + 1 end
+	for _ in string.gmatch(A.Stops, "[^;]+;") do ns = ns + 1 end
+	check(nr == #path.pts and ns == 7 and A.Abstand == T.carLen + T.gap and A.Start == plan.stops[1].s, "Tram: Fahrdaten am Wagenboden unvollständig")
+	check(string.find(A.Stops, "Isartor", 1, true) and string.find(A.Stops, "Biederstein", 1, true), "Tram: Haltestellennamen fehlen")
+	-- Schilder: je Halt ein Namensband mit Schrift, zwei H-Schilder
+	local names, hs = {}, 0
+	for _, p in ipairs(plan.parts) do
+		if p.name == "Haltestellenname" then names[p.text.s] = true end
+		if p.name == "SchildH" then hs = hs + 1 end
+	end
+	for _, st in ipairs(T.stops) do check(names[st.name], "Tram: Namensband fehlt: " .. st.name) end
+	check(hs == 14, "Tram: H-Schilder " .. hs)
+	check(#plan.parts > 500 and #plan.parts < 1500, "Tram: Teile " .. #plan.parts)
+	print(string.format("Tram: Strecke %.0f Studs, %d Stützpunkte, %d Halte, %d Teile + %d Wagenteile, %d Sitze", path.len, #path.pts, plan.stats.stops, #plan.parts, #plan.houses[1].parts + #plan.houses[2].parts, plan.stats.seats))
+end

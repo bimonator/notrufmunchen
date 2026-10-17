@@ -63,6 +63,7 @@ local Blocks = M.Blocks
 local Specials = M.Specials
 local Werkstatt = M.Werkstatt
 local Anlagen = M.Anlagen
+local Tram = M.Tram
 local RoadsPlanner = M.RoadsPlanner
 local LightsPlanner = M.LightsPlanner
 local Landmarks = M.Landmarks
@@ -388,14 +389,17 @@ end
 function Builder.clearTerrain()
 Workspace.Terrain:Clear()
 end
-function Builder.installController(source)
+function Builder.installScript(name, source)
 local sss = game:GetService("ServerScriptService")
-local old = sss:FindFirstChild("AmpelSteuerung")
+local old = sss:FindFirstChild(name)
 if old then old:Destroy() end
 local script = Instance.new("Script")
-script.Name = "AmpelSteuerung"
+script.Name = name
 script.Source = source
 script.Parent = sss
+end
+function Builder.installController(source)
+Builder.installScript("AmpelSteuerung", source)
 end
 function Builder.container(...)
 local function folder(parent, name, replace)
@@ -437,6 +441,7 @@ local Stachus = Stachus
 local Autohaus = Autohaus
 local Werkstatt = Werkstatt
 local Anlagen = Anlagen
+local Tram = Tram
 local Garden = Garden
 local TerrainPlanner = TerrainPlanner
 local WallPlanner = WallPlanner
@@ -650,6 +655,19 @@ Builder.paveUnder(plan.parts, origin, function() return true end) -- keine Gras-
 local st = plan.stats
 return string.format("%d Anlagen, %d Teile, %d Rasen-Blöcke, %d Bäume, %d Bänke, %d Leuchten, %d Büsche, %d Findlinge", st.areas, #plan.parts, #ops, st.trees, st.benches, st.lamps, st.bushes, st.rocks)
 end,
+tram = function(opts, origin) -- Gleise, Haltestellen und die blaue Bahn; mit opts.tramSource legt der Schritt auch das Fahr-Script TramSteuerung an
+local plan = Tram.plan(Config)
+local folder = Builder.container("Tram")
+Builder.build(plan, folder, origin)
+Builder.buildParts(plan.parts, folder, origin)
+local script = ""
+if opts.tramSource then
+Builder.installScript("TramSteuerung", opts.tramSource)
+script = ", Script TramSteuerung angelegt"
+end
+local st = plan.stats
+return string.format("%d Teile (Strecke %.0f Studs, %d Halte), Wagen %d Teile, %d Sitze%s", #plan.parts, st.len, st.stops, #plan.houses[1].parts + #plan.houses[2].parts, st.seats, script)
+end,
 werkstatt = function(opts, origin)
 local plan = Werkstatt.plan(Config)
 Builder.buildParts(plan.parts, Builder.container("Werkstatt"), origin)
@@ -718,7 +736,7 @@ local st = Planner.stats(plan)
 return string.format("%d Gebäude, %d Teile", st.houses, st.parts + #plan.parts)
 end,
 }
-BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "stachus", "autohaus", "werkstatt", "anlagen", "gardens", "pave", "houses", "skyline", "bus", "wall" }
+BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "stachus", "autohaus", "werkstatt", "anlagen", "gardens", "pave", "houses", "skyline", "bus", "tram", "wall" }
 local function afterTerrain(base)
 local ground = Builder.measureGround(base)
 print(string.format("[boden] Terrain-Oberkante gemessen: %.1f, alle weiteren Teile werden daran ausgerichtet", ground))

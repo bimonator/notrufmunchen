@@ -18,6 +18,7 @@ local Blocks = M.Blocks
 local Specials = M.Specials
 local Werkstatt = M.Werkstatt
 local Anlagen = M.Anlagen
+local Tram = M.Tram
 local RoadsPlanner = M.RoadsPlanner
 local LightsPlanner = M.LightsPlanner
 local Landmarks = M.Landmarks
@@ -343,14 +344,17 @@ end
 function Builder.clearTerrain()
 Workspace.Terrain:Clear()
 end
-function Builder.installController(source)
+function Builder.installScript(name, source)
 local sss = game:GetService("ServerScriptService")
-local old = sss:FindFirstChild("AmpelSteuerung")
+local old = sss:FindFirstChild(name)
 if old then old:Destroy() end
 local script = Instance.new("Script")
-script.Name = "AmpelSteuerung"
+script.Name = name
 script.Source = source
 script.Parent = sss
+end
+function Builder.installController(source)
+Builder.installScript("AmpelSteuerung", source)
 end
 function Builder.container(...)
 local function folder(parent, name, replace)
@@ -392,6 +396,7 @@ local Stachus = Stachus
 local Autohaus = Autohaus
 local Werkstatt = Werkstatt
 local Anlagen = Anlagen
+local Tram = Tram
 local Garden = Garden
 local TerrainPlanner = TerrainPlanner
 local WallPlanner = WallPlanner
@@ -605,6 +610,19 @@ Builder.paveUnder(plan.parts, origin, function() return true end) -- keine Gras-
 local st = plan.stats
 return string.format("%d Anlagen, %d Teile, %d Rasen-Blöcke, %d Bäume, %d Bänke, %d Leuchten, %d Büsche, %d Findlinge", st.areas, #plan.parts, #ops, st.trees, st.benches, st.lamps, st.bushes, st.rocks)
 end,
+tram = function(opts, origin) -- Gleise, Haltestellen und die blaue Bahn; mit opts.tramSource legt der Schritt auch das Fahr-Script TramSteuerung an
+local plan = Tram.plan(Config)
+local folder = Builder.container("Tram")
+Builder.build(plan, folder, origin)
+Builder.buildParts(plan.parts, folder, origin)
+local script = ""
+if opts.tramSource then
+Builder.installScript("TramSteuerung", opts.tramSource)
+script = ", Script TramSteuerung angelegt"
+end
+local st = plan.stats
+return string.format("%d Teile (Strecke %.0f Studs, %d Halte), Wagen %d Teile, %d Sitze%s", #plan.parts, st.len, st.stops, #plan.houses[1].parts + #plan.houses[2].parts, st.seats, script)
+end,
 werkstatt = function(opts, origin)
 local plan = Werkstatt.plan(Config)
 Builder.buildParts(plan.parts, Builder.container("Werkstatt"), origin)
@@ -673,7 +691,7 @@ local st = Planner.stats(plan)
 return string.format("%d Gebäude, %d Teile", st.houses, st.parts + #plan.parts)
 end,
 }
-BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "stachus", "autohaus", "werkstatt", "anlagen", "gardens", "pave", "houses", "skyline", "bus", "wall" }
+BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "stachus", "autohaus", "werkstatt", "anlagen", "gardens", "pave", "houses", "skyline", "bus", "tram", "wall" }
 local function afterTerrain(base)
 local ground = Builder.measureGround(base)
 print(string.format("[boden] Terrain-Oberkante gemessen: %.1f, alle weiteren Teile werden daran ausgerichtet", ground))
@@ -815,5 +833,219 @@ return Ampel
 end)()
 Ampel.start()
 ]==]
+local TRAM_SOURCE = [==[
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local map = Workspace:FindFirstChild("Map")
+local folder = map and map:FindFirstChild("Tram")
+local front = folder and folder:FindFirstChild("TramVorn")
+local rear = folder and folder:FindFirstChild("TramHinten")
+if not (front and rear and front.PrimaryPart and rear.PrimaryPart) then
+warn("[Tram] Wagen nicht gefunden (Workspace.Map.Tram.TramVorn / TramHinten), Tram fährt nicht")
+return
+end
+local A = front.PrimaryPart
+local route, stops = {}, {}
+for x, z, s in string.gmatch(A:GetAttribute("Route"), "(%-?[%d%.]+),(%-?[%d%.]+),([%d%.]+);") do
+route[#route + 1] = { x = tonumber(x), z = tonumber(z), s = tonumber(s) }
+end
+for s, side, name in string.gmatch(A:GetAttribute("Stops"), "([%d%.]+)|(%-?%d+)|([^;]+);") do
+stops[#stops + 1] = { s = tonumber(s), side = tonumber(side), name = name }
+end
+local SPACING, VMAX, ACC = A:GetAttribute("Abstand"), A:GetAttribute("Tempo"), A:GetAttribute("Beschl")
+local DWELL, DWELL_END, PLATFORM = A:GetAttribute("Halt"), A:GetAttribute("HaltEnde"), A:GetAttribute("Bahnsteig")
+local function at(s)
+local lo, hi = 1, #route
+while hi - lo > 1 do
+local mid = math.floor((lo + hi) / 2)
+if route[mid].s <= s then lo = mid else hi = mid end
+end
+local a, b = route[lo], route[hi]
+local l = b.s - a.s
+local ux, uz = (b.x - a.x) / l, (b.z - a.z) / l
+local t = math.clamp(s - a.s, 0, l)
+return a.x + ux * t, a.z + uz * t, ux, uz
+end
+local fx0, fz0 = at(A:GetAttribute("Start") + SPACING / 2)
+local OX, OZ = A.Position.X - fx0, A.Position.Z - fz0
+local YF, YR = A.Position.Y, rear.PrimaryPart.Position.Y
+local function place(model, y, s)
+local x, z, ux, uz = at(s)
+model.PrimaryPart.CFrame = CFrame.new(OX + x, y, OZ + z) * CFrame.Angles(0, math.atan2(-uz, ux), 0)
+end
+local seats, doors = {}, {}
+local function prepare(model)
+local body = model.PrimaryPart
+for _, m in ipairs(model:GetChildren()) do
+if m:IsA("BasePart") and m.Name == "Sitzmarke" then
+local seat = Instance.new("Seat")
+seat.Name = "Sitz"
+seat.Size, seat.CFrame = m.Size, m.CFrame
+seat.Transparency = 1
+seat.CanCollide, seat.CanTouch = false, false
+seat.Anchored = true
+seat.Parent = model
+m:Destroy()
+elseif m:IsA("BasePart") and m.Name == "Einstieg" then
+doors[#doors + 1] = m
+end
+end
+for _, p in ipairs(model:GetChildren()) do
+if p:IsA("BasePart") then
+if p.Name == "Sitz" then seats[#seats + 1] = p end
+if p ~= body then
+local w = Instance.new("WeldConstraint")
+w.Part0, w.Part1 = body, p
+w.Parent = p
+p.Anchored = false
+p.Massless = true
+end
+end
+end
+end
+prepare(front)
+prepare(rear)
+local mode, timer = "halt", 0 -- "halt" = steht an stops[idx], "fahrt" = unterwegs nach stops[target]
+local idx, dir, target = 1, 1, 1
+local fromS, toS = 0, 0
+local sTram = stops[1].s -- Weg der Bahnmitte
+local riders = {} -- [Humanoid] = { player, seat, conn, gui, label }
+local prompts = {}
+local function hintText()
+if mode == "halt" then return stops[idx].name .. "  -  Leertaste: aussteigen" end
+return "Weiter nach " .. stops[target].name .. "  -  aussteigen geht an der Haltestelle"
+end
+local function showHint(r)
+local pg = r.player:FindFirstChildOfClass("PlayerGui")
+if not pg then return end
+if not r.label then
+local gui = Instance.new("ScreenGui")
+gui.Name = "TramHinweis"
+gui.ResetOnSpawn = false
+local l = Instance.new("TextLabel")
+l.AnchorPoint = Vector2.new(0.5, 1)
+l.Position = UDim2.fromScale(0.5, 0.93)
+l.Size = UDim2.fromOffset(560, 42)
+l.BackgroundColor3 = Color3.fromRGB(0, 98, 175)
+l.BackgroundTransparency = 0.1
+l.TextColor3 = Color3.new(1, 1, 1)
+l.Font = Enum.Font.GothamBold
+l.TextSize = 20
+l.Parent = gui
+Instance.new("UICorner", l)
+gui.Parent = pg
+r.gui, r.label = gui, l
+end
+r.label.Text = hintText()
+end
+local function setMode(m)
+mode, timer = m, 0
+for _, pp in ipairs(prompts) do pp.Enabled = m == "halt" end
+for _, r in pairs(riders) do showHint(r) end
+end
+local function leave(hum, r, toPlatform)
+riders[hum] = nil
+if r.conn then r.conn:Disconnect() end
+if r.gui then r.gui:Destroy() end
+local char = hum.Parent
+if not (toPlatform and char) then return end
+local st = stops[idx]
+local x, z, ux, uz = at(st.s)
+local along = (math.random() - 0.5) * 10
+local tx = OX + x + ux * along - uz * st.side * PLATFORM
+local tz = OZ + z + uz * along + ux * st.side * PLATFORM
+local params = RaycastParams.new()
+params.FilterType = Enum.RaycastFilterType.Exclude
+params.FilterDescendantsInstances = { front, rear, char }
+params.RespectCanCollide = true
+local hit = Workspace:Raycast(Vector3.new(tx, YF + 25, tz), Vector3.new(0, -60, 0), params)
+if hit then char:PivotTo(CFrame.new(hit.Position + Vector3.new(0, 3.5, 0))) end
+end
+local function board(player)
+if mode ~= "halt" then return end
+local char = player.Character
+local hum = char and char:FindFirstChildOfClass("Humanoid")
+local root = hum and hum.RootPart
+if not root or hum.Health <= 0 or riders[hum] then return end
+local best, bd
+for _, seat in ipairs(seats) do
+if not seat.Occupant then
+local d = (seat.Position - root.Position).Magnitude
+if not bd or d < bd then best, bd = seat, d end
+end
+end
+if not best then return end -- alles besetzt
+local r = { player = player, seat = best }
+riders[hum] = r
+best:Sit(hum)
+r.conn = hum.Seated:Connect(function(active)
+if active or riders[hum] ~= r then return end
+if mode == "halt" or hum.Health <= 0 then
+leave(hum, r, hum.Health > 0)
+else -- unterwegs hüpft niemand raus
+task.wait(0.2)
+if riders[hum] == r and mode ~= "halt" and hum.Health > 0 then r.seat:Sit(hum) end
+end
+end)
+showHint(r)
+end
+for _, part in ipairs(doors) do
+local pp = Instance.new("ProximityPrompt")
+pp.ActionText = "Einsteigen"
+pp.ObjectText = "Tram"
+pp.KeyboardKeyCode = Enum.KeyCode.E
+pp.HoldDuration = 0
+pp.MaxActivationDistance = 12
+pp.RequiresLineOfSight = false
+pp.Enabled = true
+pp.Parent = part
+pp.Triggered:Connect(board)
+prompts[#prompts + 1] = pp
+end
+local function profile(D, t)
+local da = VMAX * VMAX / (2 * ACC)
+if 2 * da >= D then
+local T = 2 * math.sqrt(D / ACC)
+if t >= T then return D, T end
+if t < T / 2 then return 0.5 * ACC * t * t, T end
+return D - 0.5 * ACC * (T - t) ^ 2, T
+end
+local ta = VMAX / ACC
+local T = 2 * ta + (D - 2 * da) / VMAX
+if t >= T then return D, T end
+if t < ta then return 0.5 * ACC * t * t, T end
+if t < T - ta then return da + VMAX * (t - ta), T end
+return D - 0.5 * ACC * (T - t) ^ 2, T
+end
+place(front, YF, sTram + SPACING / 2)
+place(rear, YR, sTram - SPACING / 2)
+setMode("halt")
+RunService.Heartbeat:Connect(function(dt)
+timer += math.min(dt, 0.1)
+if mode == "halt" then
+if timer >= ((idx == 1 or idx == #stops) and DWELL_END or DWELL) then
+if idx + dir < 1 or idx + dir > #stops then dir = -dir end -- am Ende wenden
+target = idx + dir
+fromS, toS = stops[idx].s, stops[target].s
+setMode("fahrt")
+end
+else
+local d, total = profile(math.abs(toS - fromS), timer)
+sTram = fromS + (toS > fromS and d or -d)
+place(front, YF, sTram + SPACING / 2)
+place(rear, YR, sTram - SPACING / 2)
+if timer >= total then
+idx = target
+setMode("halt")
+end
+end
+end)
+]==]
 
-return { run = BuildAll.run, order = BuildAll.order, BuildAll = BuildAll, Ampel = Ampel, AMPEL_SOURCE = AMPEL_SOURCE }
+-- der Schritt "tram" legt das Fahr-Script TramSteuerung mit an
+local function run(opts)
+	opts = opts or {}
+	opts.tramSource = opts.tramSource or TRAM_SOURCE
+	return BuildAll.run(opts)
+end
+return { run = run, order = BuildAll.order, BuildAll = BuildAll, Ampel = Ampel, AMPEL_SOURCE = AMPEL_SOURCE, TRAM_SOURCE = TRAM_SOURCE }
