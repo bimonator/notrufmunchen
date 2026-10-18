@@ -517,6 +517,13 @@ do
 	check(columns == 9, "Monopteros: Säulen " .. columns)
 	check(umbrellas == 8 and sign, "Prinz Eins: Schirme " .. umbrellas)
 	check(benchSeats >= 20, "zu wenige Bänke " .. benchSeats)
+	local flowers, seats, slats = 0, 0, 0
+	for _, p in ipairs(g) do
+		if p.name == "Blume" then flowers = flowers + 1 end
+		if p.name == "BankSitz" and p.seat == true then seats = seats + 1 end
+		if p.name == "BankLatte" then slats = slats + 1 check(math.abs(p.size[1] - 6.2) < 1e-6, "Bank nicht 6,2 lang") end
+	end
+	check(flowers >= 300 and seats == benchSeats and slats == 3 * benchSeats / 2, "Blumen " .. flowers .. ", Sitze " .. seats .. "/" .. benchSeats .. ", Latten " .. slats)
 	-- Uferwege laufen nicht unter den Brücken durch
 	for _, p in ipairs(g) do
 		if p.name == "Uferweg" then

@@ -332,6 +332,14 @@ C.pedSignals = {} -- die Fußgängerampeln am Siegestor entfallen (Kreisverkehr)
 -- Wahrzeichen: Siegestor steht auf dem Tunneldeckel (Mitte = Ursprung), Friedensengel in der Mitte der Terrasse
 -- Fußgängerüberwege (Zebrastreifen): Mitte (x, z), Fahrtrichtung (ux, uz), Querbereich a0..a1 (Abstand von der Mitte in Richtung der Normalen (-uz, ux));
 -- Streifen 2 breit, 2 Lücke, 10 lang. Am Friedensengel-Oval (6, radial über die Fahrbahn zwischen äußerem und innerem Gehweg) und am Siegestor (6).
+-- Gehweg-Lücken an Einmündungen, die die Streifenlogik nicht schließt (per Raster-Scan der fertigen Karte gefunden): Rechtecke { x0, z0, x1, z1 } in Gehwegoptik.
+-- Friedensengel-Oval: zwischen Brückengehweg und Ovalgehweg im Westen und zwischen Ovalgehweg und Ausfahrt im Osten (je Nord- und Südseite);
+-- Isar-Allee: am Nordende zwischen Ring-Gehweg und Allee-Seitenstreifen, am Südende zwischen Brückengehweg und Allee-Ufergehweg an der Isarspange.
+C.gehwegLuecken = {
+	{ 883.5, 274, 893.5, 284 }, { 883.5, 312, 893.5, 322 }, { 1132.5, 274, 1143.5, 284 }, { 1132.5, 312, 1143.5, 322 },
+	{ 1052.5, -458, 1070, -448 }, { 996.5, -21.5, 1014, -13.5 },
+}
+
 C.crossings = {
 	{ x = 0, z = -91, ux = 0, uz = 1, a0 = 6, a1 = 43 }, { x = 0, z = -91, ux = 0, uz = 1, a0 = -43, a1 = -6 }, -- Achse Nord, beide Fahrbahnen
 	{ x = 0, z = 91, ux = 0, uz = 1, a0 = 6, a1 = 43 }, { x = 0, z = 91, ux = 0, uz = 1, a0 = -43, a1 = -6 }, -- Achse Süd

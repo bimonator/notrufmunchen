@@ -4,6 +4,8 @@
 -- Bäume halten Abstand zum Rand. Teilefelder wie in den anderen Planern. Koordinaten: x = Ost, z = Süd, y = oben (Gelände = 0).
 
 local Geo = require(script and script.Parent.Geo or "Geo")
+local Baenke = require(script and script.Parent.Baenke or "Baenke")
+local Blumen = require(script and script.Parent.Blumen or "Blumen")
 
 local Anlagen = {}
 
@@ -71,12 +73,12 @@ function Anlagen.terrain(cfg)
 end
 
 function Anlagen.plan(cfg)
-	local parts, stats = {}, { areas = 0, trees = 0, benches = 0, lamps = 0, rocks = 0, bushes = 0, beds = 0, pathSegs = 0 }
+	local parts, stats = {}, { areas = 0, trees = 0, benches = 0, lamps = 0, rocks = 0, bushes = 0, beds = 0, flowers = 0, pathSegs = 0 }
 	local function add(name, kind, x, y, z, sx, sy, sz, color, mat, e)
 		e = e or {}
 		parts[#parts + 1] = {
 			name = name, kind = kind, size = { Geo.round3(sx), Geo.round3(sy), Geo.round3(sz) }, pos = { Geo.round3(x), Geo.round3(y), Geo.round3(z) }, yaw = Geo.round3(e.yaw or 0),
-			pitch = 0, roll = e.roll, color = color, material = mat, collide = e.collide == true, shape = e.shape, tag = e.tag, lit = e.lit, attrs = e.attrs, transparency = e.transparency,
+			pitch = e.pitch or 0, roll = e.roll, color = color, material = mat, collide = e.collide == true, shape = e.shape, tag = e.tag, lit = e.lit, attrs = e.attrs, transparency = e.transparency, seat = e.seat,
 		}
 	end
 	local function disc(name, x, y, z, dia, h, color, mat, e)
@@ -96,12 +98,7 @@ function Anlagen.plan(cfg)
 		stats.trees = stats.trees + 1
 	end
 	local function bench(x, z, nx, nz) -- Lehne zeigt in Richtung (nx, nz), Blick zum Weg
-		local yaw = math.deg(math.atan2(nx, nz))
-		local r = math.rad(yaw)
-		local sx, sz = math.sin(r), math.cos(r)
-		add("BankSitz", "bench", x, 1.3, z, 4.4, 0.4, 1.5, { 130, 90, 60 }, "Wood", { yaw = yaw, collide = true })
-		add("BankLehne", "bench", x + sx * 0.7, 2.3, z + sz * 0.7, 4.4, 1.2, 0.3, { 130, 90, 60 }, "Wood", { yaw = yaw })
-		for _, sd in ipairs({ -1.8, 1.8 }) do add("BankBein", "bench", x + math.cos(r) * sd, 0.65, z - math.sin(r) * sd, 0.4, 1.3, 1.2, { 60, 62, 66 }, "Metal", { yaw = yaw }) end
+		Baenke.add(add, x, 0, z, math.deg(math.atan2(nx, nz)))
 		stats.benches = stats.benches + 1
 	end
 	local function lamp(x, z)
@@ -150,10 +147,10 @@ function Anlagen.plan(cfg)
 		end
 		-- Blumenbeete: Raster aus 5x5 Feldern, farbig, mit niedriger Hecke
 		for _, b in ipairs(s.beds or {}) do
-			local cols = { { 214, 80, 96 }, { 236, 200, 70 }, { 150, 100, 190 }, { 240, 240, 236 } }
+			local bedRng = newRng(37)
 			for i = 0, b[3] - 1 do
 				for j = 0, b[4] - 1 do
-					add("Beet", "decor", b[1] + i * 5 + 2.5, 0.25, b[2] + j * 5 + 2.5, 4.2, 0.5, 4.2, cols[(i + 2 * j) % #cols + 1], "Grass")
+					stats.flowers = stats.flowers + Blumen.bed(add, b[1] + i * 5 + 2.5, b[2] + j * 5 + 2.5, 4.4, 4.4, 0, bedRng, i + 2 * j + 1, false)
 				end
 			end
 			for _, e in ipairs({ { b[1] + b[3] * 2.5, b[2] - 0.5, b[3] * 5 + 1, 1 }, { b[1] + b[3] * 2.5, b[2] + b[4] * 5 + 0.5, b[3] * 5 + 1, 1 }, { b[1] - 0.5, b[2] + b[4] * 2.5, 1, b[4] * 5 }, { b[1] + b[3] * 5 + 0.5, b[2] + b[4] * 2.5, 1, b[4] * 5 } }) do

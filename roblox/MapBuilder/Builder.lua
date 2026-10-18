@@ -16,7 +16,7 @@ local MATERIALS = {
 }
 
 local function buildPart(spec, origin)
-	local p = Instance.new("Part")
+	local p = Instance.new(spec.seat and "Seat" or "Part") -- seat = true: Sitzplatz (Bänke), man setzt sich durch Hineinlaufen
 	p.Name = spec.name
 	p.Anchored = true
 	p.Size = Vector3.new(spec.size[1], spec.size[2], spec.size[3])
@@ -33,7 +33,7 @@ local function buildPart(spec, origin)
 	p.Color = Color3.fromRGB(spec.color[1], spec.color[2], spec.color[3])
 	p.Material = MATERIALS[spec.material] or Enum.Material.SmoothPlastic
 	p.CanCollide = spec.collide
-	p.CanTouch = false
+	p.CanTouch = spec.seat == true -- Sitze brauchen Berührung zum Hinsetzen
 	if spec.kind == "glass" then
 		p.Transparency = 0.3
 		p.CastShadow = false
@@ -178,6 +178,30 @@ function Builder.paveUnder(specs, origin, nearGrass)
 			while xs[j + 1] == xs[j] + 1 do j = j + 1 end
 			local region = Region3.new(Vector3.new(xs[i] * 4, row.y0, row.gz * 4), Vector3.new((xs[j] + 1) * 4, row.y0 + 12, (row.gz + 1) * 4))
 			terrain:ReplaceMaterial(region, 4, Enum.Material.Grass, Enum.Material.Pavement)
+			n = n + 1
+			breathe(80)
+			i = j + 1
+		end
+	end
+	return n
+end
+
+-- Wie paveUnder, aber für eine Kreisfläche (Mitte cx, cz in Welt-Koordinaten, Radius r, y = Höhe der Oberfläche darüber), z. B. unter dem Rondell des Friedensengels. Liefert die Zahl der Zellenreihen.
+function Builder.paveDisk(cx, cz, r, y)
+	local terrain = Workspace.Terrain
+	local y0 = math.floor((y - 8) / 4) * 4
+	local n = 0
+	for gz = math.floor((cz - r) / 4), math.floor((cz + r) / 4) do
+		local xs = {}
+		for gx = math.floor((cx - r) / 4), math.floor((cx + r) / 4) do
+			local dx, dz = gx * 4 + 2 - cx, gz * 4 + 2 - cz
+			if dx * dx + dz * dz <= r * r then xs[#xs + 1] = gx end
+		end
+		local i = 1
+		while i <= #xs do
+			local j = i
+			while xs[j + 1] == xs[j] + 1 do j = j + 1 end
+			terrain:ReplaceMaterial(Region3.new(Vector3.new(xs[i] * 4, y0, gz * 4), Vector3.new((xs[j] + 1) * 4, y0 + 16, (gz + 1) * 4)), 4, Enum.Material.Grass, Enum.Material.Pavement)
 			n = n + 1
 			breathe(80)
 			i = j + 1

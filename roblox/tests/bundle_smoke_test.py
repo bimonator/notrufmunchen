@@ -107,9 +107,9 @@ lua.execute("clicked()")
 assert lua.eval("game:GetService('ServerScriptService'):FindFirstChild('AmpelSteuerung') ~= nil"), "Plugin legt kein Ampel-Skript an"
 assert "Ampel.start()" in lua.eval("game:GetService('ServerScriptService'):FindFirstChild('AmpelSteuerung').Source")
 lua.execute("clicked()")
-assert lua.eval("count(game:GetService('ServerScriptService'), 'Script')") == 2, "Ampel- oder Tram-Skript doppelt (erwartet: je eins)"
-assert lua.eval("game:GetService('ServerScriptService'):FindFirstChild('TramSteuerung') ~= nil"), "Plugin legt kein Tram-Skript an"
-print("Plugin-Test bestanden (Knopf, Ampel- und Tram-Skript einmalig)")
+assert lua.eval("count(game:GetService('ServerScriptService'), 'Script')") == 1, "Ampel-Skript doppelt"
+assert lua.eval("game:GetService('ServerScriptService'):FindFirstChild('TramSteuerung') == nil"), "Standardbau legt TramSteuerung an (Tram ist nicht im Standardbau)"
+print("Plugin-Test bestanden (Knopf, Ampel-Skript einmalig, keine Tram)")
 
 # Modul-Bundle (für MCP/Skripte): require liefert run(), nur ein Schritt lässt sich bauen
 lua = new_runtime()

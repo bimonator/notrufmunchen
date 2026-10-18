@@ -123,34 +123,37 @@ function Stachus.plan(cfg)
 			add("Fuge", "plaza", (S.x0 + S.x1) / 2, 1.1, z, S.x1 - S.x0, 0.2, 0.3, { 172, 166, 156 }, "SmoothPlastic")
 		end
 	end
-	for i, rr in ipairs({ 52, 49, 46 }) do vcyl("Pflasterring", "plaza", cx, 1.0 + i * 0.15, cz, 0.3, 2 * rr, i == 2 and { 150, 96, 84 } or { 186, 180, 170 }, "Granite") end
+	-- Der ganze Brunnen (Becken, Düsen, Mittelstrahl, Poller, Sitzsteine, Pflasterringe) ist um K verkleinert: Maße und Radien um die Mitte, Höhen über dem Pflaster (Oberkante 1)
+	local K = S.fountainScale or 0.9
+	local function ky(y) return 1 + (y - 1) * K end
+	for i, rr in ipairs({ 52, 49, 46 }) do vcyl("Pflasterring", "plaza", cx, 1.0 + i * 0.15, cz, 0.3, 2 * rr * K, i == 2 and { 150, 96, 84 } or { 186, 180, 170 }, "Granite") end
 
 	-- Brunnen: Beckenrand aus Granitblöcken, Wasser, Strahlenkränze, Mittelstrahl, Poller
-	local R = S.basin
+	local R = S.basin * K
 	for i = 0, 35 do
 		local a = math.rad(i * 10)
-		add("Beckenrand", "plaza", cx + R * math.cos(a), 2.1, cz + R * math.sin(a), 8, 2.2, 2.6, STONE, "Granite", { yaw = math.deg(math.atan2(-math.cos(a), -math.sin(a))) % 360, collide = true })
+		add("Beckenrand", "plaza", cx + R * math.cos(a), ky(2.1), cz + R * math.sin(a), 8 * K, 2.2 * K, 2.6 * K, STONE, "Granite", { yaw = math.deg(math.atan2(-math.cos(a), -math.sin(a))) % 360, collide = true })
 	end
 	vcyl("Beckenboden", "plaza", cx, 1.2, cz, 0.3, 2 * R, { 120, 140, 156 }, "Concrete")
-	vcyl("Wasser", "plaza", cx, 2.3, cz, 0.4, 2 * R - 2, { 130, 180, 214 }, "SmoothPlastic", { transparency = 0.45 })
+	vcyl("Wasser", "plaza", cx, ky(2.3), cz, 0.4, 2 * R - 2 * K, { 130, 180, 214 }, "SmoothPlastic", { transparency = 0.45 })
 	for _, ring in ipairs({ { 20, 24, 10, 6, 30, 26 }, { 32, 30, 8, 5, 35, 22 } }) do -- Radius, Düsen, Reichweite, Höhe, Neigung nach außen (Grad), Strahlgeschwindigkeit
 		for k = 0, ring[2] - 1 do
 			local a = math.rad(k * 360 / ring[2] + (ring[1] > 25 and 6 or 0))
-			-- Sprenkler: unsichtbare Düse, nach außen geneigt, sprüht einen Partikelstrahl im Bogen (Reichweite ca. ring[3], Höhe ca. ring[4] / 1,5)
-			add("Duese", "plaza", cx + ring[1] * math.cos(a), 2.6, cz + ring[1] * math.sin(a), 0.5, 0.5, 0.5, { 240, 248, 255 }, "SmoothPlastic",
-				{ yaw = (90 - math.deg(a)) % 360, pitch = ring[5], emitter = { rate = 16, speed = ring[6], spread = 3, gravity = 60, life = 1.1, size = 0.5, color = { 225, 240, 255 } } })
+			-- Sprenkler: unsichtbare Düse, nach außen geneigt, sprüht einen Partikelstrahl im Bogen (Reichweite ca. ring[3], Höhe ca. ring[4] / 1,5); Geschwindigkeit mit sqrt(K), damit die Reichweite mit K schrumpft
+			add("Duese", "plaza", cx + ring[1] * K * math.cos(a), ky(2.6), cz + ring[1] * K * math.sin(a), 0.5, 0.5, 0.5, { 240, 248, 255 }, "SmoothPlastic",
+				{ yaw = (90 - math.deg(a)) % 360, pitch = ring[5], emitter = { rate = 16, speed = ring[6] * math.sqrt(K), spread = 3, gravity = 60, life = 1.1, size = 0.5, color = { 225, 240, 255 } } })
 			stats.jets = stats.jets + 1
 		end
 	end
-	vcyl("Mittelstrahl", "plaza", cx, 9, cz, 14, 1.4, { 240, 248, 255 }, "SmoothPlastic", { transparency = 0.3 })
-	vcyl("Mittelsockel", "plaza", cx, 2.2, cz, 1.6, 8, STONE, "Granite", { collide = true })
+	vcyl("Mittelstrahl", "plaza", cx, ky(9), cz, 14 * K, 1.4 * K, { 240, 248, 255 }, "SmoothPlastic", { transparency = 0.3 })
+	vcyl("Mittelsockel", "plaza", cx, ky(2.2), cz, 1.6 * K, 8 * K, STONE, "Granite", { collide = true })
 	for i = 0, 35 do -- Poller (niedrige Steinstümpfe) rund um das Becken
 		local a = math.rad(i * 10 + 5)
-		vcyl("Poller", "plaza", cx + (R + 7) * math.cos(a), 2.3, cz + (R + 7) * math.sin(a), 2.6, 2.4, { 150, 146, 140 }, "Granite", { collide = true })
+		vcyl("Poller", "plaza", cx + (R + 7 * K) * math.cos(a), ky(2.3), cz + (R + 7 * K) * math.sin(a), 2.6 * K, 2.4 * K, { 150, 146, 140 }, "Granite", { collide = true })
 	end
 	for i = 0, 9 do -- Sitzsteine auf der Ostseite
 		local a = math.rad(-72 + i * 16)
-		add("Sitzstein", "plaza", cx + (R + 11) * math.cos(a), 2.3, cz + (R + 11) * math.sin(a), 3.4, 2.6, 2.6, { 160, 156, 148 }, "Granite", { yaw = i * 23, collide = true })
+		add("Sitzstein", "plaza", cx + (R + 11 * K) * math.cos(a), ky(2.3), cz + (R + 11 * K) * math.sin(a), 3.4 * K, 2.6 * K, 2.6 * K, { 160, 156, 148 }, "Granite", { yaw = i * 23, collide = true })
 	end
 
 	-- Gebäudezeilen: Nordzeile (Front nach Süden), Südzeile (Front nach Norden), Westzeile mit Karlstor (Front nach Osten); alle Wand an Wand

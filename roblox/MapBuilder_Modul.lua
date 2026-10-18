@@ -12,6 +12,8 @@ for _, n in ipairs({ "Teil1", "Teil2" }) do
 	require(mod)(M)
 end
 local Geo = M.Geo
+local Baenke = M.Baenke
+local Blumen = M.Blumen
 local Config = M.Config
 local Planner = M.Planner
 local Blocks = M.Blocks
@@ -138,7 +140,7 @@ Marble = Enum.Material.Marble, Fabric = Enum.Material.Fabric, Ground = Enum.Mate
 Snow = Enum.Material.Snow, Granite = Enum.Material.Granite, Slate = Enum.Material.Slate, Cobblestone = Enum.Material.Cobblestone,
 }
 local function buildPart(spec, origin)
-local p = Instance.new("Part")
+local p = Instance.new(spec.seat and "Seat" or "Part") -- seat = true: Sitzplatz (Bänke), man setzt sich durch Hineinlaufen
 p.Name = spec.name
 p.Anchored = true
 p.Size = Vector3.new(spec.size[1], spec.size[2], spec.size[3])
@@ -155,7 +157,7 @@ if spec.transparency then p.Transparency = spec.transparency end
 p.Color = Color3.fromRGB(spec.color[1], spec.color[2], spec.color[3])
 p.Material = MATERIALS[spec.material] or Enum.Material.SmoothPlastic
 p.CanCollide = spec.collide
-p.CanTouch = false
+p.CanTouch = spec.seat == true -- Sitze brauchen Berührung zum Hinsetzen
 if spec.kind == "glass" then
 p.Transparency = 0.3
 p.CastShadow = false
@@ -295,6 +297,28 @@ end
 end
 return n
 end
+function Builder.paveDisk(cx, cz, r, y)
+local terrain = Workspace.Terrain
+local y0 = math.floor((y - 8) / 4) * 4
+local n = 0
+for gz = math.floor((cz - r) / 4), math.floor((cz + r) / 4) do
+local xs = {}
+for gx = math.floor((cx - r) / 4), math.floor((cx + r) / 4) do
+local dx, dz = gx * 4 + 2 - cx, gz * 4 + 2 - cz
+if dx * dx + dz * dz <= r * r then xs[#xs + 1] = gx end
+end
+local i = 1
+while i <= #xs do
+local j = i
+while xs[j + 1] == xs[j] + 1 do j = j + 1 end
+terrain:ReplaceMaterial(Region3.new(Vector3.new(xs[i] * 4, y0, gz * 4), Vector3.new((xs[j] + 1) * 4, y0 + 16, (gz + 1) * 4)), 4, Enum.Material.Grass, Enum.Material.Pavement)
+n = n + 1
+breathe(80)
+i = j + 1
+end
+end
+return n
+end
 function Builder.measureGround(origin)
 local params = RaycastParams.new()
 params.FilterType = Enum.RaycastFilterType.Include
@@ -414,6 +438,13 @@ if math.sqrt((x - h.x) ^ 2 + (z - h.z) ^ 2) < h.layers[1][1] + r + 8 then return
 end
 return Geo.polyDist(x, z, Config.water.isar.pts) < Config.water.isar.layers[1][3] + 10 + r
 end
+local function paveFriedensengel(origin)
+local L, t = Config.landmarks.friedensengel, Config.terrace
+local n = Builder.paveDisk(origin.X + L.x, origin.Z + L.z, 30, origin.Y + L.baseY)
+local pw0, pw1 = t.x0 + 0.5, L.x - 28 -- Plattenweg von der Westkante der Terrasse zum Rondell (Landmarks.friedensengel)
+local spec = { kind = "path", size = { pw1 - pw0, 0.2, 10 }, pos = { (pw0 + pw1) / 2, L.baseY + 0.35, L.z }, yaw = 0 }
+return n + Builder.paveUnder({ spec }, origin, function() return true end)
+end
 local STEPS = {
 terrain = function(opts, origin)
 if opts.clearTerrain ~= false then Builder.clearTerrain() end
@@ -433,7 +464,7 @@ Builder.applyTerrain(TerrainPlanner.planKanal(Config), origin)
 local OLD = {} -- Namen der früheren und der neuen Eisbach-Teile im Umkreis der Welle
 for _, n in ipairs({ "Eisbachwelle", "Schussrinne", "Kanalwasser", "Kanalboden", "Wellenschaum", "Wellental", "Gischt", "Wellenkamm", "Wellenzug", "SurfZone", "Ufermauer", "Kanalmauer", "Mauerkappe", "Kanalstufe", "Plateau", "Plateaubalken",
 "Plateauquerbalken", "Plateaupfosten", "Holzstufe", "RettungsringPfosten", "Rettungsring", "EisStamm", "EisKrone", "Zuschauerdeck", "DeckGelaender", "Schild", "SchildPfosten", "Schrift",
-"BankSitz", "BankLehne", "BankBein", "Uferweg", "Wellenhang", "Wellenruecken", "Wellenflanke", "Wellenkrone", "Nachlauf", "Sitzbohle", "Stegstufe", "StegWest", "StegWestBalken", "StegWestQuerbalken",
+"BankSitz", "BankLehne", "BankBein", "BankLatte", "BankRueckenlatte", "BankRahmen", "BankArmlehne", "Uferweg", "Wellenhang", "Wellenruecken", "Wellenflanke", "Wellenkrone", "Nachlauf", "Sitzbohle", "Stegstufe", "StegWest", "StegWestBalken", "StegWestQuerbalken",
 "StegWestPfosten", "Stegpoller", "RettungsringSegment", "RettungsringTafel", "Kanalboden", "Kanalwasser" }) do OLD[n] = true end
 local removed = 0
 for _, c in ipairs(gardens:GetChildren()) do
@@ -499,6 +530,22 @@ end
 Builder.buildParts(list, folder, origin)
 return string.format("%d Teile der Kugelleuchten erneuert", #list)
 end,
+stachusbrunnen = function(opts, origin) -- nur der Brunnen am Stachus (Becken, Düsen, Mittelstrahl, Poller, Sitzsteine, Pflasterringe) in der fertigen Karte neu, übrige Teile bleiben
+local folder = game:GetService("Workspace"):FindFirstChild("Map").Stachus
+local S = Config.stachus
+local NAMES = { Pflasterring = true, Beckenrand = true, Beckenboden = true, Wasser = true, Duese = true, Mittelstrahl = true, Mittelsockel = true, Poller = true, Sitzstein = true }
+local function near(x, z) return math.sqrt((x - S.cx) ^ 2 + (z - S.cz) ^ 2) < 62 end
+local removed = 0
+for _, c in ipairs(folder:GetChildren()) do
+if c:IsA("BasePart") and NAMES[c.Name] and near(c.Position.X - origin.X, c.Position.Z - origin.Z) then c:Destroy() removed = removed + 1 end
+end
+local list = {}
+for _, p in ipairs(Stachus.plan(Config).parts) do
+if NAMES[p.name] and near(p.pos[1], p.pos[3]) then list[#list + 1] = p end
+end
+Builder.buildParts(list, folder, origin)
+return string.format("%d alte Brunnenteile entfernt, %d neu", removed, #list)
+end,
 pave = function(opts, origin) -- Terrain unter Wegen und Straßen von Gras zu Pflaster, damit dort keine Gras-Büschel wachsen
 local roadPlan = RoadsPlanner.plan(Config)
 local specs = {}
@@ -506,7 +553,53 @@ for _, list in ipairs({ roadPlan.parts, Garden.plan(Config, roadPlan, Specials).
 for _, p in ipairs(list) do specs[#specs + 1] = p end
 end
 local n = Builder.paveUnder(specs, origin, function(p) return nearGrass(p.pos[1], p.pos[3], math.max(p.size[1], p.size[3]) / 2) end)
-return string.format("%d Zellenreihen unter Wegen und Straßen von Gras zu Pflaster", n)
+n = n + paveFriedensengel(origin)
+return string.format("%d Zellenreihen unter Wegen, Straßen und dem Friedensengel von Gras zu Pflaster", n)
+end,
+friedensengel = function(opts, origin) -- nur das Terrain unter Rondell, Becken und Plattenweg des Friedensengels (Gras-Büschel weg)
+return string.format("%d Zellenreihen von Gras zu Pflaster", paveFriedensengel(origin))
+end,
+luecken = function(opts, origin) -- Gehweg-Lücken (Config.gehwegLuecken) in der fertigen Karte neu bauen; übrige Straßenteile bleiben
+local folder = game:GetService("Workspace"):FindFirstChild("Map").Strassen
+local removed = 0
+for _, c in ipairs(folder:GetChildren()) do
+if c.Name == "GehwegLuecke" then c:Destroy() removed = removed + 1 end
+end
+local list = {}
+for _, p in ipairs(RoadsPlanner.plan(Config).parts) do
+if p.name == "GehwegLuecke" then list[#list + 1] = p end
+end
+Builder.buildParts(list, folder, origin)
+Builder.paveUnder(list, origin, function() return true end)
+return string.format("%d alte Teile entfernt, %d neu", removed, #list)
+end,
+gartendetails = function(opts, origin) -- Bänke und Blumenbeete der Grünanlagen und des Marienplatzes in der fertigen Karte neu (Anlagen: Schritt "anlagen"); übrige Teile bleiben
+local map = game:GetService("Workspace"):FindFirstChild("Map")
+local NEU = { "BankSitz", "BankLatte", "BankRueckenlatte", "BankRahmen", "BankArmlehne" }
+local function names(list)
+local set = {}
+for _, n in ipairs(NEU) do set[n] = true end
+for _, n in ipairs(list) do set[n] = true end
+return set
+end
+local jobs = {
+{ map.Gruenanlagen, Garden.plan(Config, RoadsPlanner.plan(Config), Specials).parts, names({ "BankLehne", "BankBein", "Beet", "BeetErde", "BeetLaub", "BeetRand", "Blumenstiel", "Blume", "BlumeMitte" }) },
+{ map.Marienplatz, Marienplatz.plan(Config).parts, names({ "Bank", "BankLehne", "BankFuss" }) },
+}
+local removed, built = 0, 0
+for _, job in ipairs(jobs) do
+local folder, parts, set = job[1], job[2], job[3]
+for _, c in ipairs(folder:GetChildren()) do
+if set[c.Name] then c:Destroy() removed = removed + 1 end
+end
+local list = {}
+for _, p in ipairs(parts) do
+if set[p.name] then list[#list + 1] = p end
+end
+Builder.buildParts(list, folder, origin)
+built = built + #list
+end
+return string.format("%d alte Teile entfernt, %d neu (Bänke, Blumenbeete)", removed, built)
 end,
 roads = function(opts, origin)
 local plan = RoadsPlanner.plan(Config)
@@ -719,7 +812,7 @@ local st = Planner.stats(plan)
 return string.format("%d Gebäude, %d Teile", st.houses, st.parts + #plan.parts)
 end,
 }
-BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "stachus", "autohaus", "werkstatt", "anlagen", "gardens", "pave", "houses", "skyline", "bus", "tram", "wall" }
+BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "stachus", "autohaus", "werkstatt", "anlagen", "gardens", "pave", "houses", "skyline", "bus", "wall" } -- "tram" (Schritt vorhanden, derzeit nicht gewünscht) gehört bei Bedarf vor "wall"
 local function afterTerrain(base)
 local ground = Builder.measureGround(base)
 print(string.format("[boden] Terrain-Oberkante gemessen: %.1f, alle weiteren Teile werden daran ausgerichtet", ground))

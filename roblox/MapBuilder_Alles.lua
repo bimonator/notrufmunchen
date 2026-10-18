@@ -193,6 +193,78 @@ end
 return Geo
 
 end)()
+local Baenke = (function()
+local Baenke = {}
+local WOOD, IRON = { 150, 100, 62 }, { 46, 50, 54 }
+local TILT = math.rad(12) -- Rückenlehne nach hinten geneigt
+function Baenke.add(add, x, y, z, yaw)
+local r = math.rad(yaw)
+local c, s = math.cos(r), math.sin(r)
+local function put(name, lx, ly, lz, sx, sy, sz, color, mat, extra)
+extra = extra or {}
+extra.yaw = yaw
+add(name, "bench", x + lx * c + lz * s, y + ly, z - lx * s + lz * c, sx, sy, sz, color, mat, extra)
+end
+local LEN, BACK = 6.2, 0.95 -- Länge, Lage der Rückseite (lokal z)
+for _, lz in ipairs({ -0.74, 0, 0.74 }) do put("BankLatte", 0, 1.89, lz, LEN, 0.22, 0.62, WOOD, "Wood", { collide = true }) end
+for _, lx in ipairs({ -1.5, 1.5 }) do put("BankSitz", lx, 2.0, 0, 2.9, 0.16, 1.9, WOOD, "Wood", { collide = true, seat = true, transparency = 1 }) end
+for _, ly in ipairs({ 2.6, 3.2, 3.8 }) do put("BankRueckenlatte", 0, ly, BACK + (ly - 1.95) * math.tan(TILT) - 0.14, LEN - 0.4, 0.5, 0.16, WOOD, "Wood", { pitch = 12 }) end
+for _, sd in ipairs({ -1, 1 }) do
+local lx = sd * 2.85
+put("BankRahmen", lx, 0.95, -0.8, 0.2, 1.9, 0.45, IRON, "Metal") -- vorderes Bein
+put("BankRahmen", lx, 0.95, BACK, 0.2, 1.9, 0.45, IRON, "Metal") -- hinteres Bein
+put("BankRahmen", lx, 1.72, 0.07, 0.2, 0.2, 2.1, IRON, "Metal") -- Sitzträger
+put("BankRahmen", lx, 3.1, BACK + 1.15 * math.sin(TILT), 0.2, 2.4, 0.4, IRON, "Metal", { pitch = 12 }) -- Rückenpfosten über dem hinteren Bein
+put("BankArmlehne", lx, 2.92, -0.3, 0.26, 0.18, 1.7, IRON, "Metal")
+put("BankRahmen", lx, 2.45, -0.8, 0.2, 0.9, 0.2, IRON, "Metal") -- Stütze der Armlehne
+end
+end
+return Baenke
+
+end)()
+local Blumen = (function()
+local Blumen = {}
+Blumen.PALETTES = {
+{ { 214, 60, 76 }, { 244, 204, 64 }, { 238, 238, 232 } }, -- rot, gelb, weiß
+{ { 150, 90, 185 }, { 240, 150, 190 }, { 238, 238, 232 } }, -- lila, rosa, weiß
+{ { 244, 204, 64 }, { 236, 132, 48 }, { 200, 62, 72 } }, -- gelb, orange, rot
+{ { 108, 128, 216 }, { 150, 90, 185 }, { 238, 238, 232 } }, -- blau, lila, weiß
+}
+local SOIL, LEAF, STEM, HEDGE, CENTER = { 84, 60, 42 }, { 58, 108, 56 }, { 66, 130, 60 }, { 46, 92, 52 }, { 246, 206, 60 }
+function Blumen.bed(add, cx, cz, w, d, y, rng, palette, edging)
+local pal = Blumen.PALETTES[(palette - 1) % #Blumen.PALETTES + 1]
+add("BeetErde", "decor", cx, y + 0.2, cz, w, 0.4, d, SOIL, "Ground")
+add("BeetLaub", "decor", cx, y + 0.45, cz, w - 0.6, 0.2, d - 0.6, LEAF, "Grass")
+if edging then
+for _, e in ipairs({ { 0, -d / 2 + 0.3, w, 0.6 }, { 0, d / 2 - 0.3, w, 0.6 }, { -w / 2 + 0.3, 0, 0.6, d - 1.2 }, { w / 2 - 0.3, 0, 0.6, d - 1.2 } }) do
+add("BeetRand", "decor", cx + e[1], y + 0.55, cz + e[2], e[3], 1.1, e[4], HEDGE, "Grass", { collide = true })
+end
+end
+local step = 1.7
+local n = 0
+local nx, nz = math.max(1, math.floor((w - 1.6) / step) + 1), math.max(1, math.floor((d - 1.6) / step) + 1)
+for i = 0, nx - 1 do
+for j = 0, nz - 1 do
+local u = nx > 1 and (i / (nx - 1) * 2 - 1) or 0 -- -1 .. 1 über das Beet
+local v = nz > 1 and (j / (nz - 1) * 2 - 1) or 0
+local q = math.max(math.abs(u), math.abs(v)) -- 1 am Rand, 0 in der Mitte
+local band = q > 0.72 and 1 or (q > 0.36 and 2 or 3)
+if rng() < 0.12 then band = band % 3 + 1 end -- ab und zu eine Blume in der Nachbarfarbe
+local fx = cx + (nx > 1 and u * (w - 1.6) / 2 or 0) + (rng() - 0.5) * 0.7
+local fz = cz + (nz > 1 and v * (d - 1.6) / 2 or 0) + (rng() - 0.5) * 0.7
+local h = 0.7 + 0.6 * rng()
+local size = 0.6 + 0.3 * rng()
+add("Blumenstiel", "decor", fx, y + 0.55 + h / 2, fz, 0.12, h, 0.12, STEM, "Grass")
+add("Blume", "decor", fx, y + 0.55 + h + size * 0.2, fz, size, size, size, pal[band], "SmoothPlastic", { shape = "Ball" })
+if (i + j) % 3 == 0 then add("BlumeMitte", "decor", fx, y + 0.55 + h + size * 0.45, fz, 0.28, 0.28, 0.28, CENTER, "SmoothPlastic", { shape = "Ball" }) end
+n = n + 1
+end
+end
+return n
+end
+return Blumen
+
+end)()
 local Config = (function()
 local C = {}
 C.groundTop = -2
@@ -445,6 +517,10 @@ C.signals = {
 { name = "Wache_V2", x = -211.5, z = -90, fx = 0, fz = 1, ax = -1, az = 0 }, { name = "Wache_V2", x = -258.5, z = -210, fx = 0, fz = -1, ax = 1, az = 0 },
 }
 C.pedSignals = {} -- die Fußgängerampeln am Siegestor entfallen (Kreisverkehr)
+C.gehwegLuecken = {
+{ 883.5, 274, 893.5, 284 }, { 883.5, 312, 893.5, 322 }, { 1132.5, 274, 1143.5, 284 }, { 1132.5, 312, 1143.5, 322 },
+{ 1052.5, -458, 1070, -448 }, { 996.5, -21.5, 1014, -13.5 },
+}
 C.crossings = {
 { x = 0, z = -91, ux = 0, uz = 1, a0 = 6, a1 = 43 }, { x = 0, z = -91, ux = 0, uz = 1, a0 = -43, a1 = -6 }, -- Achse Nord, beide Fahrbahnen
 { x = 0, z = 91, ux = 0, uz = 1, a0 = 6, a1 = 43 }, { x = 0, z = 91, ux = 0, uz = 1, a0 = -43, a1 = -6 }, -- Achse Süd
@@ -2179,6 +2255,8 @@ return Werkstatt
 end)()
 local Anlagen = (function()
 local Geo = Geo
+local Baenke = Baenke
+local Blumen = Blumen
 local Anlagen = {}
 local GREENS = { { 70, 120, 60 }, { 88, 140, 70 }, { 56, 100, 56 }, { 104, 150, 76 }, { 64, 112, 80 } }
 local WILLOW = { { 128, 156, 84 }, { 112, 148, 88 }, { 142, 164, 96 } }
@@ -2238,12 +2316,12 @@ end
 return ops
 end
 function Anlagen.plan(cfg)
-local parts, stats = {}, { areas = 0, trees = 0, benches = 0, lamps = 0, rocks = 0, bushes = 0, beds = 0, pathSegs = 0 }
+local parts, stats = {}, { areas = 0, trees = 0, benches = 0, lamps = 0, rocks = 0, bushes = 0, beds = 0, flowers = 0, pathSegs = 0 }
 local function add(name, kind, x, y, z, sx, sy, sz, color, mat, e)
 e = e or {}
 parts[#parts + 1] = {
 name = name, kind = kind, size = { Geo.round3(sx), Geo.round3(sy), Geo.round3(sz) }, pos = { Geo.round3(x), Geo.round3(y), Geo.round3(z) }, yaw = Geo.round3(e.yaw or 0),
-pitch = 0, roll = e.roll, color = color, material = mat, collide = e.collide == true, shape = e.shape, tag = e.tag, lit = e.lit, attrs = e.attrs, transparency = e.transparency,
+pitch = e.pitch or 0, roll = e.roll, color = color, material = mat, collide = e.collide == true, shape = e.shape, tag = e.tag, lit = e.lit, attrs = e.attrs, transparency = e.transparency, seat = e.seat,
 }
 end
 local function disc(name, x, y, z, dia, h, color, mat, e)
@@ -2263,12 +2341,7 @@ end
 stats.trees = stats.trees + 1
 end
 local function bench(x, z, nx, nz) -- Lehne zeigt in Richtung (nx, nz), Blick zum Weg
-local yaw = math.deg(math.atan2(nx, nz))
-local r = math.rad(yaw)
-local sx, sz = math.sin(r), math.cos(r)
-add("BankSitz", "bench", x, 1.3, z, 4.4, 0.4, 1.5, { 130, 90, 60 }, "Wood", { yaw = yaw, collide = true })
-add("BankLehne", "bench", x + sx * 0.7, 2.3, z + sz * 0.7, 4.4, 1.2, 0.3, { 130, 90, 60 }, "Wood", { yaw = yaw })
-for _, sd in ipairs({ -1.8, 1.8 }) do add("BankBein", "bench", x + math.cos(r) * sd, 0.65, z - math.sin(r) * sd, 0.4, 1.3, 1.2, { 60, 62, 66 }, "Metal", { yaw = yaw }) end
+Baenke.add(add, x, 0, z, math.deg(math.atan2(nx, nz)))
 stats.benches = stats.benches + 1
 end
 local function lamp(x, z)
@@ -2312,10 +2385,10 @@ add("TeichRand", "decor", q[1] + (q[3] + 0.6) * math.cos(th), 0.55, q[2] + (q[3]
 end
 end
 for _, b in ipairs(s.beds or {}) do
-local cols = { { 214, 80, 96 }, { 236, 200, 70 }, { 150, 100, 190 }, { 240, 240, 236 } }
+local bedRng = newRng(37)
 for i = 0, b[3] - 1 do
 for j = 0, b[4] - 1 do
-add("Beet", "decor", b[1] + i * 5 + 2.5, 0.25, b[2] + j * 5 + 2.5, 4.2, 0.5, 4.2, cols[(i + 2 * j) % #cols + 1], "Grass")
+stats.flowers = stats.flowers + Blumen.bed(add, b[1] + i * 5 + 2.5, b[2] + j * 5 + 2.5, 4.4, 4.4, 0, bedRng, i + 2 * j + 1, false)
 end
 end
 for _, e in ipairs({ { b[1] + b[3] * 2.5, b[2] - 0.5, b[3] * 5 + 1, 1 }, { b[1] + b[3] * 2.5, b[2] + b[4] * 5 + 0.5, b[3] * 5 + 1, 1 }, { b[1] - 0.5, b[2] + b[4] * 2.5, 1, b[4] * 5 }, { b[1] + b[3] * 5 + 0.5, b[2] + b[4] * 2.5, 1, b[4] * 5 } }) do
@@ -2981,6 +3054,9 @@ end
 piece("EinfahrtRampe", a0, a0 + RAMP, 0.78)
 piece("Einfahrt", a0 + RAMP, a1 - RAMP, 1.04)
 piece("EinfahrtRampe", a1 - RAMP, a1, 0.78)
+end
+for _, g in ipairs(cfg.gehwegLuecken or {}) do
+part(parts, "GehwegLuecke", "walk", (g[1] + g[3]) / 2, TOP.walk - THICK.walk / 2, (g[2] + g[4]) / 2, g[3] - g[1], THICK.walk, g[4] - g[2], 0, COLOR.walk, MATERIAL.walk, {})
 end
 for _, b in ipairs(cfg.bays) do
 local x0, z0, x1, z1 = b[1], b[2], b[3], b[4]
@@ -4165,6 +4241,7 @@ return Rathaus
 end)()
 local Marienplatz = (function()
 local Geo = Geo
+local Baenke = Baenke
 local Marienplatz = {}
 local GRANITE, JOINT, BAND = { 204, 198, 188 }, { 172, 166, 156 }, { 150, 96, 84 }
 function Marienplatz.plan(cfg)
@@ -4177,7 +4254,7 @@ extra = extra or {}
 parts[#parts + 1] = {
 name = name, kind = extra.kind or "plaza", size = { Geo.round3(sx), Geo.round3(sy), Geo.round3(sz) }, pos = { Geo.round3(x), Geo.round3(y), Geo.round3(z) },
 yaw = extra.yaw or 0, pitch = extra.pitch or 0, roll = extra.roll, color = color, material = mat, collide = extra.collide == true,
-shape = extra.shape, text = extra.text, tag = extra.tag, attrs = extra.attrs, transparency = extra.transparency,
+shape = extra.shape, text = extra.text, tag = extra.tag, attrs = extra.attrs, transparency = extra.transparency, seat = extra.seat,
 }
 end
 local function vcyl(name, x, y, z, h, d, color, mat, extra)
@@ -4246,12 +4323,12 @@ vcyl("MadonnaKrone", S.x, top + 50.9, S.z, 0.6, 1, GOLD, "Metal")
 add("Strahlenkranz", S.x, top + 50.2, S.z - 0.7, 0.2, 3.6, 3.6, { 250, 220, 120 }, "Neon", { shape = "Cylinder", yaw = 90 })
 add("Christuskind", S.x - 1.1, top + 48.4, S.z + 0.5, 0.9, 0.9, 0.9, GOLD, "Metal", { shape = "Ball" })
 add("Zepter", S.x + 1.1, top + 48.8, S.z + 0.3, 0.2, 3, 0.2, GOLD, "Metal")
-local function bench(x, z, yaw)
-add("Bank", x, 2.1, z, 5, 0.5, 1.6, { 120, 84, 56 }, "Wood", { yaw = yaw, collide = true })
-add("BankLehne", x, 3, z, 5, 1.4, 0.3, { 120, 84, 56 }, "Wood", { yaw = yaw })
-add("BankFuss", x, 1.5, z, 4.4, 1, 1.2, { 60, 62, 66 }, "Metal", { yaw = yaw })
+local function benchPart(name, kind, x, y, z, sx, sy, sz, color, mat, extra)
+extra = extra or {}
+extra.kind = kind
+add(name, x, y, z, sx, sy, sz, color, mat, extra)
 end
-for _, b in ipairs({ { S.x - 22, S.z, 90 }, { S.x + 22, S.z, 90 }, { S.x, S.z + 22, 0 } }) do bench(b[1], b[2], b[3]) end
+for _, b in ipairs({ { S.x - 22, S.z, 270 }, { S.x + 22, S.z, 90 }, { S.x, S.z + 22, 0 } }) do Baenke.add(benchPart, b[1], 1, b[2], b[3]) end
 local CONC, STEEL, UBLUE, SGREEN, WHITE = { 176, 174, 168 }, { 70, 74, 80 }, { 0, 94, 184 }, { 0, 150, 70 }, { 255, 255, 255 }
 local nSteps, landing = 14, 6
 local rise, run = U.depth / nSteps, (U.z1 - U.z0 - landing) / nSteps
@@ -4454,31 +4531,33 @@ else
 add("Fuge", "plaza", (S.x0 + S.x1) / 2, 1.1, z, S.x1 - S.x0, 0.2, 0.3, { 172, 166, 156 }, "SmoothPlastic")
 end
 end
-for i, rr in ipairs({ 52, 49, 46 }) do vcyl("Pflasterring", "plaza", cx, 1.0 + i * 0.15, cz, 0.3, 2 * rr, i == 2 and { 150, 96, 84 } or { 186, 180, 170 }, "Granite") end
-local R = S.basin
+local K = S.fountainScale or 0.9
+local function ky(y) return 1 + (y - 1) * K end
+for i, rr in ipairs({ 52, 49, 46 }) do vcyl("Pflasterring", "plaza", cx, 1.0 + i * 0.15, cz, 0.3, 2 * rr * K, i == 2 and { 150, 96, 84 } or { 186, 180, 170 }, "Granite") end
+local R = S.basin * K
 for i = 0, 35 do
 local a = math.rad(i * 10)
-add("Beckenrand", "plaza", cx + R * math.cos(a), 2.1, cz + R * math.sin(a), 8, 2.2, 2.6, STONE, "Granite", { yaw = math.deg(math.atan2(-math.cos(a), -math.sin(a))) % 360, collide = true })
+add("Beckenrand", "plaza", cx + R * math.cos(a), ky(2.1), cz + R * math.sin(a), 8 * K, 2.2 * K, 2.6 * K, STONE, "Granite", { yaw = math.deg(math.atan2(-math.cos(a), -math.sin(a))) % 360, collide = true })
 end
 vcyl("Beckenboden", "plaza", cx, 1.2, cz, 0.3, 2 * R, { 120, 140, 156 }, "Concrete")
-vcyl("Wasser", "plaza", cx, 2.3, cz, 0.4, 2 * R - 2, { 130, 180, 214 }, "SmoothPlastic", { transparency = 0.45 })
+vcyl("Wasser", "plaza", cx, ky(2.3), cz, 0.4, 2 * R - 2 * K, { 130, 180, 214 }, "SmoothPlastic", { transparency = 0.45 })
 for _, ring in ipairs({ { 20, 24, 10, 6, 30, 26 }, { 32, 30, 8, 5, 35, 22 } }) do -- Radius, Düsen, Reichweite, Höhe, Neigung nach außen (Grad), Strahlgeschwindigkeit
 for k = 0, ring[2] - 1 do
 local a = math.rad(k * 360 / ring[2] + (ring[1] > 25 and 6 or 0))
-add("Duese", "plaza", cx + ring[1] * math.cos(a), 2.6, cz + ring[1] * math.sin(a), 0.5, 0.5, 0.5, { 240, 248, 255 }, "SmoothPlastic",
-{ yaw = (90 - math.deg(a)) % 360, pitch = ring[5], emitter = { rate = 16, speed = ring[6], spread = 3, gravity = 60, life = 1.1, size = 0.5, color = { 225, 240, 255 } } })
+add("Duese", "plaza", cx + ring[1] * K * math.cos(a), ky(2.6), cz + ring[1] * K * math.sin(a), 0.5, 0.5, 0.5, { 240, 248, 255 }, "SmoothPlastic",
+{ yaw = (90 - math.deg(a)) % 360, pitch = ring[5], emitter = { rate = 16, speed = ring[6] * math.sqrt(K), spread = 3, gravity = 60, life = 1.1, size = 0.5, color = { 225, 240, 255 } } })
 stats.jets = stats.jets + 1
 end
 end
-vcyl("Mittelstrahl", "plaza", cx, 9, cz, 14, 1.4, { 240, 248, 255 }, "SmoothPlastic", { transparency = 0.3 })
-vcyl("Mittelsockel", "plaza", cx, 2.2, cz, 1.6, 8, STONE, "Granite", { collide = true })
+vcyl("Mittelstrahl", "plaza", cx, ky(9), cz, 14 * K, 1.4 * K, { 240, 248, 255 }, "SmoothPlastic", { transparency = 0.3 })
+vcyl("Mittelsockel", "plaza", cx, ky(2.2), cz, 1.6 * K, 8 * K, STONE, "Granite", { collide = true })
 for i = 0, 35 do -- Poller (niedrige Steinstümpfe) rund um das Becken
 local a = math.rad(i * 10 + 5)
-vcyl("Poller", "plaza", cx + (R + 7) * math.cos(a), 2.3, cz + (R + 7) * math.sin(a), 2.6, 2.4, { 150, 146, 140 }, "Granite", { collide = true })
+vcyl("Poller", "plaza", cx + (R + 7 * K) * math.cos(a), ky(2.3), cz + (R + 7 * K) * math.sin(a), 2.6 * K, 2.4 * K, { 150, 146, 140 }, "Granite", { collide = true })
 end
 for i = 0, 9 do -- Sitzsteine auf der Ostseite
 local a = math.rad(-72 + i * 16)
-add("Sitzstein", "plaza", cx + (R + 11) * math.cos(a), 2.3, cz + (R + 11) * math.sin(a), 3.4, 2.6, 2.6, { 160, 156, 148 }, "Granite", { yaw = i * 23, collide = true })
+add("Sitzstein", "plaza", cx + (R + 11 * K) * math.cos(a), ky(2.3), cz + (R + 11 * K) * math.sin(a), 3.4 * K, 2.6 * K, 2.6 * K, { 160, 156, 148 }, "Granite", { yaw = i * 23, collide = true })
 end
 local shopNo, roofSigns = 0, {}
 local function segment(x, z, psi, len, idx, opts)
@@ -5302,6 +5381,8 @@ end)()
 local Garden = (function()
 local Geo = Geo
 local TerrainPlanner = TerrainPlanner
+local Baenke = Baenke
+local Blumen = Blumen
 local Garden = {}
 local GRAVEL, STONE, SAND = { 206, 196, 172 }, { 206, 200, 186 }, { 214, 200, 168 }
 local BARK = { 96, 70, 48 }
@@ -5321,7 +5402,7 @@ extra = extra or {}
 parts[#parts + 1] = {
 name = name, kind = kind, size = { Geo.round3(sx), Geo.round3(sy), Geo.round3(sz) }, pos = { Geo.round3(x), Geo.round3(y), Geo.round3(z) },
 yaw = Geo.round3(extra.yaw or 0), pitch = extra.pitch or 0, roll = extra.roll, color = color, material = material, collide = extra.collide == true,
-shape = extra.shape, text = extra.text, transparency = extra.transparency, tag = extra.tag, attrs = extra.attrs,
+shape = extra.shape, text = extra.text, transparency = extra.transparency, tag = extra.tag, attrs = extra.attrs, seat = extra.seat,
 }
 end
 end
@@ -5362,13 +5443,7 @@ add(prefix .. "Krone", "tree", x + (rng() - 0.5) * 4, y + h + cw * 0.15, z + (rn
 end
 end
 local function bench(add, x, y, z, yaw)
-local r = math.rad(yaw)
-local nx, nz = math.sin(r), math.cos(r) -- lokale z-Richtung
-add("BankSitz", "bench", x, y + 1.3, z, 4.4, 0.4, 1.5, { 130, 90, 60 }, "Wood", { yaw = yaw, collide = true })
-add("BankLehne", "bench", x + nx * 0.7, y + 2.3, z + nz * 0.7, 4.4, 1.2, 0.3, { 130, 90, 60 }, "Wood", { yaw = yaw })
-for _, sd in ipairs({ -1.8, 1.8 }) do
-add("BankBein", "bench", x + math.cos(r) * sd, y + 0.65, z - math.sin(r) * sd, 0.4, 1.3, 1.2, { 60, 62, 66 }, "Metal", { yaw = yaw })
-end
+Baenke.add(add, x, y, z, yaw)
 end
 local function strip(add, name, x0, z0, x1, z1, w, base, lift, color, material)
 local ux, uz, len = Geo.dir(x0, z0, x1, z1)
@@ -5416,14 +5491,14 @@ for _, x in ipairs(fx) do
 disc(add, "Brunnenplatz", x, 0.1, cz, 26, 0.5, SAND, "Pavement")
 fountain(add, x, cz, 10)
 end
-local colors = { { 200, 60, 70 }, { 240, 200, 60 }, { 150, 80, 170 }, { 240, 240, 236 } }
-local k = 0
+local bedRng = newRng(31)
+local k, flowers = 0, 0
 for _, qx in ipairs({ -1, 1 }) do
 for _, qz in ipairs({ -1, 1 }) do
 for i = 0, 2 do
 for j = 0, 1 do
 k = k + 1
-add("Beet", "decor", cx + qx * (40 + i * 20), 0.3, cz + qz * (26 + j * 14), 16, 0.6, 10, colors[(k % 4) + 1], "Grass")
+flowers = flowers + Blumen.bed(add, cx + qx * (40 + i * 20), cz + qz * (26 + j * 14), 16, 10, 0, bedRng, k, true)
 end
 end
 end
@@ -5979,7 +6054,7 @@ Marble = Enum.Material.Marble, Fabric = Enum.Material.Fabric, Ground = Enum.Mate
 Snow = Enum.Material.Snow, Granite = Enum.Material.Granite, Slate = Enum.Material.Slate, Cobblestone = Enum.Material.Cobblestone,
 }
 local function buildPart(spec, origin)
-local p = Instance.new("Part")
+local p = Instance.new(spec.seat and "Seat" or "Part") -- seat = true: Sitzplatz (Bänke), man setzt sich durch Hineinlaufen
 p.Name = spec.name
 p.Anchored = true
 p.Size = Vector3.new(spec.size[1], spec.size[2], spec.size[3])
@@ -5996,7 +6071,7 @@ if spec.transparency then p.Transparency = spec.transparency end
 p.Color = Color3.fromRGB(spec.color[1], spec.color[2], spec.color[3])
 p.Material = MATERIALS[spec.material] or Enum.Material.SmoothPlastic
 p.CanCollide = spec.collide
-p.CanTouch = false
+p.CanTouch = spec.seat == true -- Sitze brauchen Berührung zum Hinsetzen
 if spec.kind == "glass" then
 p.Transparency = 0.3
 p.CastShadow = false
@@ -6136,6 +6211,28 @@ end
 end
 return n
 end
+function Builder.paveDisk(cx, cz, r, y)
+local terrain = Workspace.Terrain
+local y0 = math.floor((y - 8) / 4) * 4
+local n = 0
+for gz = math.floor((cz - r) / 4), math.floor((cz + r) / 4) do
+local xs = {}
+for gx = math.floor((cx - r) / 4), math.floor((cx + r) / 4) do
+local dx, dz = gx * 4 + 2 - cx, gz * 4 + 2 - cz
+if dx * dx + dz * dz <= r * r then xs[#xs + 1] = gx end
+end
+local i = 1
+while i <= #xs do
+local j = i
+while xs[j + 1] == xs[j] + 1 do j = j + 1 end
+terrain:ReplaceMaterial(Region3.new(Vector3.new(xs[i] * 4, y0, gz * 4), Vector3.new((xs[j] + 1) * 4, y0 + 16, (gz + 1) * 4)), 4, Enum.Material.Grass, Enum.Material.Pavement)
+n = n + 1
+breathe(80)
+i = j + 1
+end
+end
+return n
+end
 function Builder.measureGround(origin)
 local params = RaycastParams.new()
 params.FilterType = Enum.RaycastFilterType.Include
@@ -6255,6 +6352,13 @@ if math.sqrt((x - h.x) ^ 2 + (z - h.z) ^ 2) < h.layers[1][1] + r + 8 then return
 end
 return Geo.polyDist(x, z, Config.water.isar.pts) < Config.water.isar.layers[1][3] + 10 + r
 end
+local function paveFriedensengel(origin)
+local L, t = Config.landmarks.friedensengel, Config.terrace
+local n = Builder.paveDisk(origin.X + L.x, origin.Z + L.z, 30, origin.Y + L.baseY)
+local pw0, pw1 = t.x0 + 0.5, L.x - 28 -- Plattenweg von der Westkante der Terrasse zum Rondell (Landmarks.friedensengel)
+local spec = { kind = "path", size = { pw1 - pw0, 0.2, 10 }, pos = { (pw0 + pw1) / 2, L.baseY + 0.35, L.z }, yaw = 0 }
+return n + Builder.paveUnder({ spec }, origin, function() return true end)
+end
 local STEPS = {
 terrain = function(opts, origin)
 if opts.clearTerrain ~= false then Builder.clearTerrain() end
@@ -6274,7 +6378,7 @@ Builder.applyTerrain(TerrainPlanner.planKanal(Config), origin)
 local OLD = {} -- Namen der früheren und der neuen Eisbach-Teile im Umkreis der Welle
 for _, n in ipairs({ "Eisbachwelle", "Schussrinne", "Kanalwasser", "Kanalboden", "Wellenschaum", "Wellental", "Gischt", "Wellenkamm", "Wellenzug", "SurfZone", "Ufermauer", "Kanalmauer", "Mauerkappe", "Kanalstufe", "Plateau", "Plateaubalken",
 "Plateauquerbalken", "Plateaupfosten", "Holzstufe", "RettungsringPfosten", "Rettungsring", "EisStamm", "EisKrone", "Zuschauerdeck", "DeckGelaender", "Schild", "SchildPfosten", "Schrift",
-"BankSitz", "BankLehne", "BankBein", "Uferweg", "Wellenhang", "Wellenruecken", "Wellenflanke", "Wellenkrone", "Nachlauf", "Sitzbohle", "Stegstufe", "StegWest", "StegWestBalken", "StegWestQuerbalken",
+"BankSitz", "BankLehne", "BankBein", "BankLatte", "BankRueckenlatte", "BankRahmen", "BankArmlehne", "Uferweg", "Wellenhang", "Wellenruecken", "Wellenflanke", "Wellenkrone", "Nachlauf", "Sitzbohle", "Stegstufe", "StegWest", "StegWestBalken", "StegWestQuerbalken",
 "StegWestPfosten", "Stegpoller", "RettungsringSegment", "RettungsringTafel", "Kanalboden", "Kanalwasser" }) do OLD[n] = true end
 local removed = 0
 for _, c in ipairs(gardens:GetChildren()) do
@@ -6340,6 +6444,22 @@ end
 Builder.buildParts(list, folder, origin)
 return string.format("%d Teile der Kugelleuchten erneuert", #list)
 end,
+stachusbrunnen = function(opts, origin) -- nur der Brunnen am Stachus (Becken, Düsen, Mittelstrahl, Poller, Sitzsteine, Pflasterringe) in der fertigen Karte neu, übrige Teile bleiben
+local folder = game:GetService("Workspace"):FindFirstChild("Map").Stachus
+local S = Config.stachus
+local NAMES = { Pflasterring = true, Beckenrand = true, Beckenboden = true, Wasser = true, Duese = true, Mittelstrahl = true, Mittelsockel = true, Poller = true, Sitzstein = true }
+local function near(x, z) return math.sqrt((x - S.cx) ^ 2 + (z - S.cz) ^ 2) < 62 end
+local removed = 0
+for _, c in ipairs(folder:GetChildren()) do
+if c:IsA("BasePart") and NAMES[c.Name] and near(c.Position.X - origin.X, c.Position.Z - origin.Z) then c:Destroy() removed = removed + 1 end
+end
+local list = {}
+for _, p in ipairs(Stachus.plan(Config).parts) do
+if NAMES[p.name] and near(p.pos[1], p.pos[3]) then list[#list + 1] = p end
+end
+Builder.buildParts(list, folder, origin)
+return string.format("%d alte Brunnenteile entfernt, %d neu", removed, #list)
+end,
 pave = function(opts, origin) -- Terrain unter Wegen und Straßen von Gras zu Pflaster, damit dort keine Gras-Büschel wachsen
 local roadPlan = RoadsPlanner.plan(Config)
 local specs = {}
@@ -6347,7 +6467,53 @@ for _, list in ipairs({ roadPlan.parts, Garden.plan(Config, roadPlan, Specials).
 for _, p in ipairs(list) do specs[#specs + 1] = p end
 end
 local n = Builder.paveUnder(specs, origin, function(p) return nearGrass(p.pos[1], p.pos[3], math.max(p.size[1], p.size[3]) / 2) end)
-return string.format("%d Zellenreihen unter Wegen und Straßen von Gras zu Pflaster", n)
+n = n + paveFriedensengel(origin)
+return string.format("%d Zellenreihen unter Wegen, Straßen und dem Friedensengel von Gras zu Pflaster", n)
+end,
+friedensengel = function(opts, origin) -- nur das Terrain unter Rondell, Becken und Plattenweg des Friedensengels (Gras-Büschel weg)
+return string.format("%d Zellenreihen von Gras zu Pflaster", paveFriedensengel(origin))
+end,
+luecken = function(opts, origin) -- Gehweg-Lücken (Config.gehwegLuecken) in der fertigen Karte neu bauen; übrige Straßenteile bleiben
+local folder = game:GetService("Workspace"):FindFirstChild("Map").Strassen
+local removed = 0
+for _, c in ipairs(folder:GetChildren()) do
+if c.Name == "GehwegLuecke" then c:Destroy() removed = removed + 1 end
+end
+local list = {}
+for _, p in ipairs(RoadsPlanner.plan(Config).parts) do
+if p.name == "GehwegLuecke" then list[#list + 1] = p end
+end
+Builder.buildParts(list, folder, origin)
+Builder.paveUnder(list, origin, function() return true end)
+return string.format("%d alte Teile entfernt, %d neu", removed, #list)
+end,
+gartendetails = function(opts, origin) -- Bänke und Blumenbeete der Grünanlagen und des Marienplatzes in der fertigen Karte neu (Anlagen: Schritt "anlagen"); übrige Teile bleiben
+local map = game:GetService("Workspace"):FindFirstChild("Map")
+local NEU = { "BankSitz", "BankLatte", "BankRueckenlatte", "BankRahmen", "BankArmlehne" }
+local function names(list)
+local set = {}
+for _, n in ipairs(NEU) do set[n] = true end
+for _, n in ipairs(list) do set[n] = true end
+return set
+end
+local jobs = {
+{ map.Gruenanlagen, Garden.plan(Config, RoadsPlanner.plan(Config), Specials).parts, names({ "BankLehne", "BankBein", "Beet", "BeetErde", "BeetLaub", "BeetRand", "Blumenstiel", "Blume", "BlumeMitte" }) },
+{ map.Marienplatz, Marienplatz.plan(Config).parts, names({ "Bank", "BankLehne", "BankFuss" }) },
+}
+local removed, built = 0, 0
+for _, job in ipairs(jobs) do
+local folder, parts, set = job[1], job[2], job[3]
+for _, c in ipairs(folder:GetChildren()) do
+if set[c.Name] then c:Destroy() removed = removed + 1 end
+end
+local list = {}
+for _, p in ipairs(parts) do
+if set[p.name] then list[#list + 1] = p end
+end
+Builder.buildParts(list, folder, origin)
+built = built + #list
+end
+return string.format("%d alte Teile entfernt, %d neu (Bänke, Blumenbeete)", removed, built)
 end,
 roads = function(opts, origin)
 local plan = RoadsPlanner.plan(Config)
@@ -6560,7 +6726,7 @@ local st = Planner.stats(plan)
 return string.format("%d Gebäude, %d Teile", st.houses, st.parts + #plan.parts)
 end,
 }
-BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "stachus", "autohaus", "werkstatt", "anlagen", "gardens", "pave", "houses", "skyline", "bus", "tram", "wall" }
+BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "stachus", "autohaus", "werkstatt", "anlagen", "gardens", "pave", "houses", "skyline", "bus", "wall" } -- "tram" (Schritt vorhanden, derzeit nicht gewünscht) gehört bei Bedarf vor "wall"
 local function afterTerrain(base)
 local ground = Builder.measureGround(base)
 print(string.format("[boden] Terrain-Oberkante gemessen: %.1f, alle weiteren Teile werden daran ausgerichtet", ground))

@@ -314,6 +314,11 @@ function RoadsPlanner.plan(cfg)
 		piece("EinfahrtRampe", a1 - RAMP, a1, 0.78)
 	end
 
+	-- Gehweg-Lücken an Einmündungen (Rechtecke aus Config.gehwegLuecken)
+	for _, g in ipairs(cfg.gehwegLuecken or {}) do
+		part(parts, "GehwegLuecke", "walk", (g[1] + g[3]) / 2, TOP.walk - THICK.walk / 2, (g[2] + g[4]) / 2, g[3] - g[1], THICK.walk, g[4] - g[2], 0, COLOR.walk, MATERIAL.walk, {})
+	end
+
 	-- Parkbuchten: Trennlinien quer zum Parkstreifen
 	for _, b in ipairs(cfg.bays) do
 		local x0, z0, x1, z1 = b[1], b[2], b[3], b[4]

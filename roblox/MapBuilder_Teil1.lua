@@ -144,6 +144,78 @@ end
 return Geo
 
 end)()
+local Baenke = (function()
+local Baenke = {}
+local WOOD, IRON = { 150, 100, 62 }, { 46, 50, 54 }
+local TILT = math.rad(12) -- Rückenlehne nach hinten geneigt
+function Baenke.add(add, x, y, z, yaw)
+local r = math.rad(yaw)
+local c, s = math.cos(r), math.sin(r)
+local function put(name, lx, ly, lz, sx, sy, sz, color, mat, extra)
+extra = extra or {}
+extra.yaw = yaw
+add(name, "bench", x + lx * c + lz * s, y + ly, z - lx * s + lz * c, sx, sy, sz, color, mat, extra)
+end
+local LEN, BACK = 6.2, 0.95 -- Länge, Lage der Rückseite (lokal z)
+for _, lz in ipairs({ -0.74, 0, 0.74 }) do put("BankLatte", 0, 1.89, lz, LEN, 0.22, 0.62, WOOD, "Wood", { collide = true }) end
+for _, lx in ipairs({ -1.5, 1.5 }) do put("BankSitz", lx, 2.0, 0, 2.9, 0.16, 1.9, WOOD, "Wood", { collide = true, seat = true, transparency = 1 }) end
+for _, ly in ipairs({ 2.6, 3.2, 3.8 }) do put("BankRueckenlatte", 0, ly, BACK + (ly - 1.95) * math.tan(TILT) - 0.14, LEN - 0.4, 0.5, 0.16, WOOD, "Wood", { pitch = 12 }) end
+for _, sd in ipairs({ -1, 1 }) do
+local lx = sd * 2.85
+put("BankRahmen", lx, 0.95, -0.8, 0.2, 1.9, 0.45, IRON, "Metal") -- vorderes Bein
+put("BankRahmen", lx, 0.95, BACK, 0.2, 1.9, 0.45, IRON, "Metal") -- hinteres Bein
+put("BankRahmen", lx, 1.72, 0.07, 0.2, 0.2, 2.1, IRON, "Metal") -- Sitzträger
+put("BankRahmen", lx, 3.1, BACK + 1.15 * math.sin(TILT), 0.2, 2.4, 0.4, IRON, "Metal", { pitch = 12 }) -- Rückenpfosten über dem hinteren Bein
+put("BankArmlehne", lx, 2.92, -0.3, 0.26, 0.18, 1.7, IRON, "Metal")
+put("BankRahmen", lx, 2.45, -0.8, 0.2, 0.9, 0.2, IRON, "Metal") -- Stütze der Armlehne
+end
+end
+return Baenke
+
+end)()
+local Blumen = (function()
+local Blumen = {}
+Blumen.PALETTES = {
+{ { 214, 60, 76 }, { 244, 204, 64 }, { 238, 238, 232 } }, -- rot, gelb, weiß
+{ { 150, 90, 185 }, { 240, 150, 190 }, { 238, 238, 232 } }, -- lila, rosa, weiß
+{ { 244, 204, 64 }, { 236, 132, 48 }, { 200, 62, 72 } }, -- gelb, orange, rot
+{ { 108, 128, 216 }, { 150, 90, 185 }, { 238, 238, 232 } }, -- blau, lila, weiß
+}
+local SOIL, LEAF, STEM, HEDGE, CENTER = { 84, 60, 42 }, { 58, 108, 56 }, { 66, 130, 60 }, { 46, 92, 52 }, { 246, 206, 60 }
+function Blumen.bed(add, cx, cz, w, d, y, rng, palette, edging)
+local pal = Blumen.PALETTES[(palette - 1) % #Blumen.PALETTES + 1]
+add("BeetErde", "decor", cx, y + 0.2, cz, w, 0.4, d, SOIL, "Ground")
+add("BeetLaub", "decor", cx, y + 0.45, cz, w - 0.6, 0.2, d - 0.6, LEAF, "Grass")
+if edging then
+for _, e in ipairs({ { 0, -d / 2 + 0.3, w, 0.6 }, { 0, d / 2 - 0.3, w, 0.6 }, { -w / 2 + 0.3, 0, 0.6, d - 1.2 }, { w / 2 - 0.3, 0, 0.6, d - 1.2 } }) do
+add("BeetRand", "decor", cx + e[1], y + 0.55, cz + e[2], e[3], 1.1, e[4], HEDGE, "Grass", { collide = true })
+end
+end
+local step = 1.7
+local n = 0
+local nx, nz = math.max(1, math.floor((w - 1.6) / step) + 1), math.max(1, math.floor((d - 1.6) / step) + 1)
+for i = 0, nx - 1 do
+for j = 0, nz - 1 do
+local u = nx > 1 and (i / (nx - 1) * 2 - 1) or 0 -- -1 .. 1 über das Beet
+local v = nz > 1 and (j / (nz - 1) * 2 - 1) or 0
+local q = math.max(math.abs(u), math.abs(v)) -- 1 am Rand, 0 in der Mitte
+local band = q > 0.72 and 1 or (q > 0.36 and 2 or 3)
+if rng() < 0.12 then band = band % 3 + 1 end -- ab und zu eine Blume in der Nachbarfarbe
+local fx = cx + (nx > 1 and u * (w - 1.6) / 2 or 0) + (rng() - 0.5) * 0.7
+local fz = cz + (nz > 1 and v * (d - 1.6) / 2 or 0) + (rng() - 0.5) * 0.7
+local h = 0.7 + 0.6 * rng()
+local size = 0.6 + 0.3 * rng()
+add("Blumenstiel", "decor", fx, y + 0.55 + h / 2, fz, 0.12, h, 0.12, STEM, "Grass")
+add("Blume", "decor", fx, y + 0.55 + h + size * 0.2, fz, size, size, size, pal[band], "SmoothPlastic", { shape = "Ball" })
+if (i + j) % 3 == 0 then add("BlumeMitte", "decor", fx, y + 0.55 + h + size * 0.45, fz, 0.28, 0.28, 0.28, CENTER, "SmoothPlastic", { shape = "Ball" }) end
+n = n + 1
+end
+end
+return n
+end
+return Blumen
+
+end)()
 local Config = (function()
 local C = {}
 C.groundTop = -2
@@ -396,6 +468,10 @@ C.signals = {
 { name = "Wache_V2", x = -211.5, z = -90, fx = 0, fz = 1, ax = -1, az = 0 }, { name = "Wache_V2", x = -258.5, z = -210, fx = 0, fz = -1, ax = 1, az = 0 },
 }
 C.pedSignals = {} -- die Fußgängerampeln am Siegestor entfallen (Kreisverkehr)
+C.gehwegLuecken = {
+{ 883.5, 274, 893.5, 284 }, { 883.5, 312, 893.5, 322 }, { 1132.5, 274, 1143.5, 284 }, { 1132.5, 312, 1143.5, 322 },
+{ 1052.5, -458, 1070, -448 }, { 996.5, -21.5, 1014, -13.5 },
+}
 C.crossings = {
 { x = 0, z = -91, ux = 0, uz = 1, a0 = 6, a1 = 43 }, { x = 0, z = -91, ux = 0, uz = 1, a0 = -43, a1 = -6 }, -- Achse Nord, beide Fahrbahnen
 { x = 0, z = 91, ux = 0, uz = 1, a0 = 6, a1 = 43 }, { x = 0, z = 91, ux = 0, uz = 1, a0 = -43, a1 = -6 }, -- Achse Süd
@@ -2130,6 +2206,8 @@ return Werkstatt
 end)()
 local Anlagen = (function()
 local Geo = Geo
+local Baenke = Baenke
+local Blumen = Blumen
 local Anlagen = {}
 local GREENS = { { 70, 120, 60 }, { 88, 140, 70 }, { 56, 100, 56 }, { 104, 150, 76 }, { 64, 112, 80 } }
 local WILLOW = { { 128, 156, 84 }, { 112, 148, 88 }, { 142, 164, 96 } }
@@ -2189,12 +2267,12 @@ end
 return ops
 end
 function Anlagen.plan(cfg)
-local parts, stats = {}, { areas = 0, trees = 0, benches = 0, lamps = 0, rocks = 0, bushes = 0, beds = 0, pathSegs = 0 }
+local parts, stats = {}, { areas = 0, trees = 0, benches = 0, lamps = 0, rocks = 0, bushes = 0, beds = 0, flowers = 0, pathSegs = 0 }
 local function add(name, kind, x, y, z, sx, sy, sz, color, mat, e)
 e = e or {}
 parts[#parts + 1] = {
 name = name, kind = kind, size = { Geo.round3(sx), Geo.round3(sy), Geo.round3(sz) }, pos = { Geo.round3(x), Geo.round3(y), Geo.round3(z) }, yaw = Geo.round3(e.yaw or 0),
-pitch = 0, roll = e.roll, color = color, material = mat, collide = e.collide == true, shape = e.shape, tag = e.tag, lit = e.lit, attrs = e.attrs, transparency = e.transparency,
+pitch = e.pitch or 0, roll = e.roll, color = color, material = mat, collide = e.collide == true, shape = e.shape, tag = e.tag, lit = e.lit, attrs = e.attrs, transparency = e.transparency, seat = e.seat,
 }
 end
 local function disc(name, x, y, z, dia, h, color, mat, e)
@@ -2214,12 +2292,7 @@ end
 stats.trees = stats.trees + 1
 end
 local function bench(x, z, nx, nz) -- Lehne zeigt in Richtung (nx, nz), Blick zum Weg
-local yaw = math.deg(math.atan2(nx, nz))
-local r = math.rad(yaw)
-local sx, sz = math.sin(r), math.cos(r)
-add("BankSitz", "bench", x, 1.3, z, 4.4, 0.4, 1.5, { 130, 90, 60 }, "Wood", { yaw = yaw, collide = true })
-add("BankLehne", "bench", x + sx * 0.7, 2.3, z + sz * 0.7, 4.4, 1.2, 0.3, { 130, 90, 60 }, "Wood", { yaw = yaw })
-for _, sd in ipairs({ -1.8, 1.8 }) do add("BankBein", "bench", x + math.cos(r) * sd, 0.65, z - math.sin(r) * sd, 0.4, 1.3, 1.2, { 60, 62, 66 }, "Metal", { yaw = yaw }) end
+Baenke.add(add, x, 0, z, math.deg(math.atan2(nx, nz)))
 stats.benches = stats.benches + 1
 end
 local function lamp(x, z)
@@ -2263,10 +2336,10 @@ add("TeichRand", "decor", q[1] + (q[3] + 0.6) * math.cos(th), 0.55, q[2] + (q[3]
 end
 end
 for _, b in ipairs(s.beds or {}) do
-local cols = { { 214, 80, 96 }, { 236, 200, 70 }, { 150, 100, 190 }, { 240, 240, 236 } }
+local bedRng = newRng(37)
 for i = 0, b[3] - 1 do
 for j = 0, b[4] - 1 do
-add("Beet", "decor", b[1] + i * 5 + 2.5, 0.25, b[2] + j * 5 + 2.5, 4.2, 0.5, 4.2, cols[(i + 2 * j) % #cols + 1], "Grass")
+stats.flowers = stats.flowers + Blumen.bed(add, b[1] + i * 5 + 2.5, b[2] + j * 5 + 2.5, 4.4, 4.4, 0, bedRng, i + 2 * j + 1, false)
 end
 end
 for _, e in ipairs({ { b[1] + b[3] * 2.5, b[2] - 0.5, b[3] * 5 + 1, 1 }, { b[1] + b[3] * 2.5, b[2] + b[4] * 5 + 0.5, b[3] * 5 + 1, 1 }, { b[1] - 0.5, b[2] + b[4] * 2.5, 1, b[4] * 5 }, { b[1] + b[3] * 5 + 0.5, b[2] + b[4] * 2.5, 1, b[4] * 5 } }) do
@@ -2653,6 +2726,8 @@ return Tram
 
 end)()
 M.Geo = Geo
+M.Baenke = Baenke
+M.Blumen = Blumen
 M.Config = Config
 M.Planner = Planner
 M.Blocks = Blocks

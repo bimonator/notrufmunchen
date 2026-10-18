@@ -5,6 +5,7 @@
 -- Café-Terrassen mit blauen Schirmen, Fahrräder und Bänke. Reine Geometrie; Teilefelder wie in den anderen Planern.
 
 local Geo = require(script and script.Parent.Geo or "Geo")
+local Baenke = require(script and script.Parent.Baenke or "Baenke")
 
 local Marienplatz = {}
 
@@ -20,7 +21,7 @@ function Marienplatz.plan(cfg)
 		parts[#parts + 1] = {
 			name = name, kind = extra.kind or "plaza", size = { Geo.round3(sx), Geo.round3(sy), Geo.round3(sz) }, pos = { Geo.round3(x), Geo.round3(y), Geo.round3(z) },
 			yaw = extra.yaw or 0, pitch = extra.pitch or 0, roll = extra.roll, color = color, material = mat, collide = extra.collide == true,
-			shape = extra.shape, text = extra.text, tag = extra.tag, attrs = extra.attrs, transparency = extra.transparency,
+			shape = extra.shape, text = extra.text, tag = extra.tag, attrs = extra.attrs, transparency = extra.transparency, seat = extra.seat,
 		}
 	end
 	local function vcyl(name, x, y, z, h, d, color, mat, extra)
@@ -94,12 +95,13 @@ function Marienplatz.plan(cfg)
 	add("Strahlenkranz", S.x, top + 50.2, S.z - 0.7, 0.2, 3.6, 3.6, { 250, 220, 120 }, "Neon", { shape = "Cylinder", yaw = 90 })
 	add("Christuskind", S.x - 1.1, top + 48.4, S.z + 0.5, 0.9, 0.9, 0.9, GOLD, "Metal", { shape = "Ball" })
 	add("Zepter", S.x + 1.1, top + 48.8, S.z + 0.3, 0.2, 3, 0.2, GOLD, "Metal")
-	local function bench(x, z, yaw)
-		add("Bank", x, 2.1, z, 5, 0.5, 1.6, { 120, 84, 56 }, "Wood", { yaw = yaw, collide = true })
-		add("BankLehne", x, 3, z, 5, 1.4, 0.3, { 120, 84, 56 }, "Wood", { yaw = yaw })
-		add("BankFuss", x, 1.5, z, 4.4, 1, 1.2, { 60, 62, 66 }, "Metal", { yaw = yaw })
+	local function benchPart(name, kind, x, y, z, sx, sy, sz, color, mat, extra)
+		extra = extra or {}
+		extra.kind = kind
+		add(name, x, y, z, sx, sy, sz, color, mat, extra)
 	end
-	for _, b in ipairs({ { S.x - 22, S.z, 90 }, { S.x + 22, S.z, 90 }, { S.x, S.z + 22, 0 } }) do bench(b[1], b[2], b[3]) end
+	-- Plaster liegt auf y = 1; die Bänke blicken zur Säule
+	for _, b in ipairs({ { S.x - 22, S.z, 270 }, { S.x + 22, S.z, 90 }, { S.x, S.z + 22, 0 } }) do Baenke.add(benchPart, b[1], 1, b[2], b[3]) end
 
 	-- U-Bahn-Abgang: 14 Stufen nach Norden hinab (Oberkanten von 1 bis 1 - depth), Podest, Seitenwände mit Geländer, Portal in der Nordwand,
 	-- dahinter ein beleuchteter Gang (Terrain-Aushub in TerrainPlanner), Schilder U, S und MARIENPLATZ

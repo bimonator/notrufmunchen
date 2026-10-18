@@ -5,6 +5,8 @@
 
 local Geo = require(script and script.Parent.Geo or "Geo")
 local TerrainPlanner = require(script and script.Parent.TerrainPlanner or "TerrainPlanner")
+local Baenke = require(script and script.Parent.Baenke or "Baenke")
+local Blumen = require(script and script.Parent.Blumen or "Blumen")
 
 local Garden = {}
 
@@ -28,7 +30,7 @@ local function emitter(parts)
 		parts[#parts + 1] = {
 			name = name, kind = kind, size = { Geo.round3(sx), Geo.round3(sy), Geo.round3(sz) }, pos = { Geo.round3(x), Geo.round3(y), Geo.round3(z) },
 			yaw = Geo.round3(extra.yaw or 0), pitch = extra.pitch or 0, roll = extra.roll, color = color, material = material, collide = extra.collide == true,
-			shape = extra.shape, text = extra.text, transparency = extra.transparency, tag = extra.tag, attrs = extra.attrs,
+			shape = extra.shape, text = extra.text, transparency = extra.transparency, tag = extra.tag, attrs = extra.attrs, seat = extra.seat,
 		}
 	end
 end
@@ -74,15 +76,9 @@ local function tree(add, rng, x, y, z, scale, prefix)
 	end
 end
 
--- Bank: Sitzfläche, Lehne, zwei Beine; yaw = Blickrichtung wie bei Teilen (lokale x-Achse läuft entlang der Bank)
+-- Bank (Baenke.lua): Latten, Gusseisenrahmen, zwei Sitze; yaw = Blickrichtung wie bei Teilen (lokale x-Achse läuft entlang der Bank)
 local function bench(add, x, y, z, yaw)
-	local r = math.rad(yaw)
-	local nx, nz = math.sin(r), math.cos(r) -- lokale z-Richtung
-	add("BankSitz", "bench", x, y + 1.3, z, 4.4, 0.4, 1.5, { 130, 90, 60 }, "Wood", { yaw = yaw, collide = true })
-	add("BankLehne", "bench", x + nx * 0.7, y + 2.3, z + nz * 0.7, 4.4, 1.2, 0.3, { 130, 90, 60 }, "Wood", { yaw = yaw })
-	for _, sd in ipairs({ -1.8, 1.8 }) do
-		add("BankBein", "bench", x + math.cos(r) * sd, y + 0.65, z - math.sin(r) * sd, 0.4, 1.3, 1.2, { 60, 62, 66 }, "Metal", { yaw = yaw })
-	end
+	Baenke.add(add, x, y, z, yaw)
 end
 
 local function strip(add, name, x0, z0, x1, z1, w, base, lift, color, material)
@@ -139,14 +135,15 @@ local function hofgarten(cfg, add, rng, free)
 		fountain(add, x, cz, 10)
 	end
 	-- Blumenbeete in den vier Vierteln (rot, gelb, lila, weiß im Wechsel)
-	local colors = { { 200, 60, 70 }, { 240, 200, 60 }, { 150, 80, 170 }, { 240, 240, 236 } }
-	local k = 0
+	-- (eigene Zufallsreihe, damit die Bäume unten unverändert bleiben)
+	local bedRng = newRng(31)
+	local k, flowers = 0, 0
 	for _, qx in ipairs({ -1, 1 }) do
 		for _, qz in ipairs({ -1, 1 }) do
 			for i = 0, 2 do
 				for j = 0, 1 do
 					k = k + 1
-					add("Beet", "decor", cx + qx * (40 + i * 20), 0.3, cz + qz * (26 + j * 14), 16, 0.6, 10, colors[(k % 4) + 1], "Grass")
+					flowers = flowers + Blumen.bed(add, cx + qx * (40 + i * 20), cz + qz * (26 + j * 14), 16, 10, 0, bedRng, k, true)
 				end
 			end
 		end

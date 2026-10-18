@@ -41,6 +41,15 @@ local function nearGrass(x, z, r)
 	return Geo.polyDist(x, z, Config.water.isar.pts) < Config.water.isar.layers[1][3] + 10 + r
 end
 
+-- Terrain unter Rondell, Becken und Plattenweg des Friedensengels von Gras zu Pflaster (sonst ragen Gras-Büschel durch den Stein)
+local function paveFriedensengel(origin)
+	local L, t = Config.landmarks.friedensengel, Config.terrace
+	local n = Builder.paveDisk(origin.X + L.x, origin.Z + L.z, 30, origin.Y + L.baseY)
+	local pw0, pw1 = t.x0 + 0.5, L.x - 28 -- Plattenweg von der Westkante der Terrasse zum Rondell (Landmarks.friedensengel)
+	local spec = { kind = "path", size = { pw1 - pw0, 0.2, 10 }, pos = { (pw0 + pw1) / 2, L.baseY + 0.35, L.z }, yaw = 0 }
+	return n + Builder.paveUnder({ spec }, origin, function() return true end)
+end
+
 local STEPS = {
 	terrain = function(opts, origin)
 		if opts.clearTerrain ~= false then Builder.clearTerrain() end
@@ -60,7 +69,7 @@ local STEPS = {
 		local OLD = {} -- Namen der früheren und der neuen Eisbach-Teile im Umkreis der Welle
 		for _, n in ipairs({ "Eisbachwelle", "Schussrinne", "Kanalwasser", "Kanalboden", "Wellenschaum", "Wellental", "Gischt", "Wellenkamm", "Wellenzug", "SurfZone", "Ufermauer", "Kanalmauer", "Mauerkappe", "Kanalstufe", "Plateau", "Plateaubalken",
 			"Plateauquerbalken", "Plateaupfosten", "Holzstufe", "RettungsringPfosten", "Rettungsring", "EisStamm", "EisKrone", "Zuschauerdeck", "DeckGelaender", "Schild", "SchildPfosten", "Schrift",
-			"BankSitz", "BankLehne", "BankBein", "Uferweg", "Wellenhang", "Wellenruecken", "Wellenflanke", "Wellenkrone", "Nachlauf", "Sitzbohle", "Stegstufe", "StegWest", "StegWestBalken", "StegWestQuerbalken",
+			"BankSitz", "BankLehne", "BankBein", "BankLatte", "BankRueckenlatte", "BankRahmen", "BankArmlehne", "Uferweg", "Wellenhang", "Wellenruecken", "Wellenflanke", "Wellenkrone", "Nachlauf", "Sitzbohle", "Stegstufe", "StegWest", "StegWestBalken", "StegWestQuerbalken",
 			"StegWestPfosten", "Stegpoller", "RettungsringSegment", "RettungsringTafel", "Kanalboden", "Kanalwasser" }) do OLD[n] = true end
 		local removed = 0
 		for _, c in ipairs(gardens:GetChildren()) do
@@ -126,6 +135,22 @@ local STEPS = {
 		Builder.buildParts(list, folder, origin)
 		return string.format("%d Teile der Kugelleuchten erneuert", #list)
 	end,
+	stachusbrunnen = function(opts, origin) -- nur der Brunnen am Stachus (Becken, Düsen, Mittelstrahl, Poller, Sitzsteine, Pflasterringe) in der fertigen Karte neu, übrige Teile bleiben
+		local folder = game:GetService("Workspace"):FindFirstChild("Map").Stachus
+		local S = Config.stachus
+		local NAMES = { Pflasterring = true, Beckenrand = true, Beckenboden = true, Wasser = true, Duese = true, Mittelstrahl = true, Mittelsockel = true, Poller = true, Sitzstein = true }
+		local function near(x, z) return math.sqrt((x - S.cx) ^ 2 + (z - S.cz) ^ 2) < 62 end
+		local removed = 0
+		for _, c in ipairs(folder:GetChildren()) do
+			if c:IsA("BasePart") and NAMES[c.Name] and near(c.Position.X - origin.X, c.Position.Z - origin.Z) then c:Destroy() removed = removed + 1 end
+		end
+		local list = {}
+		for _, p in ipairs(Stachus.plan(Config).parts) do
+			if NAMES[p.name] and near(p.pos[1], p.pos[3]) then list[#list + 1] = p end
+		end
+		Builder.buildParts(list, folder, origin)
+		return string.format("%d alte Brunnenteile entfernt, %d neu", removed, #list)
+	end,
 	pave = function(opts, origin) -- Terrain unter Wegen und Straßen von Gras zu Pflaster, damit dort keine Gras-Büschel wachsen
 		local roadPlan = RoadsPlanner.plan(Config)
 		local specs = {}
@@ -133,7 +158,53 @@ local STEPS = {
 			for _, p in ipairs(list) do specs[#specs + 1] = p end
 		end
 		local n = Builder.paveUnder(specs, origin, function(p) return nearGrass(p.pos[1], p.pos[3], math.max(p.size[1], p.size[3]) / 2) end)
-		return string.format("%d Zellenreihen unter Wegen und Straßen von Gras zu Pflaster", n)
+		n = n + paveFriedensengel(origin)
+		return string.format("%d Zellenreihen unter Wegen, Straßen und dem Friedensengel von Gras zu Pflaster", n)
+	end,
+	friedensengel = function(opts, origin) -- nur das Terrain unter Rondell, Becken und Plattenweg des Friedensengels (Gras-Büschel weg)
+		return string.format("%d Zellenreihen von Gras zu Pflaster", paveFriedensengel(origin))
+	end,
+	luecken = function(opts, origin) -- Gehweg-Lücken (Config.gehwegLuecken) in der fertigen Karte neu bauen; übrige Straßenteile bleiben
+		local folder = game:GetService("Workspace"):FindFirstChild("Map").Strassen
+		local removed = 0
+		for _, c in ipairs(folder:GetChildren()) do
+			if c.Name == "GehwegLuecke" then c:Destroy() removed = removed + 1 end
+		end
+		local list = {}
+		for _, p in ipairs(RoadsPlanner.plan(Config).parts) do
+			if p.name == "GehwegLuecke" then list[#list + 1] = p end
+		end
+		Builder.buildParts(list, folder, origin)
+		Builder.paveUnder(list, origin, function() return true end)
+		return string.format("%d alte Teile entfernt, %d neu", removed, #list)
+	end,
+	gartendetails = function(opts, origin) -- Bänke und Blumenbeete der Grünanlagen und des Marienplatzes in der fertigen Karte neu (Anlagen: Schritt "anlagen"); übrige Teile bleiben
+		local map = game:GetService("Workspace"):FindFirstChild("Map")
+		local NEU = { "BankSitz", "BankLatte", "BankRueckenlatte", "BankRahmen", "BankArmlehne" }
+		local function names(list)
+			local set = {}
+			for _, n in ipairs(NEU) do set[n] = true end
+			for _, n in ipairs(list) do set[n] = true end
+			return set
+		end
+		local jobs = {
+			{ map.Gruenanlagen, Garden.plan(Config, RoadsPlanner.plan(Config), Specials).parts, names({ "BankLehne", "BankBein", "Beet", "BeetErde", "BeetLaub", "BeetRand", "Blumenstiel", "Blume", "BlumeMitte" }) },
+			{ map.Marienplatz, Marienplatz.plan(Config).parts, names({ "Bank", "BankLehne", "BankFuss" }) },
+		}
+		local removed, built = 0, 0
+		for _, job in ipairs(jobs) do
+			local folder, parts, set = job[1], job[2], job[3]
+			for _, c in ipairs(folder:GetChildren()) do
+				if set[c.Name] then c:Destroy() removed = removed + 1 end
+			end
+			local list = {}
+			for _, p in ipairs(parts) do
+				if set[p.name] then list[#list + 1] = p end
+			end
+			Builder.buildParts(list, folder, origin)
+			built = built + #list
+		end
+		return string.format("%d alte Teile entfernt, %d neu (Bänke, Blumenbeete)", removed, built)
 	end,
 	roads = function(opts, origin)
 		local plan = RoadsPlanner.plan(Config)
@@ -347,7 +418,7 @@ local STEPS = {
 	end,
 }
 
-BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "stachus", "autohaus", "werkstatt", "anlagen", "gardens", "pave", "houses", "skyline", "bus", "tram", "wall" }
+BuildAll.order = { "terrain", "roads", "lights", "landmarks", "marienplatz", "stachus", "autohaus", "werkstatt", "anlagen", "gardens", "pave", "houses", "skyline", "bus", "wall" } -- "tram" (Schritt vorhanden, derzeit nicht gewünscht) gehört bei Bedarf vor "wall"
 
 -- Nach dem Terrain: echte Bodenhöhe messen (alles weitere wird daran ausgerichtet) und prüfen, ob Wasser da ist.
 local function afterTerrain(base)

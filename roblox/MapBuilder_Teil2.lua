@@ -2,6 +2,8 @@
 -- ModuleScript mit dem Namen "Teil2" als Kind des Scripts MapBuilder (bzw. des Plugin-Scripts) anlegen und diesen Text einfügen.
 return function(M)
 local Geo = M.Geo
+local Baenke = M.Baenke
+local Blumen = M.Blumen
 local Config = M.Config
 local Planner = M.Planner
 local Blocks = M.Blocks
@@ -289,6 +291,9 @@ end
 piece("EinfahrtRampe", a0, a0 + RAMP, 0.78)
 piece("Einfahrt", a0 + RAMP, a1 - RAMP, 1.04)
 piece("EinfahrtRampe", a1 - RAMP, a1, 0.78)
+end
+for _, g in ipairs(cfg.gehwegLuecken or {}) do
+part(parts, "GehwegLuecke", "walk", (g[1] + g[3]) / 2, TOP.walk - THICK.walk / 2, (g[2] + g[4]) / 2, g[3] - g[1], THICK.walk, g[4] - g[2], 0, COLOR.walk, MATERIAL.walk, {})
 end
 for _, b in ipairs(cfg.bays) do
 local x0, z0, x1, z1 = b[1], b[2], b[3], b[4]
@@ -1473,6 +1478,7 @@ return Rathaus
 end)()
 local Marienplatz = (function()
 local Geo = Geo
+local Baenke = Baenke
 local Marienplatz = {}
 local GRANITE, JOINT, BAND = { 204, 198, 188 }, { 172, 166, 156 }, { 150, 96, 84 }
 function Marienplatz.plan(cfg)
@@ -1485,7 +1491,7 @@ extra = extra or {}
 parts[#parts + 1] = {
 name = name, kind = extra.kind or "plaza", size = { Geo.round3(sx), Geo.round3(sy), Geo.round3(sz) }, pos = { Geo.round3(x), Geo.round3(y), Geo.round3(z) },
 yaw = extra.yaw or 0, pitch = extra.pitch or 0, roll = extra.roll, color = color, material = mat, collide = extra.collide == true,
-shape = extra.shape, text = extra.text, tag = extra.tag, attrs = extra.attrs, transparency = extra.transparency,
+shape = extra.shape, text = extra.text, tag = extra.tag, attrs = extra.attrs, transparency = extra.transparency, seat = extra.seat,
 }
 end
 local function vcyl(name, x, y, z, h, d, color, mat, extra)
@@ -1554,12 +1560,12 @@ vcyl("MadonnaKrone", S.x, top + 50.9, S.z, 0.6, 1, GOLD, "Metal")
 add("Strahlenkranz", S.x, top + 50.2, S.z - 0.7, 0.2, 3.6, 3.6, { 250, 220, 120 }, "Neon", { shape = "Cylinder", yaw = 90 })
 add("Christuskind", S.x - 1.1, top + 48.4, S.z + 0.5, 0.9, 0.9, 0.9, GOLD, "Metal", { shape = "Ball" })
 add("Zepter", S.x + 1.1, top + 48.8, S.z + 0.3, 0.2, 3, 0.2, GOLD, "Metal")
-local function bench(x, z, yaw)
-add("Bank", x, 2.1, z, 5, 0.5, 1.6, { 120, 84, 56 }, "Wood", { yaw = yaw, collide = true })
-add("BankLehne", x, 3, z, 5, 1.4, 0.3, { 120, 84, 56 }, "Wood", { yaw = yaw })
-add("BankFuss", x, 1.5, z, 4.4, 1, 1.2, { 60, 62, 66 }, "Metal", { yaw = yaw })
+local function benchPart(name, kind, x, y, z, sx, sy, sz, color, mat, extra)
+extra = extra or {}
+extra.kind = kind
+add(name, x, y, z, sx, sy, sz, color, mat, extra)
 end
-for _, b in ipairs({ { S.x - 22, S.z, 90 }, { S.x + 22, S.z, 90 }, { S.x, S.z + 22, 0 } }) do bench(b[1], b[2], b[3]) end
+for _, b in ipairs({ { S.x - 22, S.z, 270 }, { S.x + 22, S.z, 90 }, { S.x, S.z + 22, 0 } }) do Baenke.add(benchPart, b[1], 1, b[2], b[3]) end
 local CONC, STEEL, UBLUE, SGREEN, WHITE = { 176, 174, 168 }, { 70, 74, 80 }, { 0, 94, 184 }, { 0, 150, 70 }, { 255, 255, 255 }
 local nSteps, landing = 14, 6
 local rise, run = U.depth / nSteps, (U.z1 - U.z0 - landing) / nSteps
@@ -1762,31 +1768,33 @@ else
 add("Fuge", "plaza", (S.x0 + S.x1) / 2, 1.1, z, S.x1 - S.x0, 0.2, 0.3, { 172, 166, 156 }, "SmoothPlastic")
 end
 end
-for i, rr in ipairs({ 52, 49, 46 }) do vcyl("Pflasterring", "plaza", cx, 1.0 + i * 0.15, cz, 0.3, 2 * rr, i == 2 and { 150, 96, 84 } or { 186, 180, 170 }, "Granite") end
-local R = S.basin
+local K = S.fountainScale or 0.9
+local function ky(y) return 1 + (y - 1) * K end
+for i, rr in ipairs({ 52, 49, 46 }) do vcyl("Pflasterring", "plaza", cx, 1.0 + i * 0.15, cz, 0.3, 2 * rr * K, i == 2 and { 150, 96, 84 } or { 186, 180, 170 }, "Granite") end
+local R = S.basin * K
 for i = 0, 35 do
 local a = math.rad(i * 10)
-add("Beckenrand", "plaza", cx + R * math.cos(a), 2.1, cz + R * math.sin(a), 8, 2.2, 2.6, STONE, "Granite", { yaw = math.deg(math.atan2(-math.cos(a), -math.sin(a))) % 360, collide = true })
+add("Beckenrand", "plaza", cx + R * math.cos(a), ky(2.1), cz + R * math.sin(a), 8 * K, 2.2 * K, 2.6 * K, STONE, "Granite", { yaw = math.deg(math.atan2(-math.cos(a), -math.sin(a))) % 360, collide = true })
 end
 vcyl("Beckenboden", "plaza", cx, 1.2, cz, 0.3, 2 * R, { 120, 140, 156 }, "Concrete")
-vcyl("Wasser", "plaza", cx, 2.3, cz, 0.4, 2 * R - 2, { 130, 180, 214 }, "SmoothPlastic", { transparency = 0.45 })
+vcyl("Wasser", "plaza", cx, ky(2.3), cz, 0.4, 2 * R - 2 * K, { 130, 180, 214 }, "SmoothPlastic", { transparency = 0.45 })
 for _, ring in ipairs({ { 20, 24, 10, 6, 30, 26 }, { 32, 30, 8, 5, 35, 22 } }) do -- Radius, Düsen, Reichweite, Höhe, Neigung nach außen (Grad), Strahlgeschwindigkeit
 for k = 0, ring[2] - 1 do
 local a = math.rad(k * 360 / ring[2] + (ring[1] > 25 and 6 or 0))
-add("Duese", "plaza", cx + ring[1] * math.cos(a), 2.6, cz + ring[1] * math.sin(a), 0.5, 0.5, 0.5, { 240, 248, 255 }, "SmoothPlastic",
-{ yaw = (90 - math.deg(a)) % 360, pitch = ring[5], emitter = { rate = 16, speed = ring[6], spread = 3, gravity = 60, life = 1.1, size = 0.5, color = { 225, 240, 255 } } })
+add("Duese", "plaza", cx + ring[1] * K * math.cos(a), ky(2.6), cz + ring[1] * K * math.sin(a), 0.5, 0.5, 0.5, { 240, 248, 255 }, "SmoothPlastic",
+{ yaw = (90 - math.deg(a)) % 360, pitch = ring[5], emitter = { rate = 16, speed = ring[6] * math.sqrt(K), spread = 3, gravity = 60, life = 1.1, size = 0.5, color = { 225, 240, 255 } } })
 stats.jets = stats.jets + 1
 end
 end
-vcyl("Mittelstrahl", "plaza", cx, 9, cz, 14, 1.4, { 240, 248, 255 }, "SmoothPlastic", { transparency = 0.3 })
-vcyl("Mittelsockel", "plaza", cx, 2.2, cz, 1.6, 8, STONE, "Granite", { collide = true })
+vcyl("Mittelstrahl", "plaza", cx, ky(9), cz, 14 * K, 1.4 * K, { 240, 248, 255 }, "SmoothPlastic", { transparency = 0.3 })
+vcyl("Mittelsockel", "plaza", cx, ky(2.2), cz, 1.6 * K, 8 * K, STONE, "Granite", { collide = true })
 for i = 0, 35 do -- Poller (niedrige Steinstümpfe) rund um das Becken
 local a = math.rad(i * 10 + 5)
-vcyl("Poller", "plaza", cx + (R + 7) * math.cos(a), 2.3, cz + (R + 7) * math.sin(a), 2.6, 2.4, { 150, 146, 140 }, "Granite", { collide = true })
+vcyl("Poller", "plaza", cx + (R + 7 * K) * math.cos(a), ky(2.3), cz + (R + 7 * K) * math.sin(a), 2.6 * K, 2.4 * K, { 150, 146, 140 }, "Granite", { collide = true })
 end
 for i = 0, 9 do -- Sitzsteine auf der Ostseite
 local a = math.rad(-72 + i * 16)
-add("Sitzstein", "plaza", cx + (R + 11) * math.cos(a), 2.3, cz + (R + 11) * math.sin(a), 3.4, 2.6, 2.6, { 160, 156, 148 }, "Granite", { yaw = i * 23, collide = true })
+add("Sitzstein", "plaza", cx + (R + 11 * K) * math.cos(a), ky(2.3), cz + (R + 11 * K) * math.sin(a), 3.4 * K, 2.6 * K, 2.6 * K, { 160, 156, 148 }, "Granite", { yaw = i * 23, collide = true })
 end
 local shopNo, roofSigns = 0, {}
 local function segment(x, z, psi, len, idx, opts)
@@ -2610,6 +2618,8 @@ end)()
 local Garden = (function()
 local Geo = Geo
 local TerrainPlanner = TerrainPlanner
+local Baenke = Baenke
+local Blumen = Blumen
 local Garden = {}
 local GRAVEL, STONE, SAND = { 206, 196, 172 }, { 206, 200, 186 }, { 214, 200, 168 }
 local BARK = { 96, 70, 48 }
@@ -2629,7 +2639,7 @@ extra = extra or {}
 parts[#parts + 1] = {
 name = name, kind = kind, size = { Geo.round3(sx), Geo.round3(sy), Geo.round3(sz) }, pos = { Geo.round3(x), Geo.round3(y), Geo.round3(z) },
 yaw = Geo.round3(extra.yaw or 0), pitch = extra.pitch or 0, roll = extra.roll, color = color, material = material, collide = extra.collide == true,
-shape = extra.shape, text = extra.text, transparency = extra.transparency, tag = extra.tag, attrs = extra.attrs,
+shape = extra.shape, text = extra.text, transparency = extra.transparency, tag = extra.tag, attrs = extra.attrs, seat = extra.seat,
 }
 end
 end
@@ -2670,13 +2680,7 @@ add(prefix .. "Krone", "tree", x + (rng() - 0.5) * 4, y + h + cw * 0.15, z + (rn
 end
 end
 local function bench(add, x, y, z, yaw)
-local r = math.rad(yaw)
-local nx, nz = math.sin(r), math.cos(r) -- lokale z-Richtung
-add("BankSitz", "bench", x, y + 1.3, z, 4.4, 0.4, 1.5, { 130, 90, 60 }, "Wood", { yaw = yaw, collide = true })
-add("BankLehne", "bench", x + nx * 0.7, y + 2.3, z + nz * 0.7, 4.4, 1.2, 0.3, { 130, 90, 60 }, "Wood", { yaw = yaw })
-for _, sd in ipairs({ -1.8, 1.8 }) do
-add("BankBein", "bench", x + math.cos(r) * sd, y + 0.65, z - math.sin(r) * sd, 0.4, 1.3, 1.2, { 60, 62, 66 }, "Metal", { yaw = yaw })
-end
+Baenke.add(add, x, y, z, yaw)
 end
 local function strip(add, name, x0, z0, x1, z1, w, base, lift, color, material)
 local ux, uz, len = Geo.dir(x0, z0, x1, z1)
@@ -2724,14 +2728,14 @@ for _, x in ipairs(fx) do
 disc(add, "Brunnenplatz", x, 0.1, cz, 26, 0.5, SAND, "Pavement")
 fountain(add, x, cz, 10)
 end
-local colors = { { 200, 60, 70 }, { 240, 200, 60 }, { 150, 80, 170 }, { 240, 240, 236 } }
-local k = 0
+local bedRng = newRng(31)
+local k, flowers = 0, 0
 for _, qx in ipairs({ -1, 1 }) do
 for _, qz in ipairs({ -1, 1 }) do
 for i = 0, 2 do
 for j = 0, 1 do
 k = k + 1
-add("Beet", "decor", cx + qx * (40 + i * 20), 0.3, cz + qz * (26 + j * 14), 16, 0.6, 10, colors[(k % 4) + 1], "Grass")
+flowers = flowers + Blumen.bed(add, cx + qx * (40 + i * 20), cz + qz * (26 + j * 14), 16, 10, 0, bedRng, k, true)
 end
 end
 end
